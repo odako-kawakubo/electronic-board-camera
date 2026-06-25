@@ -63,12 +63,26 @@
       pointer-events: none;
     }
 
-    .hidden {
+    .hidden,
+    .hidden-control {
       display: none !important;
     }
 
-    .hidden-control {
-      display: none !important;
+    /* =========================
+     * 撮影枚数表示
+     * ========================= */
+    #photoCount {
+      position: absolute;
+      left: 12px;
+      top: calc(12px + env(safe-area-inset-top));
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.65);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 900;
+      pointer-events: none;
     }
 
     /* =========================
@@ -256,6 +270,7 @@
 
     /* =========================
      * 右下ボタン
+     * カメラ起動後：表示 → 撮影
      * ========================= */
     .controls {
       position: absolute !important;
@@ -290,37 +305,20 @@
       color: #fff;
     }
 
-    .btn-shoot {
-      background: #fff;
-      color: #000;
-      min-width: 92px;
-    }
-
     .btn-view {
       background: #f2c94c;
       color: #000;
       min-width: 80px;
     }
 
-    /* =========================
-     * 撮影枚数表示
-     * ========================= */
-    #photoCount {
-      position: absolute;
-      left: 12px;
-      top: calc(12px + env(safe-area-inset-top));
-      z-index: 9999;
-      background: rgba(0, 0, 0, 0.65);
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 900;
-      pointer-events: none;
+    .btn-shoot {
+      background: #fff;
+      color: #000;
+      min-width: 92px;
     }
 
     /* =========================
-     * プレビュー
+     * プレビュー画面
      * ========================= */
     #previewOverlay {
       position: fixed;
@@ -332,18 +330,66 @@
       align-items: center;
       justify-content: center;
       padding: calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom));
+      touch-action: pan-y;
     }
 
     #previewOverlay.show {
       display: flex;
     }
 
+    #previewCounter {
+      color: #fff;
+      font-size: 17px;
+      font-weight: 900;
+      margin-bottom: 10px;
+      min-height: 24px;
+    }
+
+    #previewImageWrap {
+      position: relative;
+      width: 100%;
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
     #previewImage {
       max-width: 100%;
-      max-height: calc(100dvh - 110px);
+      max-height: calc(100dvh - 145px);
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
+      user-select: none;
+      -webkit-user-drag: none;
+      touch-action: pan-y;
+    }
+
+    .preview-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      color: #000;
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 44px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .preview-arrow.left {
+      left: 6px;
+    }
+
+    .preview-arrow.right {
+      right: 6px;
     }
 
     .preview-controls {
@@ -492,15 +538,6 @@
       </button>
 
       <button
-        id="shootButton"
-        class="control-button btn-shoot hidden-control"
-        type="button"
-        onclick="takePhoto()"
-      >
-        撮影
-      </button>
-
-      <button
         id="viewButton"
         class="control-button btn-view hidden-control"
         type="button"
@@ -508,16 +545,31 @@
       >
         表示
       </button>
+
+      <button
+        id="shootButton"
+        class="control-button btn-shoot hidden-control"
+        type="button"
+        onclick="takePhoto()"
+      >
+        撮影
+      </button>
     </div>
 
     <div id="toast"></div>
   </div>
 
   <div id="previewOverlay">
-    <img id="previewImage" alt="撮影写真" />
+    <div id="previewCounter">0 / 0</div>
+
+    <div id="previewImageWrap">
+      <button class="preview-arrow left" type="button" onclick="showPrevPhoto()">‹</button>
+      <img id="previewImage" alt="撮影写真" />
+      <button class="preview-arrow right" type="button" onclick="showNextPhoto()">›</button>
+    </div>
 
     <div class="preview-controls">
-      <button class="preview-button btn-save" type="button" onclick="saveLatestPhoto()">保存</button>
+      <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
     </div>
   </div>
@@ -549,13 +601,14 @@
     const dateText = document.getElementById("dateText");
 
     const startButton = document.getElementById("startButton");
-    const shootButton = document.getElementById("shootButton");
     const viewButton = document.getElementById("viewButton");
+    const shootButton = document.getElementById("shootButton");
     const statusButtons = Array.from(document.querySelectorAll(".status-btn"));
 
     const photoCount = document.getElementById("photoCount");
     const previewOverlay = document.getElementById("previewOverlay");
     const previewImage = document.getElementById("previewImage");
+    const previewCounter = document.getElementById("previewCounter");
     const toast = document.getElementById("toast");
 
     let currentStream = null;
@@ -564,6 +617,7 @@
     let toastTimer = null;
 
     const capturedPhotos = [];
+    let previewIndex = 0;
 
     const boardState = {
       x: 12,
@@ -586,10 +640,14 @@
       localMidY: 0
     };
 
+    let previewTouchStartX = 0;
+    let previewTouchStartY = 0;
+
     document.addEventListener("DOMContentLoaded", () => {
       initializeBoard();
       setupStatusButtons();
       setupBoardGesture();
+      setupPreviewSwipe();
 
       requestAnimationFrame(() => {
         setInitialBoardLayout();
@@ -742,7 +800,6 @@
       }
 
       event.preventDefault();
-
       boardWrap.classList.add("dragging");
 
       try {
@@ -878,7 +935,6 @@
     async function startCamera() {
       try {
         requestFullscreenSafe();
-
         stopCurrentStream();
 
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -897,8 +953,8 @@
 
         cameraGuide.classList.add("hidden");
         startButton.classList.add("hidden-control");
-        shootButton.classList.remove("hidden-control");
         viewButton.classList.remove("hidden-control");
+        shootButton.classList.remove("hidden-control");
 
         showToast("カメラを起動しました");
       } catch (error) {
@@ -936,14 +992,16 @@
       try {
         const canvas = captureCompositedImage();
         const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        const createdAt = new Date();
 
         capturedPhotos.push({
           dataUrl,
-          fileName: `electronic_board_${formatFileDate(new Date())}_${getStatusLabel(selectedStatus)}.jpg`,
+          fileName: `electronic_board_${formatFileDate(createdAt)}_${getStatusLabel(selectedStatus)}.jpg`,
           status: selectedStatus,
-          createdAt: new Date()
+          createdAt
         });
 
+        previewIndex = capturedPhotos.length - 1;
         updatePhotoCount();
 
         if (navigator.vibrate) {
@@ -1004,14 +1062,17 @@
       return canvas;
     }
 
+    /* =========================
+     * 写真ビューア
+     * ========================= */
     function openPreview() {
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");
         return;
       }
 
-      const latest = capturedPhotos[capturedPhotos.length - 1];
-      previewImage.src = latest.dataUrl;
+      previewIndex = capturedPhotos.length - 1;
+      renderPreview();
       previewOverlay.classList.add("show");
     }
 
@@ -1019,20 +1080,78 @@
       previewOverlay.classList.remove("show");
     }
 
-    function saveLatestPhoto() {
+    function showPrevPhoto() {
+      if (!capturedPhotos.length) return;
+
+      previewIndex -= 1;
+
+      if (previewIndex < 0) {
+        previewIndex = capturedPhotos.length - 1;
+      }
+
+      renderPreview();
+    }
+
+    function showNextPhoto() {
+      if (!capturedPhotos.length) return;
+
+      previewIndex += 1;
+
+      if (previewIndex >= capturedPhotos.length) {
+        previewIndex = 0;
+      }
+
+      renderPreview();
+    }
+
+    function renderPreview() {
+      const photo = capturedPhotos[previewIndex];
+      previewImage.src = photo.dataUrl;
+      previewCounter.textContent = `${previewIndex + 1} / ${capturedPhotos.length}`;
+    }
+
+    function saveCurrentPreviewPhoto() {
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");
         return;
       }
 
-      const latest = capturedPhotos[capturedPhotos.length - 1];
+      const photo = capturedPhotos[previewIndex];
 
       const link = document.createElement("a");
-      link.href = latest.dataUrl;
-      link.download = latest.fileName;
+      link.href = photo.dataUrl;
+      link.download = photo.fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
+    }
+
+    function setupPreviewSwipe() {
+      previewOverlay.addEventListener("touchstart", (event) => {
+        if (!event.touches || event.touches.length !== 1) return;
+
+        previewTouchStartX = event.touches[0].clientX;
+        previewTouchStartY = event.touches[0].clientY;
+      }, { passive: true });
+
+      previewOverlay.addEventListener("touchend", (event) => {
+        if (!event.changedTouches || event.changedTouches.length !== 1) return;
+
+        const endX = event.changedTouches[0].clientX;
+        const endY = event.changedTouches[0].clientY;
+
+        const dx = endX - previewTouchStartX;
+        const dy = endY - previewTouchStartY;
+
+        if (Math.abs(dx) < 45) return;
+        if (Math.abs(dx) < Math.abs(dy)) return;
+
+        if (dx < 0) {
+          showNextPhoto();
+        } else {
+          showPrevPhoto();
+        }
+      }, { passive: true });
     }
 
     function updatePhotoCount() {
@@ -1044,6 +1163,9 @@
       return found ? found.label : value;
     }
 
+    /* =========================
+     * キャンバス上に看板を描画
+     * ========================= */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const data = {
         subject: subjectText.textContent || "",

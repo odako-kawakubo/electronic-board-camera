@@ -4,32 +4,54 @@
   <meta charset="UTF-8" />
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
   />
-  <title>電子看板カメラテスト</title>
+
+  <title>電子看板カメラ</title>
+
+  <!-- ホーム画面追加時にアプリっぽく表示するための設定 -->
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="電子看板" />
+
+  <!-- manifest.json をあとで追加すると、よりPWAっぽくなる -->
+  <link rel="manifest" href="./manifest.json" />
 
   <style>
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
-      background: #111;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
       font-family:
         "Yu Gothic",
         "Hiragino Kaku Gothic ProN",
         "Meiryo",
         sans-serif;
       color: #000;
-      overflow-x: hidden;
-      touch-action: none;
+      overscroll-behavior: none;
     }
 
+    body {
+      position: fixed;
+      inset: 0;
+    }
+
+    /* =========================
+     * カメラ画面
+     * ========================= */
     .camera-screen {
-      position: relative;
+      position: fixed;
+      inset: 0;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: #000;
       overflow: hidden;
       touch-action: none;
@@ -48,6 +70,7 @@
     .camera-guide {
       position: absolute;
       inset: 0;
+      z-index: 1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -57,7 +80,6 @@
       font-weight: 700;
       line-height: 1.7;
       background: #111;
-      z-index: 1;
     }
 
     .camera-guide.hidden {
@@ -66,7 +88,7 @@
 
     /* =========================
      * 電子看板
-     * 位置とサイズはJSで制御する
+     * JSで位置・サイズを制御する
      * ========================= */
     .board-frame {
       position: absolute;
@@ -120,6 +142,7 @@
       line-height: 1.25;
       word-break: break-word;
       user-select: text;
+      -webkit-user-select: text;
     }
 
     .project-name {
@@ -169,6 +192,7 @@
       font-weight: 900;
       line-height: 1.1;
       user-select: text;
+      -webkit-user-select: text;
     }
 
     .check-row-wrap {
@@ -217,10 +241,13 @@
       letter-spacing: 0.06em;
     }
 
+    /* =========================
+     * 下部ボタン
+     * ========================= */
     .controls {
       position: absolute;
       left: 0;
-      bottom: calc(16px + env(safe-area-inset-bottom));
+      bottom: calc(14px + env(safe-area-inset-bottom));
       width: 100%;
       z-index: 3;
       display: flex;
@@ -240,6 +267,7 @@
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
       touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .btn-start {
@@ -258,46 +286,32 @@
       color: #000;
     }
 
-    .btn-clear {
+    .btn-stop {
       background: #444;
       color: #fff;
     }
 
-    .result-area {
-      background: #1e1e1e;
+    /* 撮影完了表示 */
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: calc(76px + env(safe-area-inset-bottom));
+      z-index: 4;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.78);
       color: #fff;
-      padding: 12px;
-    }
-
-    .result-title {
-      font-weight: 900;
-      margin-bottom: 8px;
-    }
-
-    #resultImage {
-      width: 100%;
-      max-width: 900px;
-      display: none;
-      border: 1px solid #666;
-      background: #000;
-    }
-
-    .download-link {
-      display: none;
-      margin: 8px 0 12px 0;
-      padding: 10px 14px;
-      background: #fff;
-      color: #000;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 900;
-    }
-
-    .memo {
-      color: #ddd;
+      padding: 9px 14px;
+      border-radius: 999px;
       font-size: 13px;
-      line-height: 1.6;
-      margin-top: 10px;
+      font-weight: 900;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
     }
   </style>
 </head>
@@ -309,7 +323,7 @@
     <div id="cameraGuide" class="camera-guide">
       <div>
         「カメラ起動」を押してください。<br>
-        スマホではカメラ許可が出たら「許可」を押します。
+        カメラ許可が出たら「許可」を押します。
       </div>
     </div>
 
@@ -406,21 +420,10 @@
       <button class="btn-start" type="button" onclick="startCamera()">カメラ起動</button>
       <button class="btn-shoot" type="button" onclick="takePhoto()">撮影</button>
       <button class="btn-reset" type="button" onclick="resetBoardPosition()">左下に戻す</button>
-      <button class="btn-clear" type="button" onclick="clearResult()">結果削除</button>
+      <button class="btn-stop" type="button" onclick="stopCurrentStream()">停止</button>
     </div>
-  </section>
 
-  <section class="result-area">
-    <div class="result-title">撮影結果</div>
-    <a id="downloadLink" class="download-link" download="electronic-board-photo.jpg">画像を保存</a>
-    <img id="resultImage" alt="撮影結果" />
-
-    <div class="memo">
-      ※ 看板は1本指で移動できます。<br>
-      ※ 看板は2本指のピンチで拡大・縮小できます。<br>
-      ※ 写真区分は □ / ■ 表示で、1つだけ選択できます。<br>
-      ※ 撮影すると、現在の位置・サイズのまま看板を焼き込みます。
-    </div>
+    <div id="toast" class="toast">保存しました</div>
   </section>
 
   <script>
@@ -428,8 +431,7 @@
     const video = document.getElementById("video");
     const photoBoard = document.getElementById("photoBoard");
     const cameraGuide = document.getElementById("cameraGuide");
-    const resultImage = document.getElementById("resultImage");
-    const downloadLink = document.getElementById("downloadLink");
+    const toast = document.getElementById("toast");
 
     let selectedType = "目視";
 
@@ -451,7 +453,16 @@
     setTodayIfEmpty();
     setupPhotoTypeSelector();
     setupBoardTouch();
-    resetBoardPosition();
+
+    // iPhoneなどで高さが落ち着いてから位置合わせ
+    window.addEventListener("load", () => {
+      setTimeout(resetBoardPosition, 200);
+    });
+
+    window.addEventListener("resize", () => {
+      clampBoardPosition();
+      applyBoardTransform();
+    });
 
     /**
      * カメラを起動する
@@ -472,9 +483,8 @@
       } catch (error) {
         console.error(error);
         alert(
-          "カメラを起動できませんでした。\n\n" +
-          "スマホではHTTPSのURLで開く必要があります。\n" +
-          "GitHub PagesのURLから開いてください。"
+          "カメラを起動できませんでした。\n" +
+          "スマホではGitHub PagesのURLから開いてください。"
         );
       }
     }
@@ -487,6 +497,7 @@
 
       video.srcObject.getTracks().forEach(track => track.stop());
       video.srcObject = null;
+      cameraGuide.classList.remove("hidden");
     }
 
     /**
@@ -494,6 +505,10 @@
      */
     function setupPhotoTypeSelector() {
       document.querySelectorAll(".type-item").forEach(item => {
+        item.addEventListener("pointerdown", event => {
+          event.stopPropagation();
+        });
+
         item.addEventListener("click", event => {
           event.stopPropagation();
           selectedType = item.dataset.type;
@@ -526,7 +541,6 @@
     }
 
     function onBoardPointerDown(event) {
-      // 入力欄や選択項目は操作を優先する
       if (isInteractiveElement(event.target)) return;
 
       event.preventDefault();
@@ -579,7 +593,7 @@
         if (pinchStartDistance > 0) {
           const ratio = currentDistance / pinchStartDistance;
           boardScale = pinchStartScale * ratio;
-          boardScale = clamp(boardScale, 0.35, 1.25);
+          boardScale = clamp(boardScale, 0.32, 1.35);
 
           clampBoardPosition();
           applyBoardTransform();
@@ -606,7 +620,8 @@
     function isInteractiveElement(target) {
       return (
         target.closest("[contenteditable='true']") ||
-        target.closest(".type-item")
+        target.closest(".type-item") ||
+        target.closest("button")
       );
     }
 
@@ -620,7 +635,7 @@
       const screenHeight = cameraScreen.clientHeight;
       const boardHeight = photoBoard.offsetHeight * boardScale;
 
-      boardY = screenHeight - boardHeight - 82;
+      boardY = screenHeight - boardHeight - 76;
 
       clampBoardPosition();
       applyBoardTransform();
@@ -643,10 +658,10 @@
       const boardW = photoBoard.offsetWidth * boardScale;
       const boardH = photoBoard.offsetHeight * boardScale;
 
-      const minX = -boardW * 0.25;
-      const minY = 0;
-      const maxX = screenW - boardW * 0.25;
-      const maxY = screenH - 55;
+      const minX = -boardW * 0.4;
+      const minY = -boardH * 0.15;
+      const maxX = screenW - boardW * 0.15;
+      const maxY = screenH - boardH * 0.15;
 
       boardX = clamp(boardX, minX, maxX);
       boardY = clamp(boardY, minY, maxY);
@@ -667,8 +682,10 @@
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
+      // カメラ映像
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+      // 看板の表示位置を画像サイズに変換
       const videoRect = video.getBoundingClientRect();
       const boardRect = photoBoard.getBoundingClientRect();
 
@@ -683,26 +700,40 @@
       drawBoardOnCanvas(ctx, drawX, drawY, drawW, drawH);
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      const filename = createFileName();
 
-      resultImage.src = dataUrl;
-      resultImage.style.display = "block";
-
-      downloadLink.href = dataUrl;
-      downloadLink.style.display = "inline-block";
-
-      setTimeout(() => {
-        resultImage.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      autoDownload(dataUrl, filename);
+      showToast("保存しました");
     }
 
     /**
-     * 撮影結果を消す
+     * 自動保存を試す
+     * iPhoneでは完全自動保存できず、画像表示や確認になる場合あり
      */
-    function clearResult() {
-      resultImage.src = "";
-      resultImage.style.display = "none";
-      downloadLink.href = "";
-      downloadLink.style.display = "none";
+    function autoDownload(dataUrl, filename) {
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /**
+     * 保存ファイル名
+     */
+    function createFileName() {
+      const now = new Date();
+
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mi = String(now.getMinutes()).padStart(2, "0");
+      const ss = String(now.getSeconds()).padStart(2, "0");
+
+      const sampleNo = getText("sampleNo") || "sample";
+      return `${yyyy}${mm}${dd}_${hh}${mi}${ss}_${selectedType}_${sampleNo}.jpg`;
     }
 
     /**
@@ -717,6 +748,7 @@
 
       ctx.save();
 
+      // 外側黒枠
       ctx.fillStyle = "#000";
       ctx.fillRect(x, y, w, h);
 
@@ -726,6 +758,7 @@
       const bw = w - pad * 2;
       const bh = h - pad * 2;
 
+      // 白背景
       ctx.fillStyle = "#fff";
       ctx.fillRect(bx, by, bw, bh);
 
@@ -763,6 +796,7 @@
       const cw = bw - labelW;
 
       const subRowH = row3H * 0.31;
+
       drawLine(ctx, cx, cy + subRowH, bx + bw, cy + subRowH);
       drawLine(ctx, cx, cy + subRowH * 2, bx + bw, cy + subRowH * 2);
 
@@ -831,6 +865,7 @@
 
     function drawFitText(ctx, text, x, y, maxWidth, fontSize) {
       let size = fontSize;
+
       ctx.fillStyle = "#000";
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
@@ -865,6 +900,15 @@
 
     function clamp(value, min, max) {
       return Math.min(Math.max(value, min), max);
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 1200);
     }
   </script>
 </body>

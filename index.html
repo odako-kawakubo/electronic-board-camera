@@ -68,9 +68,7 @@
       display: none !important;
     }
 
-    /* =========================
-     * 撮影枚数表示
-     * ========================= */
+    /* 撮影枚数表示 */
     #photoCount {
       position: absolute;
       left: 12px;
@@ -85,9 +83,7 @@
       pointer-events: none;
     }
 
-    /* =========================
-     * 看板レイヤー
-     * ========================= */
+    /* 看板レイヤー */
     .board-layer {
       position: absolute;
       inset: 0;
@@ -112,9 +108,7 @@
       cursor: grabbing;
     }
 
-    /* =========================
-     * 電子看板：横長長方形
-     * ========================= */
+    /* 電子看板：横長長方形 */
     #photoBoard {
       width: 100%;
       height: 300px;
@@ -268,10 +262,7 @@
       line-height: 1.1;
     }
 
-    /* =========================
-     * 右下ボタン
-     * カメラ起動後：表示 → 撮影
-     * ========================= */
+    /* 右下ボタン：カメラ起動後は 表示 → 撮影 */
     .controls {
       position: absolute !important;
       right: 12px !important;
@@ -317,9 +308,7 @@
       min-width: 92px;
     }
 
-    /* =========================
-     * プレビュー画面
-     * ========================= */
+    /* プレビュー画面 */
     #previewOverlay {
       position: fixed;
       inset: 0;
@@ -420,9 +409,7 @@
       color: #fff;
     }
 
-    /* =========================
-     * トースト
-     * ========================= */
+    /* トースト */
     #toast {
       position: absolute;
       left: 50%;
@@ -628,6 +615,7 @@
     };
 
     const activePointers = new Map();
+
     const gestureState = {
       mode: null,
       dragStartX: 0,
@@ -662,6 +650,22 @@
       setTimeout(() => {
         handleWindowResize();
       }, 200);
+    });
+
+    /*
+     * iPhone / iPad のホーム画面PWA対策
+     * 画面復帰時にカメラが止まることがあるため復帰を試す
+     */
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && currentStream && !previewOverlay.classList.contains("show")) {
+        resumeCameraAfterPreview();
+      }
+    });
+
+    window.addEventListener("pageshow", () => {
+      if (currentStream && !previewOverlay.classList.contains("show")) {
+        resumeCameraAfterPreview();
+      }
     });
 
     function initializeBoard() {
@@ -934,7 +938,7 @@
 
     async function startCamera() {
       try {
-        requestFullscreenSafe();
+        await requestFullscreenSafe();
         stopCurrentStream();
 
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -951,11 +955,7 @@
 
         await video.play();
 
-        cameraGuide.classList.add("hidden");
-        startButton.classList.add("hidden-control");
-        viewButton.classList.remove("hidden-control");
-        shootButton.classList.remove("hidden-control");
-
+        showCameraButtons();
         showToast("カメラを起動しました");
       } catch (error) {
         console.error(error);
@@ -981,6 +981,59 @@
       }
     }
 
+    function showCameraButtons() {
+      cameraGuide.classList.add("hidden");
+      startButton.classList.add("hidden-control");
+      viewButton.classList.remove("hidden-control");
+      shootButton.classList.remove("hidden-control");
+    }
+
+    function showStartButton() {
+      cameraGuide.classList.remove("hidden");
+      startButton.classList.remove("hidden-control");
+      viewButton.classList.add("hidden-control");
+      shootButton.classList.add("hidden-control");
+    }
+
+    /*
+     * プレビューから戻った後のカメラ復帰
+     * iPhone / iPad のホーム画面PWAで重要
+     */
+    async function resumeCameraAfterPreview() {
+      try {
+        const hasLiveTrack =
+          currentStream &&
+          currentStream.getVideoTracks &&
+          currentStream.getVideoTracks().some((track) => track.readyState === "live");
+
+        if (hasLiveTrack) {
+          video.srcObject = currentStream;
+          await video.play();
+          showCameraButtons();
+          return;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+
+        currentStream = stream;
+        video.srcObject = stream;
+        await video.play();
+
+        showCameraButtons();
+      } catch (error) {
+        console.error(error);
+        showStartButton();
+        showToast("カメラを再起動してください");
+      }
+    }
+
     function takePhoto() {
       if (!currentStream || !video.srcObject || video.readyState < 2) {
         showToast("先にカメラを起動してください");
@@ -991,7 +1044,12 @@
 
       try {
         const canvas = captureCompositedImage();
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+
+        /*
+         * iPhone/iPad向けに少し軽量化
+         * 0.95だと重くなりやすいので 0.82
+         */
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
         const createdAt = new Date();
 
         capturedPhotos.push({
@@ -1062,9 +1120,7 @@
       return canvas;
     }
 
-    /* =========================
-     * 写真ビューア
-     * ========================= */
+    /* 写真ビューア */
     function openPreview() {
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");
@@ -1076,8 +1132,14 @@
       previewOverlay.classList.add("show");
     }
 
-    function closePreview() {
+    async function closePreview() {
       previewOverlay.classList.remove("show");
+
+      /*
+       * 戻るを押したらカメラ画面へ復帰
+       * PWAでカメラが止まっていたら再取得を試す
+       */
+      await resumeCameraAfterPreview();
     }
 
     function showPrevPhoto() {
@@ -1163,9 +1225,7 @@
       return found ? found.label : value;
     }
 
-    /* =========================
-     * キャンバス上に看板を描画
-     * ========================= */
+    /* キャンバス上に看板を描画 */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const data = {
         subject: subjectText.textContent || "",

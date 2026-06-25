@@ -556,7 +556,7 @@
     </div>
 
     <div class="preview-controls">
-      <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
+      <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存/共有</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
     </div>
   </div>
@@ -1034,7 +1034,7 @@
       }
     }
 
-    function takePhoto() {
+    async function takePhoto() {
       if (!currentStream || !video.srcObject || video.readyState < 2) {
         showToast("先にカメラを起動してください");
         return;
@@ -1043,6 +1043,12 @@
       updateCurrentDate();
 
       try {
+        // Canvasに文字を焼き込む前に、フォント読み込み完了を待つ
+        // iPhone/iPadで日本語フォントの描画が不安定になるのを軽減する
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
         const canvas = captureCompositedImage();
 
         /*
@@ -1172,7 +1178,7 @@
       previewCounter.textContent = `${previewIndex + 1} / ${capturedPhotos.length}`;
     }
 
-    function saveCurrentPreviewPhoto() {
+    async function saveCurrentPreviewPhoto() {
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");
         return;
@@ -1180,12 +1186,54 @@
 
       const photo = capturedPhotos[previewIndex];
 
+      // iPhone / iPad のホーム画面PWAでは a[download] が効かず、
+      // data: 画面に飛ぶことがあるため、まずWeb Share APIを優先する。
+      if (navigator.share && navigator.canShare) {
+        try {
+          const blob = dataUrlToBlob(photo.dataUrl);
+          const file = new File([blob], photo.fileName, { type: "image/jpeg" });
+
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: photo.fileName
+            });
+            return;
+          }
+        } catch (error) {
+          // ユーザーが共有シートをキャンセルした場合は何もしない
+          if (error && error.name === "AbortError") {
+            return;
+          }
+
+          console.error(error);
+          showToast("共有できませんでした");
+        }
+      }
+
+      // フォールバック：PC / Android Chromeなど download が効く環境向け
       const link = document.createElement("a");
       link.href = photo.dataUrl;
       link.download = photo.fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = dataUrl.split(",");
+      const header = parts[0];
+      const base64 = parts[1];
+      const mimeMatch = header.match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const binary = atob(base64);
+      const array = new Uint8Array(binary.length);
+
+      for (let i = 0; i < binary.length; i++) {
+        array[i] = binary.charCodeAt(i);
+      }
+
+      return new Blob([array], { type: mime });
     }
 
     function setupPreviewSwipe() {

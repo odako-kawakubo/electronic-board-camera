@@ -273,20 +273,24 @@
 
     /* =========================
      * 操作ボタン
+     * 右下固定
      * ========================= */
-.controls {
-  position: absolute;
-  right: 12px !important;
-  left: auto !important;
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  width: auto !important;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  pointer-events: auto;
-}
+    .controls {
+      position: absolute !important;
+      right: 12px !important;
+      left: auto !important;
+      bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+      width: auto !important;
+      z-index: 9999 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      gap: 8px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      pointer-events: auto !important;
+    }
+
     .control-button {
       border: none;
       border-radius: 999px;
@@ -322,7 +326,7 @@
       left: 50%;
       top: calc(14px + env(safe-area-inset-top));
       transform: translateX(-50%);
-      z-index: 5;
+      z-index: 10000;
       background: rgba(0, 0, 0, 0.7);
       color: #fff;
       padding: 10px 16px;
@@ -346,7 +350,7 @@
     <video id="video" playsinline muted autoplay></video>
 
     <!-- 初期ガイド -->
-    <div id="cameraGuide">左下の「カメラ起動」を押してください</div>
+    <div id="cameraGuide">右下の「カメラ起動」を押してください</div>
 
     <!-- 看板 -->
     <div class="board-layer">
@@ -435,7 +439,7 @@
       </div>
     </div>
 
-    <!-- 左下ボタン -->
+    <!-- 右下ボタン -->
     <div class="controls">
       <button
         id="startButton"
@@ -463,7 +467,6 @@
   <script>
     /* =========================================
      * 初期表示用データ
-     * ここを書き換えれば固定表示内容を変えられる
      * ========================================= */
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -509,8 +512,6 @@
 
     /*
      * 看板の位置と拡大率
-     * x, y は画面左上からの位置
-     * scale は看板全体の拡大率
      */
     const boardState = {
       x: 12,
@@ -522,7 +523,6 @@
 
     /*
      * ポインタ管理
-     * 1本指移動 / 2本指ピンチ用
      */
     const activePointers = new Map();
     const gestureState = {
@@ -545,9 +545,6 @@
       setupStatusButtons();
       setupBoardGesture();
 
-      /*
-       * DOM描画後に看板サイズを初期配置
-       */
       requestAnimationFrame(() => {
         setInitialBoardLayout();
       });
@@ -596,7 +593,6 @@
 
     /* =========================================
      * ステータス選択
-     * - 1つだけ選択可能
      * ========================================= */
     function setupStatusButtons() {
       statusButtons.forEach((button) => {
@@ -629,17 +625,9 @@
       const screen = getScreenSize();
       const base = getBoardBaseSize();
 
-      /*
-       * 初期表示サイズ
-       * - スマホで大きすぎないように少し小さめ
-       */
       const targetWidth = clamp(screen.width * 0.46, 240, 320);
       boardState.scale = targetWidth / base.width;
 
-      /*
-       * 初期位置は左下寄せ
-       * ボタンと被らないように少し上へ
-       */
       const displayedHeight = base.height * boardState.scale;
       boardState.x = 6;
       boardState.y = screen.height - displayedHeight - 86;
@@ -703,8 +691,6 @@
 
     /* =========================================
      * 看板の移動・拡大縮小
-     * - 1本指：移動
-     * - 2本指：ピンチ
      * ========================================= */
     function setupBoardGesture() {
       boardWrap.addEventListener("pointerdown", onBoardPointerDown);
@@ -715,10 +701,6 @@
     }
 
     function onBoardPointerDown(event) {
-      /*
-       * 入力欄やステータスボタンをタップしたときは
-       * 移動処理に入らない
-       */
       if (isInteractiveBoardTarget(event.target)) {
         return;
       }
@@ -729,9 +711,7 @@
 
       try {
         boardWrap.setPointerCapture(event.pointerId);
-      } catch (error) {
-        /* 端末によっては失敗しても続行 */
-      }
+      } catch (error) {}
 
       activePointers.set(event.pointerId, {
         x: event.clientX,
@@ -757,17 +737,11 @@
         y: event.clientY
       });
 
-      /*
-       * 2本指ならピンチ優先
-       */
       if (activePointers.size >= 2) {
         handlePinchMove();
         return;
       }
 
-      /*
-       * 1本指移動
-       */
       if (activePointers.size === 1 && gestureState.mode === "drag") {
         event.preventDefault();
 
@@ -789,15 +763,9 @@
 
       try {
         boardWrap.releasePointerCapture(event.pointerId);
-      } catch (error) {
-        /* 端末によっては失敗しても続行 */
-      }
+      } catch (error) {}
 
       if (activePointers.size === 1) {
-        /*
-         * 2本指終了後に1本残ったら、
-         * 残っている指でそのまま移動できるように基準を再セット
-         */
         const remaining = Array.from(activePointers.values())[0];
         gestureState.mode = "drag";
         gestureState.dragStartX = remaining.x;
@@ -822,10 +790,6 @@
       gestureState.startDistance = getDistance(p1, p2);
       gestureState.startScale = boardState.scale;
 
-      /*
-       * ピンチの中心点を保ったまま拡大縮小するため、
-       * 看板内部のローカル座標を保持しておく
-       */
       gestureState.localMidX = (mid.x - boardState.x) / boardState.scale;
       gestureState.localMidY = (mid.y - boardState.y) / boardState.scale;
     }
@@ -848,10 +812,6 @@
       nextScale = clamp(nextScale, boardState.minScale, boardState.maxScale);
 
       boardState.scale = nextScale;
-
-      /*
-       * ピンチ中心を基準に位置調整
-       */
       boardState.x = mid.x - gestureState.localMidX * boardState.scale;
       boardState.y = mid.y - gestureState.localMidY * boardState.scale;
 
@@ -880,8 +840,6 @@
 
     /* =========================================
      * カメラ起動
-     * - 起動後は「カメラ起動」ボタンを消して
-     *   「撮影」ボタンだけ表示
      * ========================================= */
     async function startCamera() {
       try {
@@ -928,50 +886,61 @@
       if (!document.fullscreenElement && target.requestFullscreen) {
         try {
           await target.requestFullscreen();
-        } catch (error) {
-          /* 非対応・拒否でも続行 */
-        }
+        } catch (error) {}
       }
     }
 
     /* =========================================
      * 撮影
-     * - 画面に見えているカメラ映像
-     * - 現在の看板位置 / サイズ
-     * - 看板の入力内容
-     * を合成して保存
      * ========================================= */
     function takePhoto() {
-      if (!currentStream || !video.srcObject || video.readyState < 2) {
-        showToast("先にカメラを起動してください");
+  if (!currentStream || !video.srcObject || video.readyState < 2) {
+    showToast("先にカメラを起動してください");
+    return;
+  }
+
+  // 撮影時点の日付に更新
+  updateCurrentDate();
+
+  try {
+    const canvas = captureCompositedImage();
+    const fileName = `electronic_board_${formatFileDate(new Date())}.jpg`;
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast("保存に失敗しました");
         return;
       }
 
-      updateCurrentDate();
+      const url = URL.createObjectURL(blob);
 
-      try {
-        const canvas = captureCompositedImage();
-        const fileName = `electronic_board_${formatFileDate(new Date())}.jpg`;
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+      // 画面遷移させずにダウンロードだけ実行
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+      // メモリ解放
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
 
-        if (navigator.vibrate) {
-          navigator.vibrate(50);
-        }
-
-        showToast("撮影しました");
-      } catch (error) {
-        console.error(error);
-        showToast("撮影に失敗しました");
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
       }
-    }
+
+      // カメラ画面はそのまま、撮影ボタンもそのまま
+      showToast("撮影しました");
+    }, "image/jpeg", 0.95);
+
+  } catch (error) {
+    console.error(error);
+    showToast("撮影に失敗しました");
+  }
+}
 
     function captureCompositedImage() {
       const screen = getScreenSize();
@@ -979,10 +948,6 @@
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
 
-      /*
-       * 画面では object-fit: cover で表示しているので、
-       * 実際に見えている範囲だけを切り出して保存する
-       */
       const coverScale = Math.max(
         screen.width / videoWidth,
         screen.height / videoHeight
@@ -1000,9 +965,6 @@
 
       const ctx = canvas.getContext("2d");
 
-      /*
-       * カメラ映像を描画
-       */
       ctx.drawImage(
         video,
         sourceX,
@@ -1015,10 +977,6 @@
         canvas.height
       );
 
-      /*
-       * 現在の看板の見た目位置を取得して、
-       * その位置に看板を描画する
-       */
       const boardRect = photoBoard.getBoundingClientRect();
 
       const boardX = (boardRect.left / screen.width) * canvas.width;
@@ -1033,8 +991,6 @@
 
     /* =========================================
      * キャンバス上に看板を描画
-     * - 画面上のDOMをそのまま撮るのではなく、
-     *   同じ内容をキャンバスで描く
      * ========================================= */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const data = {
@@ -1046,9 +1002,6 @@
         status: selectedStatus
       };
 
-      /*
-       * レイアウト比率
-       */
       const leftColW = w * 0.196;
       const rightW = w - leftColW;
 
@@ -1068,9 +1021,6 @@
       const outerLine = Math.max(2, h * 0.0115);
       const innerLine = Math.max(1.5, h * 0.0048);
 
-      /*
-       * 背景・外枠
-       */
       ctx.save();
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(x, y, w, h);
@@ -1080,9 +1030,6 @@
       ctx.lineWidth = outerLine;
       ctx.strokeRect(x, y, w, h);
 
-      /*
-       * 外側の罫線
-       */
       ctx.lineWidth = innerLine;
       drawLine(ctx, x + leftColW, y, x + leftColW, y + h);
 
@@ -1090,9 +1037,6 @@
       drawLine(ctx, x, y + row1H + row2H, x + w, y + row1H + row2H);
       drawLine(ctx, x, y + row1H + row2H + row3H, x + w, y + row1H + row2H + row3H);
 
-      /*
-       * 内容欄の内側線
-       */
       drawLine(ctx, x + leftColW, contentY + roomRowH, x + w, contentY + roomRowH);
       drawLine(
         ctx,
@@ -1110,9 +1054,6 @@
         contentY + roomRowH + sampleRowH
       );
 
-      /*
-       * フォントサイズ
-       */
       const labelFont = Math.max(15, h * 0.062);
       const titleFont = Math.max(16, h * 0.061);
       const addressFont = Math.max(15, h * 0.055);
@@ -1121,17 +1062,11 @@
       const statusFont = Math.max(14, h * 0.048);
       const dateFont = Math.max(18, h * 0.073);
 
-      /*
-       * 左側ラベル
-       */
       drawCenteredText(ctx, "件名", x, y, leftColW, row1H, labelFont);
       drawCenteredText(ctx, "採取場所", x, y + row1H, leftColW, row2H, labelFont);
       drawStackedCenteredText(ctx, ["内", "容"], x, contentY, leftColW, contentH, labelFont);
       drawCenteredText(ctx, "日付", x, y + row1H + row2H + row3H, leftColW, row4H, labelFont);
 
-      /*
-       * 件名
-       */
       drawWrappedLeftText(
         ctx,
         data.subject,
@@ -1144,9 +1079,6 @@
         2
       );
 
-      /*
-       * 採取場所
-       */
       drawWrappedLeftText(
         ctx,
         data.address,
@@ -1159,9 +1091,6 @@
         2
       );
 
-      /*
-       * 内容欄ラベル
-       */
       drawLeftMiddleText(
         ctx,
         "部屋No.",
@@ -1182,9 +1111,6 @@
         innerLabelFont
       );
 
-      /*
-       * 内容欄入力値
-       */
       drawLeftMiddleText(
         ctx,
         data.roomNo,
@@ -1205,10 +1131,6 @@
         innerValueFont
       );
 
-      /*
-       * ステータス行
-       * 1つだけ ■、他は □
-       */
       const statusStartX = x + leftColW + 10;
       const statusWidth = rightW - 20;
       const segmentW = statusWidth / STATUS_LIST.length;
@@ -1226,9 +1148,6 @@
         ctx.fillText(text, centerX, statusCenterY);
       });
 
-      /*
-       * 日付
-       */
       drawCenteredText(
         ctx,
         data.date,

@@ -23,20 +23,18 @@
         sans-serif;
       color: #000;
       overflow-x: hidden;
+      touch-action: none;
     }
 
-    /* =========================
-     * カメラ画面全体
-     * ========================= */
     .camera-screen {
       position: relative;
       width: 100vw;
       height: 100vh;
       background: #000;
       overflow: hidden;
+      touch-action: none;
     }
 
-    /* カメラ映像 */
     #video {
       position: absolute;
       inset: 0;
@@ -44,9 +42,9 @@
       height: 100%;
       object-fit: cover;
       background: #000;
+      z-index: 0;
     }
 
-    /* カメラ未起動時の案内 */
     .camera-guide {
       position: absolute;
       inset: 0;
@@ -68,18 +66,21 @@
 
     /* =========================
      * 電子看板
-     * カメラ映像の上に常時表示
+     * 位置とサイズはJSで制御する
      * ========================= */
     .board-frame {
       position: absolute;
-      left: 8px;
-      bottom: 94px;
-      width: min(96vw, 620px);
+      left: 0;
+      top: 0;
+      width: 390px;
       background: #fff;
-      border: 6px solid #000;
-      padding: 6px;
+      border: 3px solid #000;
+      padding: 3px;
       z-index: 2;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+      transform-origin: left top;
+      touch-action: none;
+      user-select: none;
     }
 
     .board {
@@ -91,44 +92,44 @@
 
     .board th,
     .board td {
-      border: 2.5px solid #000;
+      border: 1.5px solid #000;
       vertical-align: middle;
-      padding: 8px 10px;
+      padding: 4px 5px;
     }
 
     .label-cell {
       width: 20%;
       text-align: center;
       font-weight: 900;
-      font-size: clamp(14px, 3.6vw, 28px);
-      letter-spacing: 0.12em;
+      font-size: 18px;
+      letter-spacing: 0.08em;
       white-space: nowrap;
     }
 
     .value-cell {
-      font-weight: 800;
-      font-size: clamp(14px, 3.6vw, 30px);
+      font-weight: 900;
+      font-size: 18px;
     }
 
     .editable-text {
       width: 100%;
-      min-height: 1.35em;
+      min-height: 1.3em;
       outline: none;
       border: none;
       background: transparent;
-      line-height: 1.3;
+      line-height: 1.25;
       word-break: break-word;
+      user-select: text;
     }
 
     .project-name {
-      min-height: 2.4em;
+      min-height: 2.3em;
     }
 
     .address {
-      font-size: clamp(14px, 3.4vw, 28px);
+      font-size: 17px;
     }
 
-    /* 内容欄 */
     .content-cell {
       padding: 0 !important;
     }
@@ -136,45 +137,45 @@
     .content-box {
       display: flex;
       flex-direction: column;
-      min-height: 150px;
+      min-height: 105px;
     }
 
     .content-row {
       display: grid;
-      grid-template-columns: 105px 1fr;
+      grid-template-columns: 78px 1fr;
       align-items: center;
-      border-bottom: 2.5px solid #000;
+      border-bottom: 1.5px solid #000;
     }
 
     .content-label {
-      border-right: 2.5px solid #000;
-      padding: 8px 8px;
+      border-right: 1.5px solid #000;
+      padding: 4px 5px;
       font-weight: 900;
-      font-size: clamp(14px, 3.4vw, 26px);
+      font-size: 17px;
       white-space: nowrap;
     }
 
     .content-input-wrap {
-      padding: 8px 10px;
+      padding: 4px 6px;
     }
 
     .content-input {
       width: 100%;
-      min-height: 1.2em;
+      min-height: 1.15em;
       outline: none;
       border: none;
       background: transparent;
-      font-size: clamp(18px, 4.4vw, 36px);
+      font-size: 22px;
       font-weight: 900;
-      line-height: 1.15;
+      line-height: 1.1;
+      user-select: text;
     }
 
-    /* チェックボックス横並び */
     .check-row-wrap {
-      padding: 9px 6px;
+      padding: 6px 3px;
       display: flex;
       align-items: center;
-      min-height: 44px;
+      min-height: 34px;
     }
 
     .check-row {
@@ -182,57 +183,40 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       flex-wrap: nowrap;
     }
 
-    .check-item {
+    .type-item {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
+      gap: 2px;
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
-      font-size: clamp(12px, 3vw, 23px);
+      font-size: 15px;
       font-weight: 900;
       text-align: center;
+      padding: 2px 0;
+      border-radius: 2px;
+      touch-action: manipulation;
     }
 
-    .check-item input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .check-box {
-      width: clamp(14px, 3.2vw, 24px);
-      height: clamp(14px, 3.2vw, 24px);
-      border: 2.5px solid #000;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      line-height: 1;
-      font-size: clamp(12px, 2.5vw, 20px);
+    .type-mark {
+      font-size: 16px;
       font-weight: 900;
-    }
-
-    .check-item input:checked + .check-box::before {
-      content: "✓";
+      line-height: 1;
     }
 
     .date-text {
       text-align: center;
-      font-size: clamp(17px, 4.4vw, 34px);
+      font-size: 22px;
       font-weight: 900;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
     }
 
-    /* =========================
-     * 操作ボタン
-     * ========================= */
     .controls {
       position: absolute;
       left: 0;
@@ -241,18 +225,21 @@
       z-index: 3;
       display: flex;
       justify-content: center;
-      gap: 10px;
-      padding: 0 10px;
+      gap: 8px;
+      padding: 0 8px;
+      flex-wrap: wrap;
+      pointer-events: auto;
     }
 
     button {
       border: none;
       border-radius: 999px;
-      padding: 12px 16px;
-      font-size: 15px;
+      padding: 10px 13px;
+      font-size: 13px;
       font-weight: 900;
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      touch-action: manipulation;
     }
 
     .btn-start {
@@ -263,7 +250,12 @@
     .btn-shoot {
       background: #fff;
       color: #000;
-      min-width: 92px;
+      min-width: 72px;
+    }
+
+    .btn-reset {
+      background: #f2c94c;
+      color: #000;
     }
 
     .btn-clear {
@@ -271,9 +263,6 @@
       color: #fff;
     }
 
-    /* =========================
-     * 撮影結果
-     * ========================= */
     .result-area {
       background: #1e1e1e;
       color: #fff;
@@ -310,59 +299,13 @@
       line-height: 1.6;
       margin-top: 10px;
     }
-
-    @media (max-height: 680px) {
-      .board-frame {
-        bottom: 78px;
-        transform: scale(0.86);
-        transform-origin: left bottom;
-      }
-
-      .controls {
-        bottom: calc(8px + env(safe-area-inset-bottom));
-      }
-
-      button {
-        padding: 10px 13px;
-        font-size: 13px;
-      }
-    }
-
-    @media (max-width: 430px) {
-      .board-frame {
-        border-width: 5px;
-        padding: 5px;
-      }
-
-      .board th,
-      .board td {
-        border-width: 2px;
-        padding: 6px 8px;
-      }
-
-      .content-row {
-        grid-template-columns: 86px 1fr;
-        border-bottom-width: 2px;
-      }
-
-      .content-label {
-        border-right-width: 2px;
-        padding: 7px 6px;
-      }
-
-      .check-box {
-        border-width: 2px;
-      }
-    }
   </style>
 </head>
 
 <body>
-  <section class="camera-screen">
-    <!-- カメラ映像 -->
+  <section id="cameraScreen" class="camera-screen">
     <video id="video" autoplay playsinline muted></video>
 
-    <!-- カメラ未起動時の表示 -->
     <div id="cameraGuide" class="camera-guide">
       <div>
         「カメラ起動」を押してください。<br>
@@ -427,29 +370,18 @@
 
               <div class="check-row-wrap">
                 <div class="check-row">
-                  <label class="check-item">
-                    <input type="checkbox" id="checkVisual" checked />
-                    <span class="check-box" aria-hidden="true"></span>
-                    <span>目視</span>
-                  </label>
-
-                  <label class="check-item">
-                    <input type="checkbox" id="checkBefore" />
-                    <span class="check-box" aria-hidden="true"></span>
-                    <span>施工前</span>
-                  </label>
-
-                  <label class="check-item">
-                    <input type="checkbox" id="checkDuring" />
-                    <span class="check-box" aria-hidden="true"></span>
-                    <span>施工中</span>
-                  </label>
-
-                  <label class="check-item">
-                    <input type="checkbox" id="checkAfter" />
-                    <span class="check-box" aria-hidden="true"></span>
-                    <span>施工後</span>
-                  </label>
+                  <div class="type-item" data-type="目視">
+                    <span class="type-mark">■</span><span>目視</span>
+                  </div>
+                  <div class="type-item" data-type="施工前">
+                    <span class="type-mark">□</span><span>施工前</span>
+                  </div>
+                  <div class="type-item" data-type="施工中">
+                    <span class="type-mark">□</span><span>施工中</span>
+                  </div>
+                  <div class="type-item" data-type="施工後">
+                    <span class="type-mark">□</span><span>施工後</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -470,10 +402,10 @@
       </table>
     </div>
 
-    <!-- 操作ボタン -->
     <div class="controls">
       <button class="btn-start" type="button" onclick="startCamera()">カメラ起動</button>
       <button class="btn-shoot" type="button" onclick="takePhoto()">撮影</button>
+      <button class="btn-reset" type="button" onclick="resetBoardPosition()">左下に戻す</button>
       <button class="btn-clear" type="button" onclick="clearResult()">結果削除</button>
     </div>
   </section>
@@ -484,24 +416,45 @@
     <img id="resultImage" alt="撮影結果" />
 
     <div class="memo">
-      ※ 看板内の文字はタップして編集できます。<br>
-      ※ チェックボックスも撮影前に操作できます。<br>
-      ※ 撮影すると、カメラ映像と看板を1枚の画像として保存できます。
+      ※ 看板は1本指で移動できます。<br>
+      ※ 看板は2本指のピンチで拡大・縮小できます。<br>
+      ※ 写真区分は □ / ■ 表示で、1つだけ選択できます。<br>
+      ※ 撮影すると、現在の位置・サイズのまま看板を焼き込みます。
     </div>
   </section>
 
   <script>
+    const cameraScreen = document.getElementById("cameraScreen");
     const video = document.getElementById("video");
     const photoBoard = document.getElementById("photoBoard");
     const cameraGuide = document.getElementById("cameraGuide");
     const resultImage = document.getElementById("resultImage");
     const downloadLink = document.getElementById("downloadLink");
 
+    let selectedType = "目視";
+
+    // 看板位置・サイズ
+    let boardX = 8;
+    let boardY = 0;
+    let boardScale = 0.62;
+
+    // ドラッグ / ピンチ管理
+    let activePointers = new Map();
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let boardStartX = 0;
+    let boardStartY = 0;
+
+    let pinchStartDistance = 0;
+    let pinchStartScale = 1;
+
     setTodayIfEmpty();
+    setupPhotoTypeSelector();
+    setupBoardTouch();
+    resetBoardPosition();
 
     /**
      * カメラを起動する
-     * スマホでは背面カメラを優先する
      */
     async function startCamera() {
       try {
@@ -527,19 +480,180 @@
     }
 
     /**
-     * 起動中のカメラを停止する
+     * 起動中のカメラを停止
      */
     function stopCurrentStream() {
       if (!video.srcObject) return;
 
-      const tracks = video.srcObject.getTracks();
-      tracks.forEach(track => track.stop());
+      video.srcObject.getTracks().forEach(track => track.stop());
       video.srcObject = null;
     }
 
     /**
+     * 写真区分を1つだけ選択する
+     */
+    function setupPhotoTypeSelector() {
+      document.querySelectorAll(".type-item").forEach(item => {
+        item.addEventListener("click", event => {
+          event.stopPropagation();
+          selectedType = item.dataset.type;
+          updatePhotoTypeDisplay();
+        });
+      });
+
+      updatePhotoTypeDisplay();
+    }
+
+    /**
+     * □ / ■ 表示を更新
+     */
+    function updatePhotoTypeDisplay() {
+      document.querySelectorAll(".type-item").forEach(item => {
+        const mark = item.querySelector(".type-mark");
+        mark.textContent = item.dataset.type === selectedType ? "■" : "□";
+      });
+    }
+
+    /**
+     * 看板のタッチ操作を設定
+     */
+    function setupBoardTouch() {
+      photoBoard.addEventListener("pointerdown", onBoardPointerDown);
+      photoBoard.addEventListener("pointermove", onBoardPointerMove);
+      photoBoard.addEventListener("pointerup", onBoardPointerUp);
+      photoBoard.addEventListener("pointercancel", onBoardPointerUp);
+      photoBoard.addEventListener("pointerleave", onBoardPointerUp);
+    }
+
+    function onBoardPointerDown(event) {
+      // 入力欄や選択項目は操作を優先する
+      if (isInteractiveElement(event.target)) return;
+
+      event.preventDefault();
+      photoBoard.setPointerCapture(event.pointerId);
+
+      activePointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY
+      });
+
+      if (activePointers.size === 1) {
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
+        boardStartX = boardX;
+        boardStartY = boardY;
+      }
+
+      if (activePointers.size === 2) {
+        const points = Array.from(activePointers.values());
+        pinchStartDistance = getDistance(points[0], points[1]);
+        pinchStartScale = boardScale;
+      }
+    }
+
+    function onBoardPointerMove(event) {
+      if (!activePointers.has(event.pointerId)) return;
+
+      event.preventDefault();
+
+      activePointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY
+      });
+
+      if (activePointers.size === 1) {
+        const dx = event.clientX - dragStartX;
+        const dy = event.clientY - dragStartY;
+
+        boardX = boardStartX + dx;
+        boardY = boardStartY + dy;
+
+        clampBoardPosition();
+        applyBoardTransform();
+      }
+
+      if (activePointers.size === 2) {
+        const points = Array.from(activePointers.values());
+        const currentDistance = getDistance(points[0], points[1]);
+
+        if (pinchStartDistance > 0) {
+          const ratio = currentDistance / pinchStartDistance;
+          boardScale = pinchStartScale * ratio;
+          boardScale = clamp(boardScale, 0.35, 1.25);
+
+          clampBoardPosition();
+          applyBoardTransform();
+        }
+      }
+    }
+
+    function onBoardPointerUp(event) {
+      activePointers.delete(event.pointerId);
+
+      if (activePointers.size === 1) {
+        const point = Array.from(activePointers.values())[0];
+
+        dragStartX = point.x;
+        dragStartY = point.y;
+        boardStartX = boardX;
+        boardStartY = boardY;
+      }
+    }
+
+    /**
+     * 入力欄などはドラッグ対象から外す
+     */
+    function isInteractiveElement(target) {
+      return (
+        target.closest("[contenteditable='true']") ||
+        target.closest(".type-item")
+      );
+    }
+
+    /**
+     * 左下に戻す
+     */
+    function resetBoardPosition() {
+      boardScale = 0.62;
+      boardX = 8;
+
+      const screenHeight = cameraScreen.clientHeight;
+      const boardHeight = photoBoard.offsetHeight * boardScale;
+
+      boardY = screenHeight - boardHeight - 82;
+
+      clampBoardPosition();
+      applyBoardTransform();
+    }
+
+    /**
+     * 看板位置・サイズを反映
+     */
+    function applyBoardTransform() {
+      photoBoard.style.transform =
+        `translate(${boardX}px, ${boardY}px) scale(${boardScale})`;
+    }
+
+    /**
+     * 看板が画面外へ行きすぎないようにする
+     */
+    function clampBoardPosition() {
+      const screenW = cameraScreen.clientWidth;
+      const screenH = cameraScreen.clientHeight;
+      const boardW = photoBoard.offsetWidth * boardScale;
+      const boardH = photoBoard.offsetHeight * boardScale;
+
+      const minX = -boardW * 0.25;
+      const minY = 0;
+      const maxX = screenW - boardW * 0.25;
+      const maxY = screenH - 55;
+
+      boardX = clamp(boardX, minX, maxX);
+      boardY = clamp(boardY, minY, maxY);
+    }
+
+    /**
      * 撮影する
-     * カメラ映像 + 電子看板をcanvasへ描画して画像化する
      */
     function takePhoto() {
       if (!video.videoWidth || !video.videoHeight) {
@@ -553,22 +667,20 @@
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      // カメラ映像を描画
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // 表示上の位置を取得
       const videoRect = video.getBoundingClientRect();
       const boardRect = photoBoard.getBoundingClientRect();
 
       const scaleX = canvas.width / videoRect.width;
       const scaleY = canvas.height / videoRect.height;
 
-      const boardX = (boardRect.left - videoRect.left) * scaleX;
-      const boardY = (boardRect.top - videoRect.top) * scaleY;
-      const boardW = boardRect.width * scaleX;
-      const boardH = boardRect.height * scaleY;
+      const drawX = (boardRect.left - videoRect.left) * scaleX;
+      const drawY = (boardRect.top - videoRect.top) * scaleY;
+      const drawW = boardRect.width * scaleX;
+      const drawH = boardRect.height * scaleY;
 
-      drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
+      drawBoardOnCanvas(ctx, drawX, drawY, drawW, drawH);
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
 
@@ -594,8 +706,7 @@
     }
 
     /**
-     * canvasに看板を描画する
-     * HTMLをそのまま画像化せず、同じ内容をcanvas上に描き直す
+     * canvasへ看板を描画する
      */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const projectName = getText("projectName");
@@ -604,94 +715,74 @@
       const sampleNo = getText("sampleNo");
       const dateText = getText("dateText");
 
-      const checks = [
-        { label: "目視", checked: document.getElementById("checkVisual").checked },
-        { label: "施工前", checked: document.getElementById("checkBefore").checked },
-        { label: "施工中", checked: document.getElementById("checkDuring").checked },
-        { label: "施工後", checked: document.getElementById("checkAfter").checked }
-      ];
-
       ctx.save();
 
-      // 外側黒枠
       ctx.fillStyle = "#000";
       ctx.fillRect(x, y, w, h);
 
-      const pad = Math.max(5, w * 0.012);
+      const pad = Math.max(2, w * 0.008);
       const bx = x + pad;
       const by = y + pad;
       const bw = w - pad * 2;
       const bh = h - pad * 2;
 
-      // 看板白背景
       ctx.fillStyle = "#fff";
       ctx.fillRect(bx, by, bw, bh);
 
       ctx.strokeStyle = "#000";
-      ctx.lineWidth = Math.max(2, w * 0.006);
+      ctx.lineWidth = Math.max(1.5, w * 0.004);
 
-      // 行と列の設計
       const labelW = bw * 0.2;
       const row1H = bh * 0.24;
       const row2H = bh * 0.22;
       const row3H = bh * 0.36;
       const row4H = bh - row1H - row2H - row3H;
 
-      // 外枠
       ctx.strokeRect(bx, by, bw, bh);
 
-      // 横線
       drawLine(ctx, bx, by + row1H, bx + bw, by + row1H);
       drawLine(ctx, bx, by + row1H + row2H, bx + bw, by + row1H + row2H);
       drawLine(ctx, bx, by + row1H + row2H + row3H, bx + bw, by + row1H + row2H + row3H);
-
-      // 縦線
       drawLine(ctx, bx + labelW, by, bx + labelW, by + bh);
 
-      const labelFont = Math.max(14, bw * 0.042);
-      const valueFont = Math.max(14, bw * 0.045);
-      const contentFont = Math.max(13, bw * 0.04);
-      const dateFont = Math.max(17, bw * 0.052);
+      const labelFont = Math.max(10, bw * 0.044);
+      const valueFont = Math.max(10, bw * 0.047);
+      const contentFont = Math.max(9, bw * 0.043);
+      const dateFont = Math.max(12, bw * 0.055);
 
-      // 左ラベル
       drawCenter(ctx, "件 名", bx, by, labelW, row1H, labelFont);
       drawCenter(ctx, "採取場所", bx, by + row1H, labelW, row2H, labelFont);
       drawCenter(ctx, "内 容", bx, by + row1H + row2H, labelW, row3H, labelFont);
       drawCenter(ctx, "日 付", bx, by + row1H + row2H + row3H, labelW, row4H, labelFont);
 
-      // 右テキスト
-      drawFitText(ctx, projectName, bx + labelW + 10, by + row1H * 0.55, bw - labelW - 20, valueFont);
-      drawFitText(ctx, address, bx + labelW + 10, by + row1H + row2H * 0.58, bw - labelW - 20, valueFont);
+      drawFitText(ctx, projectName, bx + labelW + 6, by + row1H * 0.56, bw - labelW - 12, valueFont);
+      drawFitText(ctx, address, bx + labelW + 6, by + row1H + row2H * 0.58, bw - labelW - 12, valueFont);
 
-      // 内容欄
       const cx = bx + labelW;
       const cy = by + row1H + row2H;
       const cw = bw - labelW;
 
       const subRowH = row3H * 0.31;
-
-      // 部屋No / 試料No 区切り
       drawLine(ctx, cx, cy + subRowH, bx + bw, cy + subRowH);
       drawLine(ctx, cx, cy + subRowH * 2, bx + bw, cy + subRowH * 2);
 
       const subLabelW = cw * 0.33;
       drawLine(ctx, cx + subLabelW, cy, cx + subLabelW, cy + subRowH * 2);
 
-      drawLeft(ctx, "部屋No.", cx + 8, cy + subRowH * 0.62, contentFont);
-      drawLeft(ctx, roomNo, cx + subLabelW + 8, cy + subRowH * 0.62, contentFont * 1.25);
+      drawLeft(ctx, "部屋No.", cx + 5, cy + subRowH * 0.62, contentFont);
+      drawLeft(ctx, roomNo, cx + subLabelW + 5, cy + subRowH * 0.62, contentFont * 1.25);
 
-      drawLeft(ctx, "試料No.", cx + 8, cy + subRowH + subRowH * 0.62, contentFont);
-      drawLeft(ctx, sampleNo, cx + subLabelW + 8, cy + subRowH + subRowH * 0.62, contentFont * 1.25);
+      drawLeft(ctx, "試料No.", cx + 5, cy + subRowH + subRowH * 0.62, contentFont);
+      drawLeft(ctx, sampleNo, cx + subLabelW + 5, cy + subRowH + subRowH * 0.62, contentFont * 1.25);
 
-      // チェック横並び
-      const checkY = cy + subRowH * 2 + (row3H - subRowH * 2) * 0.62;
+      const types = ["目視", "施工前", "施工中", "施工後"];
       const eachW = cw / 4;
 
-      checks.forEach((item, index) => {
-        const mark = item.checked ? "☑" : "□";
+      types.forEach((type, index) => {
+        const mark = type === selectedType ? "■" : "□";
         drawCenter(
           ctx,
-          mark + item.label,
+          mark + type,
           cx + eachW * index,
           cy + subRowH * 2,
           eachW,
@@ -700,7 +791,6 @@
         );
       });
 
-      // 日付
       drawCenter(
         ctx,
         dateText,
@@ -746,7 +836,7 @@
       ctx.textBaseline = "alphabetic";
       ctx.font = `900 ${size}px sans-serif`;
 
-      while (ctx.measureText(text).width > maxWidth && size > 10) {
+      while (ctx.measureText(text).width > maxWidth && size > 8) {
         size -= 1;
         ctx.font = `900 ${size}px sans-serif`;
       }
@@ -761,11 +851,20 @@
     function setTodayIfEmpty() {
       const el = document.getElementById("dateText");
       if (!el) return;
-
       if (el.textContent.trim()) return;
 
       const now = new Date();
       el.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+    }
+
+    function getDistance(p1, p2) {
+      const dx = p1.x - p2.x;
+      const dy = p1.y - p2.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
     }
   </script>
 </body>

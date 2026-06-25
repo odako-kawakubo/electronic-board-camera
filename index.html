@@ -4,23 +4,18 @@
   <meta charset="UTF-8" />
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
   />
-
+  <meta name="theme-color" content="#000000" />
   <title>電子看板カメラ</title>
 
-  <!-- ホーム画面追加時にアプリっぽく表示するための設定 -->
-  <meta name="theme-color" content="#000000" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="電子看板" />
-
-  <!-- manifest.json をあとで追加すると、よりPWAっぽくなる -->
-  <link rel="manifest" href="./manifest.json" />
-
   <style>
+    /* =========================
+     * 全体
+     * ========================= */
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     html,
@@ -30,33 +25,24 @@
       height: 100%;
       overflow: hidden;
       background: #000;
-      font-family:
-        "Yu Gothic",
-        "Hiragino Kaku Gothic ProN",
-        "Meiryo",
-        sans-serif;
-      color: #000;
-      overscroll-behavior: none;
+      font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
     }
 
     body {
-      position: fixed;
-      inset: 0;
+      touch-action: manipulation;
+    }
+
+    #cameraScreen {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      background: #000;
     }
 
     /* =========================
-     * カメラ画面
+     * カメラ映像
      * ========================= */
-    .camera-screen {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100dvh;
-      background: #000;
-      overflow: hidden;
-      touch-action: none;
-    }
-
     #video {
       position: absolute;
       inset: 0;
@@ -64,210 +50,252 @@
       height: 100%;
       object-fit: cover;
       background: #000;
-      z-index: 0;
+      z-index: 1;
     }
 
-    .camera-guide {
+    #cameraGuide {
       position: absolute;
       inset: 0;
-      z-index: 1;
+      z-index: 2;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
-      color: #fff;
       text-align: center;
+      color: #fff;
+      font-size: 18px;
       font-weight: 700;
-      line-height: 1.7;
-      background: #111;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+      pointer-events: none;
     }
 
-    .camera-guide.hidden {
-      display: none;
+    .hidden {
+      display: none !important;
     }
 
     /* =========================
-     * 電子看板
-     * JSで位置・サイズを制御する
+     * 看板レイヤー
      * ========================= */
-    .board-frame {
+    .board-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /*
+     * 看板全体の移動・拡大縮小を行うラッパー
+     * - 1本指：移動
+     * - 2本指：ピンチ拡大縮小
+     */
+    #boardWrap {
       position: absolute;
       left: 0;
       top: 0;
-      width: 390px;
-      background: #fff;
-      border: 3px solid #000;
-      padding: 3px;
-      z-index: 2;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-      transform-origin: left top;
+      width: 560px;
+      transform-origin: top left;
+      pointer-events: auto;
       touch-action: none;
       user-select: none;
+      cursor: grab;
+      will-change: transform;
     }
 
-    .board {
+    #boardWrap.dragging {
+      cursor: grabbing;
+    }
+
+    /* =========================
+     * 看板デザイン
+     * ========================= */
+    #photoBoard {
+      width: 100%;
+      background: #fff;
+      color: #000;
+      border: 4px solid #000;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .board-table,
+    .inner-table {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
       background: #fff;
     }
 
-    .board th,
-    .board td {
-      border: 1.5px solid #000;
+    .board-table td,
+    .inner-table td {
+      border: 2px solid #000;
       vertical-align: middle;
-      padding: 4px 5px;
+      padding: 0;
+    }
+
+    .row-subject {
+      height: 108px;
+    }
+
+    .row-place {
+      height: 92px;
+    }
+
+    .row-content {
+      height: 176px;
+    }
+
+    .row-date {
+      height: 88px;
     }
 
     .label-cell {
-      width: 20%;
+      width: 110px;
       text-align: center;
+      font-size: 24px;
       font-weight: 900;
-      font-size: 18px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.02em;
       white-space: nowrap;
+    }
+
+    .content-label-cell {
+      width: 110px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .stack-label {
+      line-height: 1.1;
+      display: inline-block;
     }
 
     .value-cell {
-      font-weight: 900;
-      font-size: 18px;
+      padding: 10px 14px;
     }
 
-    .editable-text {
-      width: 100%;
-      min-height: 1.3em;
-      outline: none;
-      border: none;
-      background: transparent;
-      line-height: 1.25;
+    .subject-text {
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1.35;
       word-break: break-word;
-      user-select: text;
-      -webkit-user-select: text;
     }
 
-    .project-name {
-      min-height: 2.3em;
+    .address-text {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.35;
+      word-break: break-all;
     }
 
-    .address {
-      font-size: 17px;
-    }
-
-    .content-cell {
-      padding: 0 !important;
-    }
-
-    .content-box {
-      display: flex;
-      flex-direction: column;
-      min-height: 105px;
-    }
-
-    .content-row {
-      display: grid;
-      grid-template-columns: 78px 1fr;
-      align-items: center;
-      border-bottom: 1.5px solid #000;
-    }
-
-    .content-label {
-      border-right: 1.5px solid #000;
-      padding: 4px 5px;
+    .inner-label {
+      width: 155px;
+      padding: 10px 12px;
+      font-size: 22px;
       font-weight: 900;
-      font-size: 17px;
       white-space: nowrap;
     }
 
-    .content-input-wrap {
-      padding: 4px 6px;
+    .inner-value {
+      padding: 0 10px;
     }
 
-    .content-input {
+    .board-input {
       width: 100%;
-      min-height: 1.15em;
-      outline: none;
+      height: 54px;
       border: none;
+      outline: none;
       background: transparent;
-      font-size: 22px;
-      font-weight: 900;
-      line-height: 1.1;
-      user-select: text;
-      -webkit-user-select: text;
+      color: #000;
+      font-size: 23px;
+      font-weight: 800;
+      font-family: inherit;
     }
 
-    .check-row-wrap {
-      padding: 6px 3px;
+    .board-input::placeholder {
+      color: #777;
+      font-weight: 700;
+    }
+
+    .status-cell {
+      padding: 8px 10px;
+    }
+
+    .status-row {
       display: flex;
       align-items: center;
-      min-height: 34px;
-    }
-
-    .check-row {
-      width: 100%;
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 2px;
+      gap: 8px;
+      width: 100%;
+      min-height: 58px;
       flex-wrap: nowrap;
     }
 
-    .type-item {
-      flex: 1;
-      display: flex;
+    .status-btn {
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: #000;
+      font-size: 20px;
+      font-weight: 900;
+      font-family: inherit;
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
       gap: 2px;
       cursor: pointer;
-      user-select: none;
+      flex: 1 1 auto;
+      min-width: 0;
+      justify-content: center;
       white-space: nowrap;
-      font-size: 15px;
-      font-weight: 900;
-      text-align: center;
-      padding: 2px 0;
-      border-radius: 2px;
-      touch-action: manipulation;
     }
 
-    .type-mark {
-      font-size: 16px;
-      font-weight: 900;
+    .status-box {
+      display: inline-block;
+      min-width: 1em;
+      text-align: center;
+      font-size: 1.05em;
       line-height: 1;
     }
 
-    .date-text {
+    .date-cell {
       text-align: center;
-      font-size: 22px;
+      padding: 0 12px;
+    }
+
+    .date-text {
+      font-size: 28px;
       font-weight: 900;
-      letter-spacing: 0.06em;
+      line-height: 1.2;
     }
 
     /* =========================
-     * 下部ボタン
+     * 操作ボタン
      * ========================= */
     .controls {
       position: absolute;
-      left: 0;
+      left: 12px;
       bottom: calc(14px + env(safe-area-inset-bottom));
-      width: 100%;
-      z-index: 3;
+      z-index: 4;
       display: flex;
-      justify-content: center;
+      align-items: center;
+      justify-content: flex-start;
       gap: 8px;
-      padding: 0 8px;
-      flex-wrap: wrap;
       pointer-events: auto;
     }
 
-    button {
+    .control-button {
       border: none;
       border-radius: 999px;
-      padding: 10px 13px;
-      font-size: 13px;
+      padding: 14px 22px;
+      font-size: 18px;
       font-weight: 900;
+      font-family: inherit;
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
       touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
     }
 
     .btn-start {
@@ -278,273 +306,431 @@
     .btn-shoot {
       background: #fff;
       color: #000;
-      min-width: 72px;
+      min-width: 96px;
     }
 
-    .btn-reset {
-      background: #f2c94c;
-      color: #000;
+    .hidden-control {
+      display: none !important;
     }
 
-    .btn-stop {
-      background: #444;
-      color: #fff;
-    }
-
-    /* 撮影完了表示 */
-    .toast {
+    /* =========================
+     * トースト
+     * ========================= */
+    #toast {
       position: absolute;
       left: 50%;
-      bottom: calc(76px + env(safe-area-inset-bottom));
-      z-index: 4;
+      top: calc(14px + env(safe-area-inset-top));
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.78);
+      z-index: 5;
+      background: rgba(0, 0, 0, 0.7);
       color: #fff;
-      padding: 9px 14px;
+      padding: 10px 16px;
       border-radius: 999px;
-      font-size: 13px;
-      font-weight: 900;
+      font-size: 14px;
+      font-weight: 700;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s ease;
       white-space: nowrap;
     }
 
-    .toast.show {
+    #toast.show {
       opacity: 1;
     }
   </style>
 </head>
-
 <body>
-  <section id="cameraScreen" class="camera-screen">
-    <video id="video" autoplay playsinline muted></video>
+  <div id="cameraScreen">
+    <!-- カメラ映像 -->
+    <video id="video" playsinline muted autoplay></video>
 
-    <div id="cameraGuide" class="camera-guide">
-      <div>
-        「カメラ起動」を押してください。<br>
-        カメラ許可が出たら「許可」を押します。
+    <!-- 初期ガイド -->
+    <div id="cameraGuide">左下の「カメラ起動」を押してください</div>
+
+    <!-- 看板 -->
+    <div class="board-layer">
+      <div id="boardWrap">
+        <div id="photoBoard">
+          <table class="board-table">
+            <tr class="row-subject">
+              <td class="label-cell">件名</td>
+              <td class="value-cell">
+                <div id="subjectText" class="subject-text"></div>
+              </td>
+            </tr>
+
+            <tr class="row-place">
+              <td class="label-cell">採取場所</td>
+              <td class="value-cell">
+                <div id="addressText" class="address-text"></div>
+              </td>
+            </tr>
+
+            <tr class="row-content">
+              <td class="content-label-cell">
+                <div class="stack-label">内<br />容</div>
+              </td>
+              <td>
+                <table class="inner-table">
+                  <tr>
+                    <td class="inner-label">部屋No.</td>
+                    <td class="inner-value">
+                      <input
+                        id="roomNoInput"
+                        class="board-input"
+                        type="text"
+                        inputmode="text"
+                        placeholder=""
+                      />
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="inner-label">試料No.</td>
+                    <td class="inner-value">
+                      <input
+                        id="sampleNoInput"
+                        class="board-input"
+                        type="text"
+                        inputmode="text"
+                        placeholder=""
+                      />
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td colspan="2" class="status-cell">
+                      <div class="status-row">
+                        <button class="status-btn" type="button" data-value="visual">
+                          <span class="status-box">■</span><span>目視</span>
+                        </button>
+
+                        <button class="status-btn" type="button" data-value="before">
+                          <span class="status-box">□</span><span>施工前</span>
+                        </button>
+
+                        <button class="status-btn" type="button" data-value="during">
+                          <span class="status-box">□</span><span>施工中</span>
+                        </button>
+
+                        <button class="status-btn" type="button" data-value="after">
+                          <span class="status-box">□</span><span>施工後</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr class="row-date">
+              <td class="label-cell">日付</td>
+              <td class="date-cell">
+                <div id="dateText" class="date-text"></div>
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- 電子看板 -->
-    <div id="photoBoard" class="board-frame">
-      <table class="board" aria-label="電子看板">
-        <tr>
-          <th class="label-cell">件 名</th>
-          <td class="value-cell">
-            <div
-              id="projectName"
-              class="editable-text project-name"
-              contenteditable="true"
-              spellcheck="false"
-            >テストビル解体に伴うアスベスト調査</div>
-          </td>
-        </tr>
-
-        <tr>
-          <th class="label-cell">採取場所</th>
-          <td class="value-cell">
-            <div
-              id="address"
-              class="editable-text address"
-              contenteditable="true"
-              spellcheck="false"
-            >神奈川県小田原市小八幡2-3-6</div>
-          </td>
-        </tr>
-
-        <tr>
-          <th class="label-cell">内 容</th>
-          <td class="content-cell">
-            <div class="content-box">
-              <div class="content-row">
-                <div class="content-label">部屋No.</div>
-                <div class="content-input-wrap">
-                  <div
-                    id="roomNo"
-                    class="content-input"
-                    contenteditable="true"
-                    spellcheck="false"
-                  ></div>
-                </div>
-              </div>
-
-              <div class="content-row">
-                <div class="content-label">試料No.</div>
-                <div class="content-input-wrap">
-                  <div
-                    id="sampleNo"
-                    class="content-input"
-                    contenteditable="true"
-                    spellcheck="false"
-                  ></div>
-                </div>
-              </div>
-
-              <div class="check-row-wrap">
-                <div class="check-row">
-                  <div class="type-item" data-type="目視">
-                    <span class="type-mark">■</span><span>目視</span>
-                  </div>
-                  <div class="type-item" data-type="施工前">
-                    <span class="type-mark">□</span><span>施工前</span>
-                  </div>
-                  <div class="type-item" data-type="施工中">
-                    <span class="type-mark">□</span><span>施工中</span>
-                  </div>
-                  <div class="type-item" data-type="施工後">
-                    <span class="type-mark">□</span><span>施工後</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </td>
-        </tr>
-
-        <tr>
-          <th class="label-cell">日 付</th>
-          <td class="value-cell">
-            <div
-              id="dateText"
-              class="editable-text date-text"
-              contenteditable="true"
-              spellcheck="false"
-            ></div>
-          </td>
-        </tr>
-      </table>
-    </div>
-
+    <!-- 左下ボタン -->
     <div class="controls">
-      <button class="btn-start" type="button" onclick="startCamera()">カメラ起動</button>
-      <button class="btn-shoot" type="button" onclick="takePhoto()">撮影</button>
-      <button class="btn-reset" type="button" onclick="resetBoardPosition()">左下に戻す</button>
-      <button class="btn-stop" type="button" onclick="stopCurrentStream()">停止</button>
+      <button
+        id="startButton"
+        class="control-button btn-start"
+        type="button"
+        onclick="startCamera()"
+      >
+        カメラ起動
+      </button>
+
+      <button
+        id="shootButton"
+        class="control-button btn-shoot hidden-control"
+        type="button"
+        onclick="takePhoto()"
+      >
+        撮影
+      </button>
     </div>
 
-    <div id="toast" class="toast">保存しました</div>
-  </section>
+    <!-- トースト -->
+    <div id="toast"></div>
+  </div>
 
   <script>
+    /* =========================================
+     * 初期表示用データ
+     * ここを書き換えれば固定表示内容を変えられる
+     * ========================================= */
+    const APP_DATA = {
+      subject: "テストビル解体に伴うアスベスト調査",
+      address: "神奈川県小田原市小八幡2-3-6"
+    };
+
+    /* ステータス候補 */
+    const STATUS_LIST = [
+      { value: "visual", label: "目視" },
+      { value: "before", label: "施工前" },
+      { value: "during", label: "施工中" },
+      { value: "after", label: "施工後" }
+    ];
+
+    /* =========================================
+     * 要素取得
+     * ========================================= */
     const cameraScreen = document.getElementById("cameraScreen");
     const video = document.getElementById("video");
-    const photoBoard = document.getElementById("photoBoard");
     const cameraGuide = document.getElementById("cameraGuide");
+
+    const boardWrap = document.getElementById("boardWrap");
+    const photoBoard = document.getElementById("photoBoard");
+
+    const subjectText = document.getElementById("subjectText");
+    const addressText = document.getElementById("addressText");
+    const roomNoInput = document.getElementById("roomNoInput");
+    const sampleNoInput = document.getElementById("sampleNoInput");
+    const dateText = document.getElementById("dateText");
+
+    const startButton = document.getElementById("startButton");
+    const shootButton = document.getElementById("shootButton");
+    const statusButtons = Array.from(document.querySelectorAll(".status-btn"));
     const toast = document.getElementById("toast");
 
-    let selectedType = "目視";
+    /* =========================================
+     * アプリ状態
+     * ========================================= */
+    let currentStream = null;
+    let selectedStatus = "visual";
+    let hasInitializedBoard = false;
+    let toastTimer = null;
 
-    // 看板位置・サイズ
-    let boardX = 8;
-    let boardY = 0;
-    let boardScale = 0.62;
+    /*
+     * 看板の位置と拡大率
+     * x, y は画面左上からの位置
+     * scale は看板全体の拡大率
+     */
+    const boardState = {
+      x: 12,
+      y: 12,
+      scale: 1,
+      minScale: 0.38,
+      maxScale: 1.8
+    };
 
-    // ドラッグ / ピンチ管理
-    let activePointers = new Map();
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let boardStartX = 0;
-    let boardStartY = 0;
+    /*
+     * ポインタ管理
+     * 1本指移動 / 2本指ピンチ用
+     */
+    const activePointers = new Map();
+    const gestureState = {
+      mode: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      originX: 0,
+      originY: 0,
+      startScale: 1,
+      startDistance: 0,
+      localMidX: 0,
+      localMidY: 0
+    };
 
-    let pinchStartDistance = 0;
-    let pinchStartScale = 1;
+    /* =========================================
+     * 初期化
+     * ========================================= */
+    document.addEventListener("DOMContentLoaded", () => {
+      initializeBoard();
+      setupStatusButtons();
+      setupBoardGesture();
 
-    setTodayIfEmpty();
-    setupPhotoTypeSelector();
-    setupBoardTouch();
-
-    // iPhoneなどで高さが落ち着いてから位置合わせ
-    window.addEventListener("load", () => {
-      setTimeout(resetBoardPosition, 200);
+      /*
+       * DOM描画後に看板サイズを初期配置
+       */
+      requestAnimationFrame(() => {
+        setInitialBoardLayout();
+      });
     });
 
     window.addEventListener("resize", () => {
-      clampBoardPosition();
-      applyBoardTransform();
+      handleWindowResize();
     });
 
-    /**
-     * カメラを起動する
-     */
-    async function startCamera() {
-      try {
-        stopCurrentStream();
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => {
+        handleWindowResize();
+      }, 200);
+    });
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" }
-          },
-          audio: false
+    /* =========================================
+     * 初期表示処理
+     * ========================================= */
+    function initializeBoard() {
+      subjectText.textContent = APP_DATA.subject;
+      addressText.textContent = APP_DATA.address;
+      updateCurrentDate();
+      setStatus("visual");
+    }
+
+    function updateCurrentDate() {
+      dateText.textContent = formatJapaneseDate(new Date());
+    }
+
+    function formatJapaneseDate(date) {
+      const y = date.getFullYear();
+      const m = date.getMonth() + 1;
+      const d = date.getDate();
+      return `${y}年${m}月${d}日`;
+    }
+
+    function formatFileDate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const h = String(date.getHours()).padStart(2, "0");
+      const min = String(date.getMinutes()).padStart(2, "0");
+      const s = String(date.getSeconds()).padStart(2, "0");
+      return `${y}${m}${d}_${h}${min}${s}`;
+    }
+
+    /* =========================================
+     * ステータス選択
+     * - 1つだけ選択可能
+     * ========================================= */
+    function setupStatusButtons() {
+      statusButtons.forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setStatus(button.dataset.value);
         });
+      });
+    }
 
-        video.srcObject = stream;
-        cameraGuide.classList.add("hidden");
-      } catch (error) {
-        console.error(error);
-        alert(
-          "カメラを起動できませんでした。\n" +
-          "スマホではGitHub PagesのURLから開いてください。"
-        );
+    function setStatus(value) {
+      selectedStatus = value;
+
+      statusButtons.forEach((button) => {
+        const checked = button.dataset.value === value;
+        button.setAttribute("aria-pressed", checked ? "true" : "false");
+
+        const box = button.querySelector(".status-box");
+        if (box) {
+          box.textContent = checked ? "■" : "□";
+        }
+      });
+    }
+
+    /* =========================================
+     * 看板の初期サイズと初期位置
+     * ========================================= */
+    function setInitialBoardLayout() {
+      const screen = getScreenSize();
+      const base = getBoardBaseSize();
+
+      /*
+       * 初期表示サイズ
+       * - スマホで大きすぎないように少し小さめ
+       */
+      const targetWidth = clamp(screen.width * 0.46, 240, 320);
+      boardState.scale = targetWidth / base.width;
+
+      /*
+       * 初期位置は左下寄せ
+       * ボタンと被らないように少し上へ
+       */
+      const displayedHeight = base.height * boardState.scale;
+      boardState.x = 6;
+      boardState.y = screen.height - displayedHeight - 86;
+
+      if (boardState.y < 6) {
+        boardState.y = 6;
       }
+
+      clampBoardWithinScreen();
+      applyBoardTransform();
+      hasInitializedBoard = true;
     }
 
-    /**
-     * 起動中のカメラを停止
-     */
-    function stopCurrentStream() {
-      if (!video.srcObject) return;
+    function handleWindowResize() {
+      if (!hasInitializedBoard) {
+        setInitialBoardLayout();
+        return;
+      }
 
-      video.srcObject.getTracks().forEach(track => track.stop());
-      video.srcObject = null;
-      cameraGuide.classList.remove("hidden");
+      clampBoardWithinScreen();
+      applyBoardTransform();
     }
 
-    /**
-     * 写真区分を1つだけ選択する
-     */
-    function setupPhotoTypeSelector() {
-      document.querySelectorAll(".type-item").forEach(item => {
-        item.addEventListener("pointerdown", event => {
-          event.stopPropagation();
-        });
-
-        item.addEventListener("click", event => {
-          event.stopPropagation();
-          selectedType = item.dataset.type;
-          updatePhotoTypeDisplay();
-        });
-      });
-
-      updatePhotoTypeDisplay();
+    function getScreenSize() {
+      return {
+        width: cameraScreen.clientWidth || window.innerWidth,
+        height: cameraScreen.clientHeight || window.innerHeight
+      };
     }
 
-    /**
-     * □ / ■ 表示を更新
-     */
-    function updatePhotoTypeDisplay() {
-      document.querySelectorAll(".type-item").forEach(item => {
-        const mark = item.querySelector(".type-mark");
-        mark.textContent = item.dataset.type === selectedType ? "■" : "□";
-      });
+    function getBoardBaseSize() {
+      return {
+        width: photoBoard.offsetWidth,
+        height: photoBoard.offsetHeight
+      };
     }
 
-    /**
-     * 看板のタッチ操作を設定
-     */
-    function setupBoardTouch() {
-      photoBoard.addEventListener("pointerdown", onBoardPointerDown);
-      photoBoard.addEventListener("pointermove", onBoardPointerMove);
-      photoBoard.addEventListener("pointerup", onBoardPointerUp);
-      photoBoard.addEventListener("pointercancel", onBoardPointerUp);
-      photoBoard.addEventListener("pointerleave", onBoardPointerUp);
+    function applyBoardTransform() {
+      boardWrap.style.transform =
+        `translate(${boardState.x}px, ${boardState.y}px) scale(${boardState.scale})`;
+    }
+
+    function clampBoardWithinScreen() {
+      const screen = getScreenSize();
+      const base = getBoardBaseSize();
+
+      const boardWidth = base.width * boardState.scale;
+      const boardHeight = base.height * boardState.scale;
+
+      const maxX = Math.max(0, screen.width - boardWidth);
+      const maxY = Math.max(0, screen.height - boardHeight);
+
+      boardState.x = clamp(boardState.x, 0, maxX);
+      boardState.y = clamp(boardState.y, 0, maxY);
+      boardState.scale = clamp(boardState.scale, boardState.minScale, boardState.maxScale);
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    /* =========================================
+     * 看板の移動・拡大縮小
+     * - 1本指：移動
+     * - 2本指：ピンチ
+     * ========================================= */
+    function setupBoardGesture() {
+      boardWrap.addEventListener("pointerdown", onBoardPointerDown);
+      boardWrap.addEventListener("pointermove", onBoardPointerMove);
+      boardWrap.addEventListener("pointerup", onBoardPointerEnd);
+      boardWrap.addEventListener("pointercancel", onBoardPointerEnd);
+      boardWrap.addEventListener("pointerleave", onBoardPointerEnd);
     }
 
     function onBoardPointerDown(event) {
-      if (isInteractiveElement(event.target)) return;
+      /*
+       * 入力欄やステータスボタンをタップしたときは
+       * 移動処理に入らない
+       */
+      if (isInteractiveBoardTarget(event.target)) {
+        return;
+      }
 
       event.preventDefault();
-      photoBoard.setPointerCapture(event.pointerId);
+
+      boardWrap.classList.add("dragging");
+
+      try {
+        boardWrap.setPointerCapture(event.pointerId);
+      } catch (error) {
+        /* 端末によっては失敗しても続行 */
+      }
 
       activePointers.set(event.pointerId, {
         x: event.clientX,
@@ -552,285 +738,502 @@
       });
 
       if (activePointers.size === 1) {
-        dragStartX = event.clientX;
-        dragStartY = event.clientY;
-        boardStartX = boardX;
-        boardStartY = boardY;
-      }
-
-      if (activePointers.size === 2) {
-        const points = Array.from(activePointers.values());
-        pinchStartDistance = getDistance(points[0], points[1]);
-        pinchStartScale = boardScale;
+        gestureState.mode = "drag";
+        gestureState.dragStartX = event.clientX;
+        gestureState.dragStartY = event.clientY;
+        gestureState.originX = boardState.x;
+        gestureState.originY = boardState.y;
+      } else if (activePointers.size === 2) {
+        preparePinchGesture();
       }
     }
 
     function onBoardPointerMove(event) {
       if (!activePointers.has(event.pointerId)) return;
 
-      event.preventDefault();
-
       activePointers.set(event.pointerId, {
         x: event.clientX,
         y: event.clientY
       });
 
-      if (activePointers.size === 1) {
-        const dx = event.clientX - dragStartX;
-        const dy = event.clientY - dragStartY;
-
-        boardX = boardStartX + dx;
-        boardY = boardStartY + dy;
-
-        clampBoardPosition();
-        applyBoardTransform();
+      /*
+       * 2本指ならピンチ優先
+       */
+      if (activePointers.size >= 2) {
+        handlePinchMove();
+        return;
       }
 
-      if (activePointers.size === 2) {
-        const points = Array.from(activePointers.values());
-        const currentDistance = getDistance(points[0], points[1]);
+      /*
+       * 1本指移動
+       */
+      if (activePointers.size === 1 && gestureState.mode === "drag") {
+        event.preventDefault();
 
-        if (pinchStartDistance > 0) {
-          const ratio = currentDistance / pinchStartDistance;
-          boardScale = pinchStartScale * ratio;
-          boardScale = clamp(boardScale, 0.32, 1.35);
+        const dx = event.clientX - gestureState.dragStartX;
+        const dy = event.clientY - gestureState.dragStartY;
 
-          clampBoardPosition();
-          applyBoardTransform();
+        boardState.x = gestureState.originX + dx;
+        boardState.y = gestureState.originY + dy;
+
+        clampBoardWithinScreen();
+        applyBoardTransform();
+      }
+    }
+
+    function onBoardPointerEnd(event) {
+      if (activePointers.has(event.pointerId)) {
+        activePointers.delete(event.pointerId);
+      }
+
+      try {
+        boardWrap.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        /* 端末によっては失敗しても続行 */
+      }
+
+      if (activePointers.size === 1) {
+        /*
+         * 2本指終了後に1本残ったら、
+         * 残っている指でそのまま移動できるように基準を再セット
+         */
+        const remaining = Array.from(activePointers.values())[0];
+        gestureState.mode = "drag";
+        gestureState.dragStartX = remaining.x;
+        gestureState.dragStartY = remaining.y;
+        gestureState.originX = boardState.x;
+        gestureState.originY = boardState.y;
+      } else {
+        gestureState.mode = null;
+        boardWrap.classList.remove("dragging");
+      }
+    }
+
+    function preparePinchGesture() {
+      const points = Array.from(activePointers.values());
+      if (points.length < 2) return;
+
+      const p1 = points[0];
+      const p2 = points[1];
+      const mid = getMidpoint(p1, p2);
+
+      gestureState.mode = "pinch";
+      gestureState.startDistance = getDistance(p1, p2);
+      gestureState.startScale = boardState.scale;
+
+      /*
+       * ピンチの中心点を保ったまま拡大縮小するため、
+       * 看板内部のローカル座標を保持しておく
+       */
+      gestureState.localMidX = (mid.x - boardState.x) / boardState.scale;
+      gestureState.localMidY = (mid.y - boardState.y) / boardState.scale;
+    }
+
+    function handlePinchMove() {
+      const points = Array.from(activePointers.values());
+      if (points.length < 2) return;
+
+      const p1 = points[0];
+      const p2 = points[1];
+
+      const newDistance = getDistance(p1, p2);
+      const mid = getMidpoint(p1, p2);
+
+      if (!gestureState.startDistance) return;
+
+      let nextScale =
+        gestureState.startScale * (newDistance / gestureState.startDistance);
+
+      nextScale = clamp(nextScale, boardState.minScale, boardState.maxScale);
+
+      boardState.scale = nextScale;
+
+      /*
+       * ピンチ中心を基準に位置調整
+       */
+      boardState.x = mid.x - gestureState.localMidX * boardState.scale;
+      boardState.y = mid.y - gestureState.localMidY * boardState.scale;
+
+      clampBoardWithinScreen();
+      applyBoardTransform();
+    }
+
+    function getDistance(p1, p2) {
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getMidpoint(p1, p2) {
+      return {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2
+      };
+    }
+
+    function isInteractiveBoardTarget(target) {
+      return Boolean(
+        target.closest(".board-input") || target.closest(".status-btn")
+      );
+    }
+
+    /* =========================================
+     * カメラ起動
+     * - 起動後は「カメラ起動」ボタンを消して
+     *   「撮影」ボタンだけ表示
+     * ========================================= */
+    async function startCamera() {
+      try {
+        requestFullscreenSafe();
+
+        stopCurrentStream();
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+
+        currentStream = stream;
+        video.srcObject = stream;
+
+        await video.play();
+
+        cameraGuide.classList.add("hidden");
+        startButton.classList.add("hidden-control");
+        shootButton.classList.remove("hidden-control");
+
+        showToast("カメラを起動しました");
+      } catch (error) {
+        console.error(error);
+        showToast("カメラを起動できませんでした");
+      }
+    }
+
+    function stopCurrentStream() {
+      if (!currentStream) return;
+
+      currentStream.getTracks().forEach((track) => track.stop());
+      currentStream = null;
+      video.srcObject = null;
+    }
+
+    async function requestFullscreenSafe() {
+      const target = document.documentElement;
+
+      if (!document.fullscreenElement && target.requestFullscreen) {
+        try {
+          await target.requestFullscreen();
+        } catch (error) {
+          /* 非対応・拒否でも続行 */
         }
       }
     }
 
-    function onBoardPointerUp(event) {
-      activePointers.delete(event.pointerId);
-
-      if (activePointers.size === 1) {
-        const point = Array.from(activePointers.values())[0];
-
-        dragStartX = point.x;
-        dragStartY = point.y;
-        boardStartX = boardX;
-        boardStartY = boardY;
-      }
-    }
-
-    /**
-     * 入力欄などはドラッグ対象から外す
-     */
-    function isInteractiveElement(target) {
-      return (
-        target.closest("[contenteditable='true']") ||
-        target.closest(".type-item") ||
-        target.closest("button")
-      );
-    }
-
-    /**
-     * 左下に戻す
-     */
-    function resetBoardPosition() {
-      boardScale = 0.62;
-      boardX = 8;
-
-      const screenHeight = cameraScreen.clientHeight;
-      const boardHeight = photoBoard.offsetHeight * boardScale;
-
-      boardY = screenHeight - boardHeight - 76;
-
-      clampBoardPosition();
-      applyBoardTransform();
-    }
-
-    /**
-     * 看板位置・サイズを反映
-     */
-    function applyBoardTransform() {
-      photoBoard.style.transform =
-        `translate(${boardX}px, ${boardY}px) scale(${boardScale})`;
-    }
-
-    /**
-     * 看板が画面外へ行きすぎないようにする
-     */
-    function clampBoardPosition() {
-      const screenW = cameraScreen.clientWidth;
-      const screenH = cameraScreen.clientHeight;
-      const boardW = photoBoard.offsetWidth * boardScale;
-      const boardH = photoBoard.offsetHeight * boardScale;
-
-      const minX = -boardW * 0.4;
-      const minY = -boardH * 0.15;
-      const maxX = screenW - boardW * 0.15;
-      const maxY = screenH - boardH * 0.15;
-
-      boardX = clamp(boardX, minX, maxX);
-      boardY = clamp(boardY, minY, maxY);
-    }
-
-    /**
-     * 撮影する
-     */
+    /* =========================================
+     * 撮影
+     * - 画面に見えているカメラ映像
+     * - 現在の看板位置 / サイズ
+     * - 看板の入力内容
+     * を合成して保存
+     * ========================================= */
     function takePhoto() {
-      if (!video.videoWidth || !video.videoHeight) {
-        alert("先にカメラを起動してください。");
+      if (!currentStream || !video.srcObject || video.readyState < 2) {
+        showToast("先にカメラを起動してください");
         return;
       }
 
+      updateCurrentDate();
+
+      try {
+        const canvas = captureCompositedImage();
+        const fileName = `electronic_board_${formatFileDate(new Date())}.jpg`;
+
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+
+        showToast("撮影しました");
+      } catch (error) {
+        console.error(error);
+        showToast("撮影に失敗しました");
+      }
+    }
+
+    function captureCompositedImage() {
+      const screen = getScreenSize();
+
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+
+      /*
+       * 画面では object-fit: cover で表示しているので、
+       * 実際に見えている範囲だけを切り出して保存する
+       */
+      const coverScale = Math.max(
+        screen.width / videoWidth,
+        screen.height / videoHeight
+      );
+
+      const visibleSourceWidth = screen.width / coverScale;
+      const visibleSourceHeight = screen.height / coverScale;
+
+      const sourceX = (videoWidth - visibleSourceWidth) / 2;
+      const sourceY = (videoHeight - visibleSourceHeight) / 2;
+
       const canvas = document.createElement("canvas");
+      canvas.width = Math.round(visibleSourceWidth);
+      canvas.height = Math.round(visibleSourceHeight);
+
       const ctx = canvas.getContext("2d");
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      /*
+       * カメラ映像を描画
+       */
+      ctx.drawImage(
+        video,
+        sourceX,
+        sourceY,
+        visibleSourceWidth,
+        visibleSourceHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
 
-      // カメラ映像
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // 看板の表示位置を画像サイズに変換
-      const videoRect = video.getBoundingClientRect();
+      /*
+       * 現在の看板の見た目位置を取得して、
+       * その位置に看板を描画する
+       */
       const boardRect = photoBoard.getBoundingClientRect();
 
-      const scaleX = canvas.width / videoRect.width;
-      const scaleY = canvas.height / videoRect.height;
+      const boardX = (boardRect.left / screen.width) * canvas.width;
+      const boardY = (boardRect.top / screen.height) * canvas.height;
+      const boardW = (boardRect.width / screen.width) * canvas.width;
+      const boardH = (boardRect.height / screen.height) * canvas.height;
 
-      const drawX = (boardRect.left - videoRect.left) * scaleX;
-      const drawY = (boardRect.top - videoRect.top) * scaleY;
-      const drawW = boardRect.width * scaleX;
-      const drawH = boardRect.height * scaleY;
+      drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
 
-      drawBoardOnCanvas(ctx, drawX, drawY, drawW, drawH);
-
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      const filename = createFileName();
-
-      autoDownload(dataUrl, filename);
-      showToast("保存しました");
+      return canvas;
     }
 
-    /**
-     * 自動保存を試す
-     * iPhoneでは完全自動保存できず、画像表示や確認になる場合あり
-     */
-    function autoDownload(dataUrl, filename) {
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    /**
-     * 保存ファイル名
-     */
-    function createFileName() {
-      const now = new Date();
-
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const dd = String(now.getDate()).padStart(2, "0");
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mi = String(now.getMinutes()).padStart(2, "0");
-      const ss = String(now.getSeconds()).padStart(2, "0");
-
-      const sampleNo = getText("sampleNo") || "sample";
-      return `${yyyy}${mm}${dd}_${hh}${mi}${ss}_${selectedType}_${sampleNo}.jpg`;
-    }
-
-    /**
-     * canvasへ看板を描画する
-     */
+    /* =========================================
+     * キャンバス上に看板を描画
+     * - 画面上のDOMをそのまま撮るのではなく、
+     *   同じ内容をキャンバスで描く
+     * ========================================= */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
-      const projectName = getText("projectName");
-      const address = getText("address");
-      const roomNo = getText("roomNo");
-      const sampleNo = getText("sampleNo");
-      const dateText = getText("dateText");
+      const data = {
+        subject: subjectText.textContent || "",
+        address: addressText.textContent || "",
+        roomNo: roomNoInput.value.trim(),
+        sampleNo: sampleNoInput.value.trim(),
+        date: dateText.textContent || "",
+        status: selectedStatus
+      };
 
+      /*
+       * レイアウト比率
+       */
+      const leftColW = w * 0.196;
+      const rightW = w - leftColW;
+
+      const row1H = h * 0.236;
+      const row2H = h * 0.202;
+      const row3H = h * 0.384;
+      const row4H = h - row1H - row2H - row3H;
+
+      const contentY = y + row1H + row2H;
+      const contentH = row3H;
+
+      const innerLabelW = rightW * 0.285;
+      const roomRowH = contentH * 0.305;
+      const sampleRowH = contentH * 0.305;
+      const statusRowH = contentH - roomRowH - sampleRowH;
+
+      const outerLine = Math.max(2, h * 0.0115);
+      const innerLine = Math.max(1.5, h * 0.0048);
+
+      /*
+       * 背景・外枠
+       */
       ctx.save();
-
-      // 外側黒枠
-      ctx.fillStyle = "#000";
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(x, y, w, h);
 
-      const pad = Math.max(2, w * 0.008);
-      const bx = x + pad;
-      const by = y + pad;
-      const bw = w - pad * 2;
-      const bh = h - pad * 2;
+      ctx.strokeStyle = "#000000";
+      ctx.lineJoin = "miter";
+      ctx.lineWidth = outerLine;
+      ctx.strokeRect(x, y, w, h);
 
-      // 白背景
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(bx, by, bw, bh);
+      /*
+       * 外側の罫線
+       */
+      ctx.lineWidth = innerLine;
+      drawLine(ctx, x + leftColW, y, x + leftColW, y + h);
 
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = Math.max(1.5, w * 0.004);
+      drawLine(ctx, x, y + row1H, x + w, y + row1H);
+      drawLine(ctx, x, y + row1H + row2H, x + w, y + row1H + row2H);
+      drawLine(ctx, x, y + row1H + row2H + row3H, x + w, y + row1H + row2H + row3H);
 
-      const labelW = bw * 0.2;
-      const row1H = bh * 0.24;
-      const row2H = bh * 0.22;
-      const row3H = bh * 0.36;
-      const row4H = bh - row1H - row2H - row3H;
+      /*
+       * 内容欄の内側線
+       */
+      drawLine(ctx, x + leftColW, contentY + roomRowH, x + w, contentY + roomRowH);
+      drawLine(
+        ctx,
+        x + leftColW,
+        contentY + roomRowH + sampleRowH,
+        x + w,
+        contentY + roomRowH + sampleRowH
+      );
 
-      ctx.strokeRect(bx, by, bw, bh);
+      drawLine(
+        ctx,
+        x + leftColW + innerLabelW,
+        contentY,
+        x + leftColW + innerLabelW,
+        contentY + roomRowH + sampleRowH
+      );
 
-      drawLine(ctx, bx, by + row1H, bx + bw, by + row1H);
-      drawLine(ctx, bx, by + row1H + row2H, bx + bw, by + row1H + row2H);
-      drawLine(ctx, bx, by + row1H + row2H + row3H, bx + bw, by + row1H + row2H + row3H);
-      drawLine(ctx, bx + labelW, by, bx + labelW, by + bh);
+      /*
+       * フォントサイズ
+       */
+      const labelFont = Math.max(15, h * 0.062);
+      const titleFont = Math.max(16, h * 0.061);
+      const addressFont = Math.max(15, h * 0.055);
+      const innerLabelFont = Math.max(15, h * 0.052);
+      const innerValueFont = Math.max(16, h * 0.055);
+      const statusFont = Math.max(14, h * 0.048);
+      const dateFont = Math.max(18, h * 0.073);
 
-      const labelFont = Math.max(10, bw * 0.044);
-      const valueFont = Math.max(10, bw * 0.047);
-      const contentFont = Math.max(9, bw * 0.043);
-      const dateFont = Math.max(12, bw * 0.055);
+      /*
+       * 左側ラベル
+       */
+      drawCenteredText(ctx, "件名", x, y, leftColW, row1H, labelFont);
+      drawCenteredText(ctx, "採取場所", x, y + row1H, leftColW, row2H, labelFont);
+      drawStackedCenteredText(ctx, ["内", "容"], x, contentY, leftColW, contentH, labelFont);
+      drawCenteredText(ctx, "日付", x, y + row1H + row2H + row3H, leftColW, row4H, labelFont);
 
-      drawCenter(ctx, "件 名", bx, by, labelW, row1H, labelFont);
-      drawCenter(ctx, "採取場所", bx, by + row1H, labelW, row2H, labelFont);
-      drawCenter(ctx, "内 容", bx, by + row1H + row2H, labelW, row3H, labelFont);
-      drawCenter(ctx, "日 付", bx, by + row1H + row2H + row3H, labelW, row4H, labelFont);
+      /*
+       * 件名
+       */
+      drawWrappedLeftText(
+        ctx,
+        data.subject,
+        x + leftColW + 14,
+        y,
+        rightW - 24,
+        row1H,
+        titleFont,
+        1.3,
+        2
+      );
 
-      drawFitText(ctx, projectName, bx + labelW + 6, by + row1H * 0.56, bw - labelW - 12, valueFont);
-      drawFitText(ctx, address, bx + labelW + 6, by + row1H + row2H * 0.58, bw - labelW - 12, valueFont);
+      /*
+       * 採取場所
+       */
+      drawWrappedLeftText(
+        ctx,
+        data.address,
+        x + leftColW + 14,
+        y + row1H,
+        rightW - 24,
+        row2H,
+        addressFont,
+        1.25,
+        2
+      );
 
-      const cx = bx + labelW;
-      const cy = by + row1H + row2H;
-      const cw = bw - labelW;
+      /*
+       * 内容欄ラベル
+       */
+      drawLeftMiddleText(
+        ctx,
+        "部屋No.",
+        x + leftColW + 12,
+        contentY,
+        innerLabelW - 18,
+        roomRowH,
+        innerLabelFont
+      );
 
-      const subRowH = row3H * 0.31;
+      drawLeftMiddleText(
+        ctx,
+        "試料No.",
+        x + leftColW + 12,
+        contentY + roomRowH,
+        innerLabelW - 18,
+        sampleRowH,
+        innerLabelFont
+      );
 
-      drawLine(ctx, cx, cy + subRowH, bx + bw, cy + subRowH);
-      drawLine(ctx, cx, cy + subRowH * 2, bx + bw, cy + subRowH * 2);
+      /*
+       * 内容欄入力値
+       */
+      drawLeftMiddleText(
+        ctx,
+        data.roomNo,
+        x + leftColW + innerLabelW + 14,
+        contentY,
+        rightW - innerLabelW - 24,
+        roomRowH,
+        innerValueFont
+      );
 
-      const subLabelW = cw * 0.33;
-      drawLine(ctx, cx + subLabelW, cy, cx + subLabelW, cy + subRowH * 2);
+      drawLeftMiddleText(
+        ctx,
+        data.sampleNo,
+        x + leftColW + innerLabelW + 14,
+        contentY + roomRowH,
+        rightW - innerLabelW - 24,
+        sampleRowH,
+        innerValueFont
+      );
 
-      drawLeft(ctx, "部屋No.", cx + 5, cy + subRowH * 0.62, contentFont);
-      drawLeft(ctx, roomNo, cx + subLabelW + 5, cy + subRowH * 0.62, contentFont * 1.25);
+      /*
+       * ステータス行
+       * 1つだけ ■、他は □
+       */
+      const statusStartX = x + leftColW + 10;
+      const statusWidth = rightW - 20;
+      const segmentW = statusWidth / STATUS_LIST.length;
+      const statusCenterY = contentY + roomRowH + sampleRowH + statusRowH / 2;
 
-      drawLeft(ctx, "試料No.", cx + 5, cy + subRowH + subRowH * 0.62, contentFont);
-      drawLeft(ctx, sampleNo, cx + subLabelW + 5, cy + subRowH + subRowH * 0.62, contentFont * 1.25);
+      ctx.fillStyle = "#000";
+      ctx.font = `900 ${statusFont}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
 
-      const types = ["目視", "施工前", "施工中", "施工後"];
-      const eachW = cw / 4;
-
-      types.forEach((type, index) => {
-        const mark = type === selectedType ? "■" : "□";
-        drawCenter(
-          ctx,
-          mark + type,
-          cx + eachW * index,
-          cy + subRowH * 2,
-          eachW,
-          row3H - subRowH * 2,
-          contentFont * 0.95
-        );
+      STATUS_LIST.forEach((item, index) => {
+        const symbol = item.value === data.status ? "■" : "□";
+        const text = `${symbol}${item.label}`;
+        const centerX = statusStartX + segmentW * index + segmentW / 2;
+        ctx.fillText(text, centerX, statusCenterY);
       });
 
-      drawCenter(
+      /*
+       * 日付
+       */
+      drawCenteredText(
         ctx,
-        dateText,
-        bx + labelW,
-        by + row1H + row2H + row3H,
-        bw - labelW,
+        data.date,
+        x + leftColW,
+        y + row1H + row2H + row3H,
+        rightW,
         row4H,
         dateFont
       );
@@ -845,70 +1248,99 @@
       ctx.stroke();
     }
 
-    function drawCenter(ctx, text, x, y, w, h, fontSize) {
+    function drawCenteredText(ctx, text, x, y, w, h, fontSize) {
+      ctx.save();
       ctx.fillStyle = "#000";
-      ctx.font = `900 ${fontSize}px sans-serif`;
+      ctx.font = `900 ${fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(text, x + w / 2, y + h / 2);
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
+      ctx.fillText(text || "", x + w / 2, y + h / 2);
+      ctx.restore();
     }
 
-    function drawLeft(ctx, text, x, y, fontSize) {
+    function drawStackedCenteredText(ctx, lines, x, y, w, h, fontSize) {
+      ctx.save();
       ctx.fillStyle = "#000";
-      ctx.font = `900 ${fontSize}px sans-serif`;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillText(text, x, y);
+      ctx.font = `900 ${fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const lineHeight = fontSize * 1.15;
+      const totalHeight = lines.length * lineHeight;
+      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2;
+
+      lines.forEach((line) => {
+        ctx.fillText(line, x + w / 2, currentY);
+        currentY += lineHeight;
+      });
+
+      ctx.restore();
     }
 
-    function drawFitText(ctx, text, x, y, maxWidth, fontSize) {
-      let size = fontSize;
-
+    function drawLeftMiddleText(ctx, text, x, y, w, h, fontSize) {
+      ctx.save();
       ctx.fillStyle = "#000";
+      ctx.font = `900 ${fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
       ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.font = `900 ${size}px sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.fillText(text || "", x, y + h / 2);
+      ctx.restore();
+    }
 
-      while (ctx.measureText(text).width > maxWidth && size > 8) {
-        size -= 1;
-        ctx.font = `900 ${size}px sans-serif`;
+    function drawWrappedLeftText(ctx, text, x, y, w, h, fontSize, lineRate, maxLines) {
+      ctx.save();
+      ctx.fillStyle = "#000";
+      ctx.font = `900 ${fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      const lines = getWrappedLines(ctx, text || "", w).slice(0, maxLines);
+      const lineHeight = fontSize * lineRate;
+      const totalHeight = lines.length * lineHeight;
+      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2;
+
+      lines.forEach((line) => {
+        ctx.fillText(line, x, currentY);
+        currentY += lineHeight;
+      });
+
+      ctx.restore();
+    }
+
+    function getWrappedLines(ctx, text, maxWidth) {
+      const lines = [];
+      let current = "";
+
+      for (const char of String(text)) {
+        const test = current + char;
+        const testWidth = ctx.measureText(test).width;
+
+        if (testWidth > maxWidth && current !== "") {
+          lines.push(current);
+          current = char;
+        } else {
+          current = test;
+        }
       }
 
-      ctx.fillText(text, x, y);
+      if (current) {
+        lines.push(current);
+      }
+
+      return lines.length ? lines : [""];
     }
 
-    function getText(id) {
-      return document.getElementById(id).textContent.trim();
-    }
-
-    function setTodayIfEmpty() {
-      const el = document.getElementById("dateText");
-      if (!el) return;
-      if (el.textContent.trim()) return;
-
-      const now = new Date();
-      el.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
-    }
-
-    function getDistance(p1, p2) {
-      const dx = p1.x - p2.x;
-      const dy = p1.y - p2.y;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    function clamp(value, min, max) {
-      return Math.min(Math.max(value, min), max);
-    }
-
+    /* =========================================
+     * トースト表示
+     * ========================================= */
     function showToast(message) {
       toast.textContent = message;
       toast.classList.add("show");
 
-      setTimeout(() => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
         toast.classList.remove("show");
-      }, 1200);
+      }, 1800);
     }
   </script>
 </body>

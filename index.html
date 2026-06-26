@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#000000" />
   <title>電子看板カメラ</title>
 
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=kOkEzaxBnoiNoTMGZbdmVqyP-bdd6f5f8oWMORtqNs2G_g--B9t3Y82NXX_AlwudXfjtjBLJv5D_GMO93wGDMkx7Dy2N8yNuLWCHBTTRwLUw-6KbMN1RlajsBW1kGRV7KV6GDmxA05hQRYHPleqszMeVti69tdKcd23abCW-JyvE-XIHibF0qE8Uhh8cxctrLC1l6_Qoilrx38Nl3YEk5CBky7bR81BTaGvo0LD9ap-zm5sItHr1RgeVWkuZgzELMUdf5sdz2XAPcP4Q8b98ag" charset="UTF-8"></script><style>
+  <style>
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
@@ -102,7 +102,7 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 560px;
+      width: 390px;
       transform-origin: top left;
       pointer-events: auto;
       touch-action: none;
@@ -119,10 +119,10 @@
     #photoBoard {
       position: relative;
       width: 100%;
-      height: 300px;
+      height: 230px;
       background: #fff;
       color: #000;
-      border: 4px solid #000;
+      border: 3px solid #000;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
       overflow: hidden;
     }
@@ -136,7 +136,7 @@
       position: absolute;
       inset: 0;
       z-index: 5;
-      border: 4px solid #000;
+      border: 3px solid #000;
       pointer-events: none;
     }
 
@@ -151,49 +151,51 @@
 
     .board-table td,
     .inner-table td {
-      border: 2px solid #000;
+      border: 1.5px solid #000;
       vertical-align: middle;
       padding: 0;
     }
 
     .row-subject {
-      height: 72px;
+      height: 52px;
     }
 
     .row-place {
-      height: 54px;
+      height: 40px;
     }
 
     .row-content {
-      height: 118px;
+      height: 96px;
     }
 
     .row-date {
-      height: 56px;
+      height: 42px;
     }
 
     .label-cell {
-      width: 104px;
+      width: 78px;
       text-align: center;
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 900;
+      letter-spacing: 0.08em;
       white-space: nowrap;
     }
 
     .content-label-cell {
-      width: 104px;
+      width: 78px;
       text-align: center;
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 900;
+      letter-spacing: 0.08em;
       white-space: nowrap;
     }
 
     .value-cell {
-      padding: 6px 12px;
+      padding: 4px 5px;
     }
 
     .board-value-cell {
-      padding: 0 12px;
+      padding: 0 6px;
     }
 
     .textarea-center-wrap {
@@ -237,33 +239,33 @@
     }
 
     .subject-textarea {
-      font-size: 23px;
+      font-size: 18px;
       font-weight: 900;
       line-height: 1.25;
     }
 
     .address-textarea {
-      font-size: 21px;
+      font-size: 17px;
       font-weight: 900;
       line-height: 1.2;
     }
 
     .inner-label {
-      width: 130px;
-      padding: 6px 10px;
-      font-size: 20px;
+      width: 78px;
+      padding: 4px 5px;
+      font-size: 17px;
       font-weight: 900;
       white-space: nowrap;
       text-align: center;
     }
 
     .inner-value {
-      padding: 0 10px;
+      padding: 0 6px;
     }
 
     .board-input {
       width: 100%;
-      height: 40px;
+      height: 28px;
       border: none;
       outline: none;
       background: transparent;
@@ -275,16 +277,16 @@
     }
 
     .status-cell {
-      padding: 4px 8px;
+      padding: 3px 4px;
     }
 
     .status-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
+      gap: 2px;
       width: 100%;
-      height: 42px;
+      height: 34px;
       flex-wrap: nowrap;
     }
 
@@ -296,7 +298,7 @@
       padding: 0;
       margin: 0;
       color: #000;
-      font-size: 19px;
+      font-size: 15px;
       font-weight: 900;
       font-family: inherit;
       display: inline-flex;
@@ -319,13 +321,14 @@
 
     .date-cell {
       text-align: center;
-      padding: 0 12px 6px;
+      padding: 0 6px;
     }
 
     .date-text {
       font-size: 22px;
       font-weight: 900;
       line-height: 1;
+      letter-spacing: 0.06em;
     }
 
     /* 右下ボタン：カメラ起動後は 表示 → 撮影 */
@@ -1008,7 +1011,7 @@
       const screen = getScreenSize();
       const base = getBoardBaseSize();
 
-      const targetWidth = clamp(screen.width * 0.58, 260, 360);
+      const targetWidth = clamp(screen.width * 0.42, 240, 320);
       boardState.scale = targetWidth / base.width;
 
       const displayedHeight = base.height * boardState.scale;
@@ -1892,24 +1895,24 @@
         status: selectedStatus
       };
 
-      const leftColW = w * 0.186;
+      const leftColW = w * 0.20;
       const rightW = w - leftColW;
 
-      const row1H = h * 0.24;
-      const row2H = h * 0.18;
-      const row3H = h * 0.39;
+      const row1H = h * (52 / 230);
+      const row2H = h * (40 / 230);
+      const row3H = h * (96 / 230);
       const row4H = h - row1H - row2H - row3H;
 
       const contentY = y + row1H + row2H;
       const contentH = row3H;
 
-      const innerLabelW = rightW * 0.28;
-      const roomRowH = contentH * 0.32;
-      const sampleRowH = contentH * 0.32;
+      const innerLabelW = rightW * 0.27;
+      const roomRowH = contentH * 0.31;
+      const sampleRowH = contentH * 0.31;
       const statusRowH = contentH - roomRowH - sampleRowH;
 
-      const outerLine = Math.max(2, h * 0.012);
-      const innerLine = Math.max(1.5, h * 0.005);
+      const outerLine = Math.max(1.5, h * 0.013);
+      const innerLine = Math.max(1, h * 0.0065);
 
       ctx.save();
 
@@ -1932,21 +1935,21 @@
       drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, x + w, contentY + roomRowH + sampleRowH);
       drawLine(ctx, x + leftColW + innerLabelW, contentY, x + leftColW + innerLabelW, contentY + roomRowH + sampleRowH);
 
-      const labelFont = Math.max(14, h * 0.072);
-      const titleFont = Math.max(14, h * 0.073);
-      const addressFont = Math.max(13, h * 0.066);
-      const innerLabelFont = Math.max(13, h * 0.06);
-      const innerValueFont = Math.max(14, h * 0.065);
-      const statusFont = Math.max(12, h * 0.058);
-      const dateFont = Math.max(14, h * 0.068);
+      const labelFont = Math.max(10, w * 0.046);
+      const titleFont = Math.max(10, w * 0.047);
+      const addressFont = Math.max(10, w * 0.044);
+      const innerLabelFont = Math.max(9, w * 0.043);
+      const innerValueFont = Math.max(11, w * 0.055);
+      const statusFont = Math.max(9, w * 0.038);
+      const dateFont = Math.max(12, w * 0.055);
 
       drawCenteredText(ctx, "件名", x, y, leftColW, row1H, labelFont);
       drawCenteredText(ctx, "採取場所", x, y + row1H, leftColW, row2H, labelFont);
       drawCenteredText(ctx, "内容", x, contentY, leftColW, contentH, labelFont);
       drawCenteredText(ctx, "日付", x, y + row1H + row2H + row3H, leftColW, row4H, labelFont);
 
-      drawWrappedCenterText(ctx, data.subject, x + leftColW + 10, y, rightW - 20, row1H, titleFont, 1.25, 2);
-      drawWrappedCenterText(ctx, data.address, x + leftColW + 10, y + row1H, rightW - 20, row2H, addressFont, 1.2, 2);
+      drawWrappedCenterText(ctx, data.subject, x + leftColW + 6, y, rightW - 12, row1H, titleFont, 1.25, 2);
+      drawWrappedCenterText(ctx, data.address, x + leftColW + 6, y + row1H, rightW - 12, row2H, addressFont, 1.2, 2);
 
       drawCenteredText(ctx, "部屋No.", x + leftColW, contentY, innerLabelW, roomRowH, innerLabelFont);
       drawCenteredText(ctx, "試料No.", x + leftColW, contentY + roomRowH, innerLabelW, sampleRowH, innerLabelFont);
@@ -1954,8 +1957,8 @@
       drawCenteredText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
       drawCenteredText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, innerValueFont);
 
-      const statusStartX = x + leftColW + 8;
-      const statusWidth = rightW - 16;
+      const statusStartX = x + leftColW + 3;
+      const statusWidth = rightW - 6;
       const segmentW = statusWidth / STATUS_LIST.length;
       const statusCenterY = contentY + roomRowH + sampleRowH + statusRowH / 2;
 

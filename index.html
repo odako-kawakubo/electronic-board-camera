@@ -80,7 +80,14 @@
       border-radius: 999px;
       font-size: 14px;
       font-weight: 900;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    #photoCount:active {
+      opacity: 0.72;
     }
 
     /* 看板レイヤー */
@@ -110,12 +117,27 @@
 
     /* 電子看板：横長長方形 */
     #photoBoard {
+      position: relative;
       width: 100%;
       height: 300px;
       background: #fff;
       color: #000;
       border: 4px solid #000;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+    }
+
+    /*
+     * 画面上の看板外枠を常に太く見せるための上乗せ枠。
+     * transformで縮小したとき、下枠だけ細く見えることがあるため補強する。
+     */
+    #photoBoard::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      border: 4px solid #000;
+      pointer-events: none;
     }
 
     .board-table,
@@ -703,6 +725,7 @@
     const DB_VERSION = 1;
     const DB_STORE_NAME = "photos";
     const DEFAULT_POINT_NO = "1";
+    const POINT_DISPLAY_DEFAULT = "1-①";
 
     const cameraScreen = document.getElementById("cameraScreen");
     const video = document.getElementById("video");
@@ -772,6 +795,8 @@
       setupStatusButtons();
       setupBoardGesture();
       setupPreviewSwipe();
+      setupPreviewImageTap();
+      setupPhotoCountHiddenShoot();
 
       await loadPhotosFromIndexedDB();
 
@@ -810,7 +835,7 @@
       subjectText.textContent = APP_DATA.subject;
       addressText.textContent = APP_DATA.address;
       roomNoInput.value = roomNoInput.value || "";
-      sampleNoInput.value = sampleNoInput.value || "1";
+      sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
       setStatus("visual");
       setSectionMode(false);
@@ -1147,7 +1172,10 @@
       isSectionMode = Boolean(enabled);
       document.body.classList.toggle("section-mode", isSectionMode);
       sectionButton.classList.toggle("active", isSectionMode);
-      sectionModeBadge.classList.toggle("show", isSectionMode);
+
+      // 断面モードの表示バッジは出さない。
+      // ボタン色と看板の表示/非表示だけで状態を判断する。
+      sectionModeBadge.classList.remove("show");
     }
 
     /*
@@ -1213,8 +1241,9 @@
         const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
         const createdAt = new Date();
         const photoType = getCurrentPhotoType();
-        const sampleNo = normalizeFilePart(sampleNoInput.value || "1");
-        const pointNo = DEFAULT_POINT_NO;
+        const sampleParts = parseSampleAndPoint(sampleNoInput.value);
+        const sampleNo = sampleParts.sampleNo;
+        const pointNo = sampleParts.pointNo;
         const fileName = generatePhotoFileName(sampleNo, pointNo, photoType.code);
         const photo = {
           id: `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -1397,6 +1426,7 @@
       const photo = capturedPhotos[index];
       photo.selected = !photo.selected;
       await savePhotoToIndexedDB(photo);
+      updatePhotoCount();
       renderPreview();
     }
 
@@ -1501,6 +1531,32 @@
       }, { passive: true });
     }
 
+    /*
+     * 写真プレビューの大きい画像をタップしたら、現在の写真を選択/解除する。
+     * サムネイルの小さいチェックだけだと現場で押しにくいため、画像全体をチェック操作にする。
+     */
+    function setupPhotoCountHiddenShoot() {
+      // 隠し機能：左上の「撮影済み ○枚 / 選択 ○枚」を押しても撮影する。
+      // 音量ボタン撮影の代わりに、片手で押しやすいサブシャッターとして使う。
+      photoCount.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // プレビュー表示中は誤作動させない。
+        if (previewOverlay.classList.contains("show")) return;
+
+        await takePhoto();
+      });
+    }
+
+    function setupPreviewImageTap() {
+      previewImage.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await toggleCurrentPhotoSelected();
+      });
+    }
+
     function updatePhotoCount() {
       const selectedCount = capturedPhotos.filter((photo) => photo.selected).length;
       photoCount.textContent = `撮影済み ${capturedPhotos.length}枚 / 選択 ${selectedCount}枚`;
@@ -1524,8 +1580,32 @@
     }
 
     function normalizeFilePart(value) {
-      const text = String(value || "").trim();
+      const text = normalizeFullWidthText(String(value || "").trim());
       return text ? text.replace(/[^0-9A-Za-z_-]/g, "") : "1";
+    }
+
+    /*
+     * 看板表示用の「試料No.」には、現場運用上「1-①」のような表記が入る想定。
+     * ファイル名では丸数字を半角数字に直し、「1-①」も「1-1」も同じ 1-1 として扱う。
+     */
+    function parseSampleAndPoint(value) {
+      const rawText = String(value || "").trim() || POINT_DISPLAY_DEFAULT;
+      const normalized = normalizeFullWidthText(rawText)
+        .replace(/[−ー―‐]/g, "-")
+        .replace(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/g, (char) => String("①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".indexOf(char) + 1));
+
+      const parts = normalized.split("-").filter(Boolean);
+
+      return {
+        sampleNo: normalizeFilePart(parts[0] || normalized || "1"),
+        pointNo: normalizeFilePart(parts[1] || DEFAULT_POINT_NO)
+      };
+    }
+
+    function normalizeFullWidthText(value) {
+      return String(value || "").replace(/[！-～]/g, (char) => {
+        return String.fromCharCode(char.charCodeAt(0) - 0xFEE0);
+      }).replace(/　/g, " ");
     }
 
     function generatePhotoFileName(sampleNo, pointNo, statusCode) {
@@ -1662,7 +1742,7 @@
       ctx.strokeStyle = "#000000";
       ctx.lineJoin = "miter";
       ctx.lineWidth = outerLine;
-      ctx.strokeRect(x, y, w, h);
+      drawOuterBorder(ctx, x, y, w, h, outerLine);
 
       ctx.lineWidth = innerLine;
 
@@ -1716,6 +1796,21 @@
 
       drawCenteredText(ctx, data.date, x + leftColW, y + row1H + row2H + row3H, rightW, row4H, dateFont);
 
+      /*
+       * 最後に外枠をもう一度描いて、下枠だけ細く見える問題を防ぐ。
+       */
+      drawOuterBorder(ctx, x, y, w, h, outerLine);
+
+      ctx.restore();
+    }
+
+    function drawOuterBorder(ctx, x, y, w, h, lineWidth) {
+      ctx.save();
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(x, y, w, lineWidth);
+      ctx.fillRect(x, y + h - lineWidth, w, lineWidth);
+      ctx.fillRect(x, y, lineWidth, h);
+      ctx.fillRect(x + w - lineWidth, y, lineWidth, h);
       ctx.restore();
     }
 

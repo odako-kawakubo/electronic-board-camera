@@ -120,23 +120,24 @@
       position: relative;
       width: 100%;
       height: 230px;
+      padding: 4px;
       background: #fff;
       color: #000;
-      border: 3px solid #000;
+      border: 2px solid #000;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
       overflow: hidden;
     }
 
     /*
-     * 画面上の看板外枠を常に太く見せるための上乗せ枠。
-     * transformで縮小したとき、下枠だけ細く見えることがあるため補強する。
+     * 細線の二重枠。
+     * 外側は #photoBoard の border、内側は表全体の枠で作る。
      */
     #photoBoard::after {
       content: "";
       position: absolute;
-      inset: 0;
+      inset: 4px;
       z-index: 5;
-      border: 3px solid #000;
+      border: 1.5px solid #000;
       pointer-events: none;
     }
 
@@ -1899,6 +1900,22 @@
         status: selectedStatus
       };
 
+      const outerLine = Math.max(1.2, h * 0.0085);
+      const innerLine = Math.max(0.9, h * 0.0065);
+      const frameGap = Math.max(2.2, h * 0.017);
+      const frameInset = outerLine + frameGap;
+
+      const outerX = x;
+      const outerY = y;
+      const outerW = w;
+      const outerH = h;
+
+      // 細線二重枠の内側に、表本体を描く。
+      x = outerX + frameInset;
+      y = outerY + frameInset;
+      w = Math.max(1, outerW - frameInset * 2);
+      h = Math.max(1, outerH - frameInset * 2);
+
       const leftColW = w * 0.20;
       const rightW = w - leftColW;
 
@@ -1915,18 +1932,15 @@
       const sampleRowH = contentH * 0.31;
       const statusRowH = contentH - roomRowH - sampleRowH;
 
-      const outerLine = Math.max(1.5, h * 0.013);
-      const innerLine = Math.max(1, h * 0.0065);
-
       ctx.save();
 
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x, y, w, h);
+      ctx.fillRect(outerX, outerY, outerW, outerH);
 
       ctx.strokeStyle = "#000000";
       ctx.lineJoin = "miter";
-      ctx.lineWidth = outerLine;
-      drawOuterBorder(ctx, x, y, w, h, outerLine);
+      drawOuterBorder(ctx, outerX, outerY, outerW, outerH, outerLine);
+      drawOuterBorder(ctx, x, y, w, h, innerLine);
 
       ctx.lineWidth = innerLine;
 
@@ -1981,10 +1995,9 @@
 
       drawCenteredText(ctx, data.date, x + leftColW, y + row1H + row2H + row3H, rightW, row4H, dateFont);
 
-      /*
-       * 最後に外枠をもう一度描いて、下枠だけ細く見える問題を防ぐ。
-       */
-      drawOuterBorder(ctx, x, y, w, h, outerLine);
+      // 最後に二重枠をもう一度描いて、焼き込み時の外周を安定させる。
+      drawOuterBorder(ctx, outerX, outerY, outerW, outerH, outerLine);
+      drawOuterBorder(ctx, x, y, w, h, innerLine);
 
       ctx.restore();
     }

@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#000000" />
   <title>電子看板カメラ</title>
 
-  <style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=kOkEzaxBnoiNoTMGZbdmVqyP-bdd6f5f8oWMORtqNs2G_g--B9t3Y82NXX_AlwudXfjtjBLJv5D_GMO93wGDMkx7Dy2N8yNuLWCHBTTRwLUw-6KbMN1RlajsBW1kGRV7KV6GDmxA05hQRYHPleqszMeVti69tdKcd23abCW-JyvE-XIHibF0qE8Uhh8cxctrLC1l6_Qoilrx38Nl3YEk5CBky7bR81BTaGvo0LD9ap-zm5sItHr1RgeVWkuZgzELMUdf5sdz2XAPcP4Q8b98ag" charset="UTF-8"></script><style>
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
@@ -192,6 +192,18 @@
       padding: 6px 12px;
     }
 
+    .board-value-cell {
+      padding: 0 12px;
+    }
+
+    .textarea-center-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
     .subject-text {
       font-size: 23px;
       font-weight: 900;
@@ -207,9 +219,11 @@
     }
 
     .board-textarea {
+      display: block;
       width: 100%;
-      height: 100%;
-      min-height: 40px;
+      height: auto;
+      min-height: 0;
+      max-height: 100%;
       border: none;
       outline: none;
       resize: none;
@@ -674,15 +688,19 @@
           <table class="board-table">
             <tr class="row-subject">
               <td class="label-cell">件名</td>
-              <td class="value-cell">
-                <textarea id="subjectText" class="board-textarea subject-textarea" rows="2" inputmode="text"></textarea>
+              <td class="value-cell board-value-cell">
+                <div class="textarea-center-wrap">
+                  <textarea id="subjectText" class="board-textarea subject-textarea" rows="2" inputmode="text"></textarea>
+                </div>
               </td>
             </tr>
 
             <tr class="row-place">
               <td class="label-cell">採取場所</td>
-              <td class="value-cell">
-                <textarea id="addressText" class="board-textarea address-textarea" rows="2" inputmode="text"></textarea>
+              <td class="value-cell board-value-cell">
+                <div class="textarea-center-wrap">
+                  <textarea id="addressText" class="board-textarea address-textarea" rows="2" inputmode="text"></textarea>
+                </div>
               </td>
             </tr>
 

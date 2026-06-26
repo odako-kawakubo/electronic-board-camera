@@ -165,11 +165,11 @@
     }
 
     .row-content {
-      height: 126px;
+      height: 118px;
     }
 
     .row-date {
-      height: 48px;
+      height: 56px;
     }
 
     .label-cell {
@@ -206,12 +206,41 @@
       word-break: break-all;
     }
 
+    .board-textarea {
+      width: 100%;
+      height: 100%;
+      min-height: 40px;
+      border: none;
+      outline: none;
+      resize: none;
+      overflow: hidden;
+      background: transparent;
+      color: #000;
+      font-family: inherit;
+      padding: 0;
+      margin: 0;
+      text-align: center;
+    }
+
+    .subject-textarea {
+      font-size: 23px;
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .address-textarea {
+      font-size: 21px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
     .inner-label {
       width: 130px;
       padding: 6px 10px;
       font-size: 20px;
       font-weight: 900;
       white-space: nowrap;
+      text-align: center;
     }
 
     .inner-value {
@@ -228,6 +257,7 @@
       font-size: 22px;
       font-weight: 900;
       font-family: inherit;
+      text-align: center;
     }
 
     .status-cell {
@@ -275,13 +305,13 @@
 
     .date-cell {
       text-align: center;
-      padding: 0 12px;
+      padding: 0 12px 6px;
     }
 
     .date-text {
-      font-size: 25px;
+      font-size: 22px;
       font-weight: 900;
-      line-height: 1.1;
+      line-height: 1;
     }
 
     /* 右下ボタン：カメラ起動後は 表示 → 撮影 */
@@ -433,6 +463,70 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    #previewOverlay.list-mode #previewImageWrap,
+    #previewOverlay.list-mode #previewMeta,
+    #previewOverlay.list-mode #previewThumbnails {
+      display: none;
+    }
+
+    #previewOverlay.list-mode #previewList {
+      display: grid;
+    }
+
+    #previewList {
+      width: 100%;
+      max-width: 760px;
+      flex: 1 1 auto;
+      display: none;
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 10px;
+      overflow-y: auto;
+      padding: 8px 4px 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .photo-list-item {
+      position: relative;
+      border: 2px solid #333;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
+      font-family: inherit;
+    }
+
+    .photo-list-item.current {
+      border-color: #f2c94c;
+    }
+
+    .photo-list-item.selected {
+      border-color: #27ae60;
+    }
+
+    .photo-list-item img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    .photo-list-info {
+      padding: 6px 7px 8px;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1.25;
+      word-break: break-all;
+    }
+
+    .photo-list-status {
+      color: #f2c94c;
+      margin-bottom: 2px;
+    }
+
     .thumb-item {
       position: relative;
       flex: 0 0 auto;
@@ -456,23 +550,28 @@
       display: block;
     }
 
-    .thumb-check {
+    .thumb-check,
+    .list-check {
       position: absolute;
       right: 4px;
       top: 4px;
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
       border-radius: 999px;
       border: 2px solid #fff;
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, 0.58);
       color: #fff;
       font-size: 15px;
       font-weight: 900;
-      line-height: 18px;
+      line-height: 20px;
       text-align: center;
+      z-index: 4;
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
-    .thumb-item.selected .thumb-check {
+    .thumb-item.selected .thumb-check,
+    .photo-list-item.selected .list-check {
       background: #27ae60;
     }
 
@@ -525,12 +624,7 @@
       color: #000;
     }
 
-    .btn-select {
-      background: #27ae60;
-      color: #fff;
-    }
-
-    .btn-share-selected {
+    .btn-list-toggle {
       background: #f2c94c;
       color: #000;
     }
@@ -581,14 +675,14 @@
             <tr class="row-subject">
               <td class="label-cell">件名</td>
               <td class="value-cell">
-                <div id="subjectText" class="subject-text"></div>
+                <textarea id="subjectText" class="board-textarea subject-textarea" rows="2" inputmode="text"></textarea>
               </td>
             </tr>
 
             <tr class="row-place">
               <td class="label-cell">採取場所</td>
               <td class="value-cell">
-                <div id="addressText" class="address-text"></div>
+                <textarea id="addressText" class="board-textarea address-textarea" rows="2" inputmode="text"></textarea>
               </td>
             </tr>
 
@@ -698,11 +792,11 @@
 
     <div id="previewMeta"></div>
     <div id="previewThumbnails"></div>
+    <div id="previewList"></div>
 
     <div class="preview-controls">
-      <button class="preview-button btn-select" type="button" onclick="toggleCurrentPhotoSelected()">チェック</button>
+      <button id="previewListToggleButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewListMode()">一覧</button>
       <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存/共有</button>
-      <button class="preview-button btn-share-selected" type="button" onclick="saveSelectedPreviewPhotos()">選択共有</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
     </div>
   </div>
@@ -753,6 +847,8 @@
     const previewCounter = document.getElementById("previewCounter");
     const previewMeta = document.getElementById("previewMeta");
     const previewThumbnails = document.getElementById("previewThumbnails");
+    const previewList = document.getElementById("previewList");
+    const previewListToggleButton = document.getElementById("previewListToggleButton");
     const toast = document.getElementById("toast");
 
     let currentStream = null;
@@ -764,6 +860,7 @@
 
     const capturedPhotos = [];
     let previewIndex = 0;
+    let isPreviewListMode = false;
 
     const boardState = {
       x: 12,
@@ -832,8 +929,8 @@
     });
 
     function initializeBoard() {
-      subjectText.textContent = APP_DATA.subject;
-      addressText.textContent = APP_DATA.address;
+      subjectText.value = APP_DATA.subject;
+      addressText.value = APP_DATA.address;
       roomNoInput.value = roomNoInput.value || "";
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
@@ -1099,7 +1196,7 @@
 
     function isInteractiveBoardTarget(target) {
       return Boolean(
-        target.closest(".board-input") || target.closest(".status-btn")
+        target.closest(".board-input") || target.closest(".board-textarea") || target.closest(".status-btn")
       );
     }
 
@@ -1334,12 +1431,14 @@
       }
 
       previewIndex = capturedPhotos.length - 1;
+      setPreviewListMode(false);
       renderPreview();
       previewOverlay.classList.add("show");
     }
 
     async function closePreview() {
       previewOverlay.classList.remove("show");
+      setPreviewListMode(false);
 
       /*
        * 戻るを押したらカメラ画面へ復帰
@@ -1378,6 +1477,7 @@
       previewCounter.textContent = `${previewIndex + 1} / ${capturedPhotos.length}`;
       previewMeta.textContent = `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
       renderThumbnails();
+      renderPhotoList();
     }
 
     function renderThumbnails() {
@@ -1402,6 +1502,7 @@
         check.className = "thumb-check";
         check.textContent = photo.selected ? "✓" : "";
         check.onclick = async (event) => {
+          event.preventDefault();
           event.stopPropagation();
           await togglePhotoSelected(index);
         };
@@ -1417,17 +1518,79 @@
       }
     }
 
+    function renderPhotoList() {
+      previewList.innerHTML = "";
+
+      capturedPhotos.forEach((photo, index) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "photo-list-item";
+        item.classList.toggle("current", index === previewIndex);
+        item.classList.toggle("selected", Boolean(photo.selected));
+        item.onclick = () => {
+          previewIndex = index;
+          setPreviewListMode(false);
+          renderPreview();
+        };
+
+        const img = document.createElement("img");
+        img.src = photo.dataUrl;
+        img.alt = photo.fileName;
+
+        const check = document.createElement("span");
+        check.className = "list-check";
+        check.textContent = photo.selected ? "✓" : "";
+        check.onclick = async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          await togglePhotoSelected(index, { keepListMode: true });
+        };
+
+        const info = document.createElement("div");
+        info.className = "photo-list-info";
+
+        const status = document.createElement("div");
+        status.className = "photo-list-status";
+        status.textContent = photo.statusLabel || getStatusLabel(photo.status);
+
+        const file = document.createElement("div");
+        file.textContent = photo.fileName;
+
+        info.appendChild(status);
+        info.appendChild(file);
+        item.appendChild(img);
+        item.appendChild(check);
+        item.appendChild(info);
+        previewList.appendChild(item);
+      });
+    }
+
+    function togglePreviewListMode() {
+      setPreviewListMode(!isPreviewListMode);
+      renderPreview();
+    }
+
+    function setPreviewListMode(value) {
+      isPreviewListMode = Boolean(value);
+      previewOverlay.classList.toggle("list-mode", isPreviewListMode);
+      previewListToggleButton.textContent = isPreviewListMode ? "拡大" : "一覧";
+    }
+
     async function toggleCurrentPhotoSelected() {
       if (!capturedPhotos.length) return;
       await togglePhotoSelected(previewIndex);
     }
 
-    async function togglePhotoSelected(index) {
+    async function togglePhotoSelected(index, options = {}) {
       const photo = capturedPhotos[index];
       photo.selected = !photo.selected;
       await savePhotoToIndexedDB(photo);
       updatePhotoCount();
       renderPreview();
+
+      if (options.keepListMode) {
+        setPreviewListMode(true);
+      }
     }
 
     async function saveCurrentPreviewPhoto() {
@@ -1436,15 +1599,10 @@
         return;
       }
 
-      const photo = capturedPhotos[previewIndex];
-      await shareOrDownloadPhotos([photo]);
-    }
-
-    async function saveSelectedPreviewPhotos() {
       const selectedPhotos = capturedPhotos.filter((photo) => photo.selected);
 
       if (!selectedPhotos.length) {
-        showToast("チェックした写真がありません");
+        showToast("共有する写真をチェックしてください");
         return;
       }
 
@@ -1513,6 +1671,7 @@
 
       previewOverlay.addEventListener("touchend", (event) => {
         if (!event.changedTouches || event.changedTouches.length !== 1) return;
+        if (isPreviewListMode) return;
 
         const endX = event.changedTouches[0].clientX;
         const endY = event.changedTouches[0].clientY;
@@ -1707,8 +1866,8 @@
     /* キャンバス上に看板を描画 */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const data = {
-        subject: subjectText.textContent || "",
-        address: addressText.textContent || "",
+        subject: subjectText.value || "",
+        address: addressText.value || "",
         roomNo: roomNoInput.value.trim(),
         sampleNo: sampleNoInput.value.trim(),
         date: dateText.textContent || "",
@@ -1720,7 +1879,7 @@
 
       const row1H = h * 0.24;
       const row2H = h * 0.18;
-      const row3H = h * 0.42;
+      const row3H = h * 0.39;
       const row4H = h - row1H - row2H - row3H;
 
       const contentY = y + row1H + row2H;
@@ -1761,21 +1920,21 @@
       const innerLabelFont = Math.max(13, h * 0.06);
       const innerValueFont = Math.max(14, h * 0.065);
       const statusFont = Math.max(12, h * 0.058);
-      const dateFont = Math.max(16, h * 0.082);
+      const dateFont = Math.max(14, h * 0.068);
 
       drawCenteredText(ctx, "件名", x, y, leftColW, row1H, labelFont);
       drawCenteredText(ctx, "採取場所", x, y + row1H, leftColW, row2H, labelFont);
       drawCenteredText(ctx, "内容", x, contentY, leftColW, contentH, labelFont);
       drawCenteredText(ctx, "日付", x, y + row1H + row2H + row3H, leftColW, row4H, labelFont);
 
-      drawWrappedLeftText(ctx, data.subject, x + leftColW + 10, y, rightW - 20, row1H, titleFont, 1.25, 2);
-      drawWrappedLeftText(ctx, data.address, x + leftColW + 10, y + row1H, rightW - 20, row2H, addressFont, 1.2, 2);
+      drawWrappedCenterText(ctx, data.subject, x + leftColW + 10, y, rightW - 20, row1H, titleFont, 1.25, 2);
+      drawWrappedCenterText(ctx, data.address, x + leftColW + 10, y + row1H, rightW - 20, row2H, addressFont, 1.2, 2);
 
-      drawLeftMiddleText(ctx, "部屋No.", x + leftColW + 10, contentY, innerLabelW - 16, roomRowH, innerLabelFont);
-      drawLeftMiddleText(ctx, "試料No.", x + leftColW + 10, contentY + roomRowH, innerLabelW - 16, sampleRowH, innerLabelFont);
+      drawCenteredText(ctx, "部屋No.", x + leftColW, contentY, innerLabelW, roomRowH, innerLabelFont);
+      drawCenteredText(ctx, "試料No.", x + leftColW, contentY + roomRowH, innerLabelW, sampleRowH, innerLabelFont);
 
-      drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW + 12, contentY, rightW - innerLabelW - 20, roomRowH, innerValueFont);
-      drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW + 12, contentY + roomRowH, rightW - innerLabelW - 20, sampleRowH, innerValueFont);
+      drawCenteredText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
+      drawCenteredText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, innerValueFont);
 
       const statusStartX = x + leftColW + 8;
       const statusWidth = rightW - 16;
@@ -1855,6 +2014,26 @@
 
       lines.forEach((line) => {
         ctx.fillText(line, x, currentY);
+        currentY += lineHeight;
+      });
+
+      ctx.restore();
+    }
+
+    function drawWrappedCenterText(ctx, text, x, y, w, h, fontSize, lineRate, maxLines) {
+      ctx.save();
+      ctx.fillStyle = "#000";
+      ctx.font = `900 ${fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const lines = getWrappedLines(ctx, text || "", w).slice(0, maxLines);
+      const lineHeight = fontSize * lineRate;
+      const totalHeight = lines.length * lineHeight;
+      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2;
+
+      lines.forEach((line) => {
+        ctx.fillText(line, x + w / 2, currentY);
         currentY += lineHeight;
       });
 

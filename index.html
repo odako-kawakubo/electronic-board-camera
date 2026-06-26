@@ -257,10 +257,13 @@
       font-weight: 900;
       white-space: nowrap;
       text-align: center;
+      border-right: none !important;
     }
 
     .inner-value {
-      padding: 0 6px;
+      border-left: none !important;
+      /* ラベル横の縦線は消したまま、値1個分くらい空白を入れる */
+      padding: 0 6px 0 44px;
     }
 
     .board-input {
@@ -273,7 +276,8 @@
       font-size: 22px;
       font-weight: 900;
       font-family: inherit;
-      text-align: center;
+      text-align: left;
+      padding: 0;
     }
 
     .status-cell {
@@ -1933,7 +1937,7 @@
 
       drawLine(ctx, x + leftColW, contentY + roomRowH, x + w, contentY + roomRowH);
       drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, x + w, contentY + roomRowH + sampleRowH);
-      drawLine(ctx, x + leftColW + innerLabelW, contentY, x + leftColW + innerLabelW, contentY + roomRowH + sampleRowH);
+      // 部屋No. / 試料No. はラベルと値の間の縦線を描かない。
 
       const labelFont = Math.max(10, w * 0.046);
       const titleFont = Math.max(10, w * 0.047);
@@ -1954,8 +1958,9 @@
       drawCenteredText(ctx, "部屋No.", x + leftColW, contentY, innerLabelW, roomRowH, innerLabelFont);
       drawCenteredText(ctx, "試料No.", x + leftColW, contentY + roomRowH, innerLabelW, sampleRowH, innerLabelFont);
 
-      drawCenteredText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
-      drawCenteredText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, innerValueFont);
+      const noValueGap = rightW * 0.15;
+      drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW + noValueGap, contentY, rightW - innerLabelW - noValueGap, roomRowH, innerValueFont);
+      drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW + noValueGap, contentY + roomRowH, rightW - innerLabelW - noValueGap, sampleRowH, innerValueFont);
 
       const statusStartX = x + leftColW + 3;
       const statusWidth = rightW - 6;

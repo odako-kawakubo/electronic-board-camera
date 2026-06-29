@@ -7,6 +7,7 @@
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
   />
   <meta name="theme-color" content="#000000" />
+  <link rel="manifest" href="./manifest.json" />
   <title>電子看板カメラ</title>
 
   <style>
@@ -2177,5 +2178,15 @@
       }, 1400);
     }
   </script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then(() => console.log("Service Worker 登録完了"))
+      .catch(err => console.error("Service Worker登録失敗", err));
+  });
+}
+</script>
 </body>
 </html>

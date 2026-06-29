@@ -663,6 +663,135 @@
       color: #fff;
     }
 
+    .preview-topbar {
+      position: absolute;
+      top: calc(12px + env(safe-area-inset-top));
+      right: 12px;
+      z-index: 20005;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-button {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #000;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 42px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    #settingsOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 16px;
+    }
+
+    #settingsOverlay.show {
+      display: flex;
+    }
+
+    .settings-panel {
+      width: min(100%, 520px);
+      max-height: calc(100dvh - 40px);
+      overflow-y: auto;
+      background: #fff;
+      color: #000;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+      font-weight: 900;
+      font-family: inherit;
+    }
+
+    .settings-title {
+      text-align: center;
+      font-size: 20px;
+      margin: 0 0 16px;
+    }
+
+    .settings-section-title {
+      font-size: 16px;
+      margin: 14px 0 8px;
+    }
+
+    .quality-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      color: #000;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
+      font-weight: 900;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .quality-option.active {
+      border-color: #27ae60;
+      box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.18) inset;
+    }
+
+    .quality-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 2px solid #222;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .quality-option.active .quality-dot::after {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #27ae60;
+    }
+
+    .settings-note {
+      margin: 14px 0;
+      padding-top: 12px;
+      border-top: 1px solid #ddd;
+      color: #555;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .settings-close {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 13px 18px;
+      margin-top: 8px;
+      background: #444;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
     /* トースト */
     #toast {
       position: absolute;
@@ -815,6 +944,10 @@
   </div>
 
   <div id="previewOverlay">
+    <div class="preview-topbar">
+      <button class="settings-button" type="button" onclick="openSettings()" aria-label="設定">⚙</button>
+    </div>
+
     <div id="previewCounter">0 / 0</div>
 
     <div id="previewImageWrap">
@@ -835,8 +968,32 @@
     </div>
   </div>
 
+  <div id="settingsOverlay">
+    <div class="settings-panel">
+      <h2 class="settings-title">設定</h2>
+
+      <div class="settings-section-title">📷 写真画質</div>
+
+      <button id="qualityStandardButton" class="quality-option" type="button" onclick="setPhotoQuality('standard')">
+        <span class="quality-dot"></span>
+        <span>標準（3024×2268）</span>
+      </button>
+
+      <button id="qualityHighButton" class="quality-option" type="button" onclick="setPhotoQuality('high')">
+        <span class="quality-dot"></span>
+        <span>高画質（3264×2448）</span>
+      </button>
+
+      <div class="settings-note">
+        今後追加予定：ライト、ズーム、位置情報、グリッド表示、シャッター音など。
+      </div>
+
+      <button class="settings-close" type="button" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+
   <script>
-    const APP_VERSION = "v28";
+    const APP_VERSION = "v29";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -856,6 +1013,11 @@
     const DB_STORE_NAME = "photos";
     const DEFAULT_POINT_NO = "1";
     const POINT_DISPLAY_DEFAULT = "1-①";
+    const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
+    const PHOTO_QUALITY_SETTINGS = {
+      standard: { label: "標準", width: 3024, height: 2268 },
+      high: { label: "高画質", width: 3264, height: 2448 }
+    };
 
     const cameraScreen = document.getElementById("cameraScreen");
     const video = document.getElementById("video");
@@ -885,6 +1047,9 @@
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
     const previewListToggleButton = document.getElementById("previewListToggleButton");
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const qualityStandardButton = document.getElementById("qualityStandardButton");
+    const qualityHighButton = document.getElementById("qualityHighButton");
     const toast = document.getElementById("toast");
 
     let currentStream = null;
@@ -897,6 +1062,7 @@
     const capturedPhotos = [];
     let previewIndex = 0;
     let isPreviewListMode = false;
+    let photoQuality = loadPhotoQuality();
 
     const boardState = {
       x: 12,
@@ -931,6 +1097,7 @@
       setupPreviewSwipe();
       setupPreviewImageTap();
       setupPhotoCountHiddenShoot();
+      renderPhotoQualitySettings();
 
       await loadPhotosFromIndexedDB();
 
@@ -1413,24 +1580,34 @@
 
     function captureCompositedImage() {
       const screen = getScreenSize();
+      const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
+
+      const outputWidth = quality.width;
+      const outputHeight = quality.height;
+      const outputRatio = outputWidth / outputHeight;
 
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
+      const videoRatio = videoWidth / videoHeight;
 
-      const coverScale = Math.max(
-        screen.width / videoWidth,
-        screen.height / videoHeight
-      );
+      let sourceX = 0;
+      let sourceY = 0;
+      let sourceWidth = videoWidth;
+      let sourceHeight = videoHeight;
 
-      const visibleSourceWidth = screen.width / coverScale;
-      const visibleSourceHeight = screen.height / coverScale;
-
-      const sourceX = (videoWidth - visibleSourceWidth) / 2;
-      const sourceY = (videoHeight - visibleSourceHeight) / 2;
+      // 保存写真は4:3固定。
+      // カメラ映像が16:9などの場合は、中央を4:3で切り抜く。
+      if (videoRatio > outputRatio) {
+        sourceWidth = videoHeight * outputRatio;
+        sourceX = (videoWidth - sourceWidth) / 2;
+      } else {
+        sourceHeight = videoWidth / outputRatio;
+        sourceY = (videoHeight - sourceHeight) / 2;
+      }
 
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(visibleSourceWidth);
-      canvas.height = Math.round(visibleSourceHeight);
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
 
       const ctx = canvas.getContext("2d");
 
@@ -1438,8 +1615,8 @@
         video,
         sourceX,
         sourceY,
-        visibleSourceWidth,
-        visibleSourceHeight,
+        sourceWidth,
+        sourceHeight,
         0,
         0,
         canvas.width,
@@ -1449,6 +1626,8 @@
       if (!isSectionMode) {
         const boardRect = photoBoard.getBoundingClientRect();
 
+        // 画面上の看板位置を、4:3保存写真へ比率変換して焼き込む。
+        // 画面比率と保存比率が違う場合でも、横長すぎない4:3写真として保存する。
         const boardX = (boardRect.left / screen.width) * canvas.width;
         const boardY = (boardRect.top / screen.height) * canvas.height;
         const boardW = (boardRect.width / screen.width) * canvas.width;
@@ -2171,6 +2350,45 @@
 
       if (current) lines.push(current);
       return lines.length ? lines : [""];
+    }
+
+    function loadPhotoQuality() {
+      try {
+        const saved = localStorage.getItem(PHOTO_QUALITY_STORAGE_KEY);
+        if (saved && PHOTO_QUALITY_SETTINGS[saved]) return saved;
+      } catch (error) {}
+
+      return "standard";
+    }
+
+    function setPhotoQuality(value) {
+      if (!PHOTO_QUALITY_SETTINGS[value]) return;
+
+      photoQuality = value;
+
+      try {
+        localStorage.setItem(PHOTO_QUALITY_STORAGE_KEY, value);
+      } catch (error) {}
+
+      renderPhotoQualitySettings();
+      const setting = PHOTO_QUALITY_SETTINGS[photoQuality];
+      showToast(`${setting.label}（${setting.width}×${setting.height}）にしました`);
+    }
+
+    function renderPhotoQualitySettings() {
+      if (!qualityStandardButton || !qualityHighButton) return;
+
+      qualityStandardButton.classList.toggle("active", photoQuality === "standard");
+      qualityHighButton.classList.toggle("active", photoQuality === "high");
+    }
+
+    function openSettings() {
+      renderPhotoQualitySettings();
+      settingsOverlay.classList.add("show");
+    }
+
+    function closeSettings() {
+      settingsOverlay.classList.remove("show");
     }
 
     async function checkAppUpdate() {

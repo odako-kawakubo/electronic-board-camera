@@ -49,13 +49,17 @@
      */
 
 
-    /* 横向き時に撮影エリアを中央に置くための左側スペーサー */
-    #cameraScreen::before {
-      content: "";
+    /* 左黒帯：撮影枚数などの情報表示 */
+    .left-panel {
+      position: relative;
+      z-index: 4;
       width: 92px;
       height: 100dvh;
       flex: 0 0 92px;
       background: #000;
+      color: #fff;
+      padding: calc(12px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));
+      pointer-events: auto;
     }
 
     #captureFrame {
@@ -102,20 +106,21 @@
 
     /* 撮影枚数表示 */
     #photoCount {
-      position: absolute;
-      left: 12px;
-      top: calc(12px + env(safe-area-inset-top));
+      position: relative;
       z-index: 9999;
-      background: rgba(0, 0, 0, 0.65);
+      background: rgba(255, 255, 255, 0.12);
       color: #fff;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-size: 14px;
+      padding: 10px 8px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.45;
       font-weight: 900;
+      text-align: center;
       pointer-events: auto;
       cursor: pointer;
       user-select: none;
       touch-action: manipulation;
+      white-space: pre-line;
     }
 
     #photoCount:active {
@@ -864,7 +869,7 @@
         flex-direction: column;
       }
 
-      #cameraScreen::before {
+      .left-panel {
         display: none;
       }
 
@@ -897,12 +902,16 @@
 
 <body>
   <div id="cameraScreen">
+    <div class="left-panel">
+      <div id="photoCount">撮影済み
+0枚</div>
+    </div>
+
     <div id="captureFrame">
       <video id="video" playsinline muted autoplay></video>
 
       <div id="cameraGuide">右側の「カメラ起動」を押してください</div>
 
-      <div id="photoCount">撮影済み 0枚</div>
       <div id="sectionModeBadge">断面モード：看板なし</div>
 
       <div class="board-layer">
@@ -1002,21 +1011,21 @@
       </button>
 
       <button
-        id="sectionButton"
-        class="control-button btn-section hidden-control"
-        type="button"
-        onclick="toggleSectionMode()"
-      >
-        断面
-      </button>
-
-      <button
         id="shootButton"
         class="control-button btn-shoot hidden-control"
         type="button"
         onclick="takePhoto()"
       >
         撮影
+      </button>
+
+      <button
+        id="sectionButton"
+        class="control-button btn-section hidden-control"
+        type="button"
+        onclick="toggleSectionMode()"
+      >
+        断面
       </button>
     </div>
 
@@ -1041,7 +1050,7 @@
     <div id="previewList"></div>
 
     <div class="preview-controls">
-      <button id="previewListToggleButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewListMode()">一覧</button>
+      <button id="selectAllButton" class="preview-button btn-list-toggle" type="button" onclick="toggleSelectAllPhotos()">全選択</button>
       <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
       <button class="preview-button btn-delete" type="button" onclick="deleteSelectedPreviewPhotos()">削除</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
@@ -1073,7 +1082,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v32";
+    const APP_VERSION = "v33";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1127,7 +1136,7 @@
     const previewMeta = document.getElementById("previewMeta");
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
-    const previewListToggleButton = document.getElementById("previewListToggleButton");
+    const selectAllButton = document.getElementById("selectAllButton");
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
@@ -1275,15 +1284,16 @@
       const screen = getScreenSize();
       const base = getBoardBaseSize();
 
-      const targetWidth = clamp(screen.width * 0.42, 240, 320);
+      // デフォルト：看板は撮影エリアの左下に一回り小さく配置
+      const targetWidth = clamp(screen.width * 0.34, 205, 280);
       boardState.scale = targetWidth / base.width;
 
       const displayedHeight = base.height * boardState.scale;
-      boardState.x = 8;
-      boardState.y = screen.height - displayedHeight - 86;
+      boardState.x = 4;
+      boardState.y = screen.height - displayedHeight - 4;
 
-      if (boardState.y < 8) {
-        boardState.y = 8;
+      if (boardState.y < 4) {
+        boardState.y = 4;
       }
 
       clampBoardWithinScreen();
@@ -1725,7 +1735,7 @@
       }
 
       previewIndex = capturedPhotos.length - 1;
-      setPreviewListMode(false);
+      setPreviewListMode(true);
       renderPreview();
       previewOverlay.classList.add("show");
     }
@@ -1772,6 +1782,7 @@
       previewMeta.textContent = `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
       renderThumbnails();
       renderPhotoList();
+      updateSelectAllButton();
     }
 
     function renderThumbnails() {
@@ -1821,10 +1832,9 @@
         item.className = "photo-list-item";
         item.classList.toggle("current", index === previewIndex);
         item.classList.toggle("selected", Boolean(photo.selected));
-        item.onclick = () => {
+        item.onclick = async () => {
           previewIndex = index;
-          setPreviewListMode(false);
-          renderPreview();
+          await togglePhotoSelected(index, { keepListMode: true });
         };
 
         const img = document.createElement("img");
@@ -1867,7 +1877,7 @@
     function setPreviewListMode(value) {
       isPreviewListMode = Boolean(value);
       previewOverlay.classList.toggle("list-mode", isPreviewListMode);
-      previewListToggleButton.textContent = isPreviewListMode ? "拡大" : "一覧";
+      updateSelectAllButton();
     }
 
     async function toggleCurrentPhotoSelected() {
@@ -1885,6 +1895,35 @@
       if (options.keepListMode) {
         setPreviewListMode(true);
       }
+    }
+
+    async function toggleSelectAllPhotos() {
+      if (!capturedPhotos.length) {
+        showToast("撮影した写真がありません");
+        return;
+      }
+
+      const allSelected = capturedPhotos.every((photo) => photo.selected);
+      const nextSelected = !allSelected;
+
+      for (const photo of capturedPhotos) {
+        photo.selected = nextSelected;
+        await savePhotoToIndexedDB(photo);
+      }
+
+      updatePhotoCount();
+      renderPreview();
+      showToast(nextSelected ? "全て選択しました" : "全て解除しました");
+    }
+
+    function updateSelectAllButton() {
+      if (!selectAllButton) return;
+      if (!capturedPhotos.length) {
+        selectAllButton.textContent = "全選択";
+        return;
+      }
+      const allSelected = capturedPhotos.every((photo) => photo.selected);
+      selectAllButton.textContent = allSelected ? "全解除" : "全選択";
     }
 
     async function saveCurrentPreviewPhoto() {
@@ -2054,8 +2093,8 @@
     }
 
     function updatePhotoCount() {
-      const selectedCount = capturedPhotos.filter((photo) => photo.selected).length;
-      photoCount.textContent = `撮影済み ${capturedPhotos.length}枚 / 選択 ${selectedCount}枚`;
+      photoCount.textContent = `撮影済み\n${capturedPhotos.length}枚`;
+      updateSelectAllButton();
     }
 
     function getStatusLabel(value) {

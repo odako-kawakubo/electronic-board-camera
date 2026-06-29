@@ -37,7 +37,7 @@
       overflow: hidden;
       background: #000;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       gap: 0;
     }
@@ -68,9 +68,14 @@
 
     #captureFrame {
       position: relative;
-      /* 横向きは高さ基準で4:3。余った幅は左右の黒帯として使う。 */
-      width: min(calc(100vw - 92px), calc(100dvh * 4 / 3));
-      height: min(100dvh, calc((100vw - 92px) * 3 / 4));
+      /* 横向きは4:3撮影エリアを画面内に収める。
+       * 左右の黒帯（左92px + 右92px）を差し引き、
+       * iPhone/PWAの下見切れ対策として安全側に少し小さくする。
+       */
+      --capture-safe-h: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px);
+      --capture-safe-w: calc(100vw - 184px);
+      width: min(var(--capture-safe-w), calc(var(--capture-safe-h) * 4 / 3));
+      height: min(var(--capture-safe-h), calc(var(--capture-safe-w) * 3 / 4));
       aspect-ratio: 4 / 3;
       overflow: hidden;
       background: #000;
@@ -932,7 +937,7 @@
       position: relative !important;
       left: auto !important;
       top: auto !important;
-      transform: scale(1.75) !important;
+      transform: scale(1.45) !important;
       transform-origin: center center !important;
       pointer-events: auto;
     }
@@ -1229,7 +1234,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v35";
+    const APP_VERSION = "v36";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1319,9 +1324,9 @@
       scale: 1,
       minScale: 0.35,
       maxScale: 1.8,
-      sizeRatio: 0.31,
-      minSizeRatio: 0.23,
-      maxSizeRatio: 0.43,
+      sizeRatio: 0.45,
+      minSizeRatio: 0.35,
+      maxSizeRatio: 0.55,
       position: "bottom-left"
     };
 
@@ -1507,13 +1512,13 @@
     }
 
     function increaseBoardSize() {
-      boardState.sizeRatio = Math.min(boardState.maxSizeRatio, boardState.sizeRatio + 0.035);
+      boardState.sizeRatio = Math.min(boardState.maxSizeRatio, boardState.sizeRatio + 0.05);
       placeBoardByFixedPosition();
       showToast("看板を拡大しました");
     }
 
     function decreaseBoardSize() {
-      boardState.sizeRatio = Math.max(boardState.minSizeRatio, boardState.sizeRatio - 0.035);
+      boardState.sizeRatio = Math.max(boardState.minSizeRatio, boardState.sizeRatio - 0.05);
       placeBoardByFixedPosition();
       showToast("看板を縮小しました");
     }

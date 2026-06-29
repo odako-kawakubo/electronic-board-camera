@@ -60,6 +60,7 @@
 
     #captureFrame {
       position: relative;
+      /* 横向きは高さ基準で4:3。余った幅は左右の黒帯として使う。 */
       width: min(calc(100vw - 92px), calc(100dvh * 4 / 3));
       height: min(100dvh, calc((100vw - 92px) * 3 / 4));
       aspect-ratio: 4 / 3;
@@ -73,7 +74,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       background: #000;
       z-index: 1;
     }
@@ -1072,7 +1073,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v31";
+    const APP_VERSION = "v32";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1659,7 +1660,6 @@
     }
 
     function captureCompositedImage() {
-      const screen = getScreenSize();
       const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
 
       const canvas = document.createElement("canvas");
@@ -1668,15 +1668,15 @@
 
       const ctx = canvas.getContext("2d");
 
-      // 4:3の撮影エリア全体を黒で塗る。
-      // カメラ映像が4:3ではない端末でも、映像を切らずにcontainで中央表示する。
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
 
-      const videoScale = Math.min(
+      /*
+       * 保存画像は撮影エリアだけにする。
+       * 黒帯はUI用なので保存しない。
+       * previewの object-fit: cover と同じ考えで、Canvasも4:3いっぱいに描画する。
+       */
+      const videoScale = Math.max(
         canvas.width / videoWidth,
         canvas.height / videoHeight
       );
@@ -1702,8 +1702,7 @@
         const frameRect = captureFrame.getBoundingClientRect();
         const boardRect = photoBoard.getBoundingClientRect();
 
-        // 撮影エリア自体を4:3にしているので、画面上の座標をそのまま4:3 Canvasへ変換する。
-        // 横倍率・縦倍率は同じ比率になるため、看板は伸びない。
+        // 撮影エリアの中の看板だけを、4:3保存画像へ同じ比率で変換する。
         const scaleX = canvas.width / frameRect.width;
         const scaleY = canvas.height / frameRect.height;
 

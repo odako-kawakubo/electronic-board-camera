@@ -836,6 +836,8 @@
   </div>
 
   <script>
+    const APP_VERSION = "v28";
+
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
       address: "神奈川県小田原市小八幡2-3-6"
@@ -922,6 +924,7 @@
     let previewTouchStartY = 0;
 
     document.addEventListener("DOMContentLoaded", async () => {
+      checkAppUpdate();
       initializeBoard();
       setupStatusButtons();
       setupBoardGesture();
@@ -1675,8 +1678,8 @@
         previewOverlay.classList.remove("show");
         setPreviewListMode(false);
         previewIndex = 0;
+
         await resumeCameraAfterPreview();
-        
       } else {
         previewIndex = Math.min(previewIndex, capturedPhotos.length - 1);
         renderPreview();
@@ -2168,6 +2171,38 @@
 
       if (current) lines.push(current);
       return lines.length ? lines : [""];
+    }
+
+    async function checkAppUpdate() {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("_update_check", Date.now());
+
+        const response = await fetch(url.toString(), {
+          cache: "no-store"
+        });
+
+        const html = await response.text();
+        const match = html.match(/const APP_VERSION = "([^"]+)"/);
+
+        if (!match) return;
+
+        const latestVersion = match[1];
+
+        if (latestVersion !== APP_VERSION) {
+          const ok = window.confirm(
+            `新しいバージョンがあります。\n\n現在：${APP_VERSION}\n最新：${latestVersion}\n\n更新しますか？`
+          );
+
+          if (ok) {
+            const reloadUrl = new URL(window.location.href);
+            reloadUrl.searchParams.set("v", latestVersion);
+            window.location.href = reloadUrl.toString();
+          }
+        }
+      } catch (error) {
+        console.log("更新確認に失敗しました", error);
+      }
     }
 
     function showToast(message) {

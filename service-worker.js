@@ -1,4 +1,4 @@
-const CACHE_NAME = "electronic-board-camera-v34";
+const CACHE_NAME = "electronic-board-camera-v35";
 
 const APP_FILES = [
   "./",

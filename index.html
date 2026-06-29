@@ -600,8 +600,8 @@
       max-width: 760px;
       flex: 1 1 auto;
       display: none;
-      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
       overflow-y: auto;
       padding: 8px 4px 12px;
       -webkit-overflow-scrolling: touch;
@@ -727,15 +727,16 @@
       width: 100%;
       display: flex;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       padding-top: 12px;
+      flex-wrap: wrap;
     }
 
     .preview-button {
       border: none;
       border-radius: 999px;
-      padding: 12px 20px;
-      font-size: 16px;
+      padding: 12px 16px;
+      font-size: 15px;
       font-weight: 900;
       font-family: inherit;
       cursor: pointer;
@@ -889,6 +890,83 @@
       font-family: inherit;
       cursor: pointer;
     }
+
+
+
+    /* 看板編集モード */
+    #boardEditOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 35000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: calc(18px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+      background: rgba(0, 0, 0, 0.78);
+    }
+
+    #boardEditOverlay.show {
+      display: flex;
+    }
+
+    .board-edit-title {
+      color: #fff;
+      font-size: 20px;
+      font-weight: 900;
+      text-align: center;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    #boardEditHost {
+      width: min(92vw, 760px);
+      height: min(58dvh, 470px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    }
+
+    #boardEditHost #boardWrap {
+      position: relative !important;
+      left: auto !important;
+      top: auto !important;
+      transform: scale(1.75) !important;
+      transform-origin: center center !important;
+      pointer-events: auto;
+    }
+
+    #boardEditHost #photoBoard {
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+    }
+
+    .board-edit-done {
+      border: none;
+      border-radius: 999px;
+      padding: 14px 34px;
+      background: #27ae60;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+    }
+
+    .board-edit-hint {
+      color: rgba(255,255,255,0.84);
+      font-size: 13px;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    #boardWrap.board-readonly .board-input,
+    #boardWrap.board-readonly .board-editable {
+      caret-color: transparent;
+    }
+
 
     /* トースト */
     #toast {
@@ -1111,6 +1189,7 @@
     <div id="previewList"></div>
 
     <div class="preview-controls">
+      <button id="previewModeToggleButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewListMode()">表示切替</button>
       <button id="selectAllButton" class="preview-button btn-list-toggle" type="button" onclick="toggleSelectAllPhotos()">全選択</button>
       <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
       <button class="preview-button btn-delete" type="button" onclick="deleteSelectedPreviewPhotos()">削除</button>
@@ -1142,8 +1221,15 @@
     </div>
   </div>
 
+  <div id="boardEditOverlay">
+    <div class="board-edit-title">看板編集モード</div>
+    <div id="boardEditHost"></div>
+    <button class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
+    <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
+  </div>
+
   <script>
-    const APP_VERSION = "v34";
+    const APP_VERSION = "v35";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1174,8 +1260,11 @@
     const video = document.getElementById("video");
     const cameraGuide = document.getElementById("cameraGuide");
 
+    const boardLayer = document.querySelector(".board-layer");
     const boardWrap = document.getElementById("boardWrap");
     const photoBoard = document.getElementById("photoBoard");
+    const boardEditOverlay = document.getElementById("boardEditOverlay");
+    const boardEditHost = document.getElementById("boardEditHost");
 
     const subjectText = document.getElementById("subjectText");
     const addressText = document.getElementById("addressText");
@@ -1197,6 +1286,7 @@
     const previewMeta = document.getElementById("previewMeta");
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
+    const previewModeToggleButton = document.getElementById("previewModeToggleButton");
     const selectAllButton = document.getElementById("selectAllButton");
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
@@ -1237,11 +1327,15 @@
 
     let previewTouchStartX = 0;
     let previewTouchStartY = 0;
+    let lastBoardTapAt = 0;
+    let isBoardEditMode = false;
 
     document.addEventListener("DOMContentLoaded", async () => {
       checkAppUpdate();
       initializeBoard();
       setupStatusButtons();
+      setupBoardEditGesture();
+      setBoardEditable(false);
       setupPreviewSwipe();
       setupPreviewImageTap();
       setupPhotoCountHiddenShoot();
@@ -1423,6 +1517,65 @@
       placeBoardByFixedPosition();
       showToast("看板を縮小しました");
     }
+
+
+
+    function setupBoardEditGesture() {
+      boardWrap.addEventListener("dblclick", (event) => {
+        if (event.target.closest(".status-btn")) return;
+        event.preventDefault();
+        openBoardEditMode();
+      });
+
+      boardWrap.addEventListener("touchend", (event) => {
+        if (event.target.closest(".status-btn")) return;
+        const now = Date.now();
+        if (now - lastBoardTapAt < 330) {
+          event.preventDefault();
+          openBoardEditMode();
+        }
+        lastBoardTapAt = now;
+      }, { passive: false });
+    }
+
+    function setBoardEditable(enabled) {
+      subjectText.contentEditable = enabled ? "true" : "false";
+      addressText.contentEditable = enabled ? "true" : "false";
+      roomNoInput.readOnly = !enabled;
+      sampleNoInput.readOnly = !enabled;
+      boardWrap.classList.toggle("board-readonly", !enabled);
+    }
+
+    function openBoardEditMode() {
+      if (isBoardEditMode) return;
+      if (isSectionMode) {
+        showToast("断面モード中は看板を編集できません");
+        return;
+      }
+
+      isBoardEditMode = true;
+      document.body.classList.add("board-editing");
+      boardEditHost.appendChild(boardWrap);
+      boardEditOverlay.classList.add("show");
+      setBoardEditable(true);
+
+      setTimeout(() => {
+        if (subjectText && subjectText.focus) subjectText.focus();
+      }, 120);
+    }
+
+    function closeBoardEditMode() {
+      if (!isBoardEditMode) return;
+
+      boardLayer.appendChild(boardWrap);
+      boardEditOverlay.classList.remove("show");
+      document.body.classList.remove("board-editing");
+      setBoardEditable(false);
+      isBoardEditMode = false;
+      placeBoardByFixedPosition();
+      showToast("看板編集を完了しました");
+    }
+
 
     function clamp(value, min, max) {
       return Math.min(Math.max(value, min), max);
@@ -1814,7 +1967,7 @@
       }
 
       previewIndex = capturedPhotos.length - 1;
-      setPreviewListMode(true);
+      setPreviewListMode(false);
       renderPreview();
       previewOverlay.classList.add("show");
     }
@@ -1911,9 +2064,10 @@
         item.className = "photo-list-item";
         item.classList.toggle("current", index === previewIndex);
         item.classList.toggle("selected", Boolean(photo.selected));
-        item.onclick = async () => {
+        item.onclick = () => {
           previewIndex = index;
-          await togglePhotoSelected(index, { keepListMode: true });
+          setPreviewListMode(false);
+          renderPreview();
         };
 
         const img = document.createElement("img");
@@ -1956,6 +2110,9 @@
     function setPreviewListMode(value) {
       isPreviewListMode = Boolean(value);
       previewOverlay.classList.toggle("list-mode", isPreviewListMode);
+      if (previewModeToggleButton) {
+        previewModeToggleButton.textContent = isPreviewListMode ? "拡大表示" : "2列一覧";
+      }
       updateSelectAllButton();
     }
 

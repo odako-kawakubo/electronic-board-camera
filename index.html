@@ -1675,11 +1675,8 @@
         previewOverlay.classList.remove("show");
         setPreviewListMode(false);
         previewIndex = 0;
-         // 最後の1枚を削除した後、カメラ画面へ復帰
-  await resumeCameraAfterPreview();
-} else {
-  previewIndex = Math.min(previewIndex, capturedPhotos.length - 1);
-  renderPreview();
+        await resumeCameraAfterPreview();
+        
       } else {
         previewIndex = Math.min(previewIndex, capturedPhotos.length - 1);
         renderPreview();

@@ -643,8 +643,13 @@
     }
 
     .btn-save {
-      background: #fff;
-      color: #000;
+      background: #27ae60;
+      color: #fff;
+    }
+
+    .btn-delete {
+      background: #eb5757;
+      color: #fff;
     }
 
     .btn-list-toggle {
@@ -823,7 +828,8 @@
 
     <div class="preview-controls">
       <button id="previewListToggleButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewListMode()">一覧</button>
-      <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存/共有</button>
+      <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
+      <button class="preview-button btn-delete" type="button" onclick="deleteSelectedPreviewPhotos()">削除</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
     </div>
   </div>
@@ -1636,6 +1642,47 @@
       await shareOrDownloadPhotos(selectedPhotos);
     }
 
+    async function deleteSelectedPreviewPhotos() {
+      if (!capturedPhotos.length) {
+        showToast("撮影した写真がありません");
+        return;
+      }
+
+      const selectedPhotos = capturedPhotos.filter((photo) => photo.selected);
+
+      if (!selectedPhotos.length) {
+        showToast("削除する写真をチェックしてください");
+        return;
+      }
+
+      const ok = window.confirm(`選択した画像 ${selectedPhotos.length}枚を削除しますか？`);
+      if (!ok) return;
+
+      const selectedIds = new Set(selectedPhotos.map((photo) => photo.id));
+
+      for (const photo of selectedPhotos) {
+        await deletePhotoFromIndexedDB(photo.id);
+      }
+
+      for (let i = capturedPhotos.length - 1; i >= 0; i--) {
+        if (selectedIds.has(capturedPhotos[i].id)) {
+          capturedPhotos.splice(i, 1);
+        }
+      }
+
+      if (!capturedPhotos.length) {
+        previewOverlay.classList.remove("show");
+        setPreviewListMode(false);
+        previewIndex = 0;
+      } else {
+        previewIndex = Math.min(previewIndex, capturedPhotos.length - 1);
+        renderPreview();
+      }
+
+      updatePhotoCount();
+      showToast("削除しました");
+    }
+
     async function shareOrDownloadPhotos(photos) {
       if (!photos.length) return;
 
@@ -1887,6 +1934,25 @@
       } catch (error) {
         console.error(error);
         showToast("端末内保存に失敗しました");
+      }
+    }
+
+    async function deletePhotoFromIndexedDB(photoId) {
+      try {
+        const db = await openPhotoDB();
+        if (!db) return;
+
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(DB_STORE_NAME, "readwrite");
+          const store = transaction.objectStore(DB_STORE_NAME);
+          const request = store.delete(photoId);
+
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      } catch (error) {
+        console.error(error);
+        showToast("端末内写真の削除に失敗しました");
       }
     }
 

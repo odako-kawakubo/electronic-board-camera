@@ -36,6 +36,36 @@
       height: 100dvh;
       overflow: hidden;
       background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
+
+    /*
+     * 撮影エリア。
+     * ここに見えている範囲だけを写真として保存する。
+     * 横向きでは中央4:3、右側の黒帯に操作ボタンを置く。
+     */
+
+
+    /* 横向き時に撮影エリアを中央に置くための左側スペーサー */
+    #cameraScreen::before {
+      content: "";
+      width: 92px;
+      height: 100dvh;
+      flex: 0 0 92px;
+      background: #000;
+    }
+
+    #captureFrame {
+      position: relative;
+      width: min(calc(100vw - 92px), calc(100dvh * 4 / 3));
+      height: min(100dvh, calc((100vw - 92px) * 3 / 4));
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      background: #000;
+      flex: 0 0 auto;
     }
 
     #video {
@@ -43,7 +73,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       background: #000;
       z-index: 1;
     }
@@ -338,33 +368,40 @@
       letter-spacing: 0.06em;
     }
 
-    /* 右下ボタン：カメラ起動後は 表示 → 撮影 */
+    /* 操作パネル：横向きでは右黒帯に縦並び */
     .controls {
-      position: absolute !important;
-      right: 12px !important;
-      left: auto !important;
-      bottom: calc(14px + env(safe-area-inset-bottom)) !important;
-      width: auto !important;
+      position: relative !important;
       z-index: 9999 !important;
+      width: 92px !important;
+      height: 100dvh !important;
+      flex: 0 0 92px !important;
       display: flex !important;
+      flex-direction: column !important;
       align-items: center !important;
-      justify-content: flex-end !important;
-      gap: 8px !important;
-      padding: 0 !important;
+      justify-content: center !important;
+      gap: 12px !important;
+      padding: calc(10px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom)) !important;
       margin: 0 !important;
       pointer-events: auto !important;
+      background: #000;
     }
 
     .control-button {
       border: none;
       border-radius: 999px;
-      padding: 14px 20px;
+      width: 64px;
+      min-height: 82px;
+      padding: 12px 8px;
       font-size: 18px;
       font-weight: 900;
       font-family: inherit;
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
       touch-action: manipulation;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
     }
 
     .btn-start {
@@ -394,6 +431,11 @@
       background: #fff;
       color: #eb5757;
       box-shadow: 0 0 0 3px #eb5757 inset, 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+
+    .controls .control-button {
+      min-width: 64px;
     }
 
     #sectionModeBadge {
@@ -814,19 +856,55 @@
     #toast.show {
       opacity: 1;
     }
+
+
+    @media (orientation: portrait) {
+      #cameraScreen {
+        flex-direction: column;
+      }
+
+      #cameraScreen::before {
+        display: none;
+      }
+
+      #captureFrame {
+        width: 100vw;
+        height: min(calc(100vw * 3 / 4), calc(100dvh - 92px));
+      }
+
+      .controls {
+        width: 100vw !important;
+        height: 92px !important;
+        flex: 0 0 92px !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        padding: 8px calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)) !important;
+      }
+
+      .control-button {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        width: auto;
+        min-width: 76px;
+        min-height: auto;
+        padding: 13px 16px;
+      }
+    }
+
   </style>
 </head>
 
 <body>
   <div id="cameraScreen">
-    <video id="video" playsinline muted autoplay></video>
+    <div id="captureFrame">
+      <video id="video" playsinline muted autoplay></video>
 
-    <div id="cameraGuide">右下の「カメラ起動」を押してください</div>
+      <div id="cameraGuide">右側の「カメラ起動」を押してください</div>
 
-    <div id="photoCount">撮影済み 0枚</div>
-    <div id="sectionModeBadge">断面モード：看板なし</div>
+      <div id="photoCount">撮影済み 0枚</div>
+      <div id="sectionModeBadge">断面モード：看板なし</div>
 
-    <div class="board-layer">
+      <div class="board-layer">
       <div id="boardWrap">
         <div id="photoBoard">
           <table class="board-table">
@@ -899,6 +977,7 @@
             </tr>
           </table>
         </div>
+      </div>
       </div>
     </div>
 
@@ -993,7 +1072,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v30";
+    const APP_VERSION = "v31";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1020,6 +1099,7 @@
     };
 
     const cameraScreen = document.getElementById("cameraScreen");
+    const captureFrame = document.getElementById("captureFrame");
     const video = document.getElementById("video");
     const cameraGuide = document.getElementById("cameraGuide");
 
@@ -1222,8 +1302,8 @@
 
     function getScreenSize() {
       return {
-        width: cameraScreen.clientWidth || window.innerWidth,
-        height: cameraScreen.clientHeight || window.innerHeight
+        width: captureFrame.clientWidth || window.innerWidth,
+        height: captureFrame.clientHeight || window.innerHeight
       };
     }
 
@@ -1582,77 +1662,55 @@
       const screen = getScreenSize();
       const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
 
-      const outputWidth = quality.width;
-      const outputHeight = quality.height;
-      const outputRatio = outputWidth / outputHeight;
-
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-      const videoRatio = videoWidth / videoHeight;
-
-      let sourceX = 0;
-      let sourceY = 0;
-      let sourceWidth = videoWidth;
-      let sourceHeight = videoHeight;
-
-      // 保存写真は4:3固定。
-      // カメラ映像が16:9などの場合は、中央を4:3で切り抜く。
-      if (videoRatio > outputRatio) {
-        sourceWidth = videoHeight * outputRatio;
-        sourceX = (videoWidth - sourceWidth) / 2;
-      } else {
-        sourceHeight = videoWidth / outputRatio;
-        sourceY = (videoHeight - sourceHeight) / 2;
-      }
-
       const canvas = document.createElement("canvas");
-      canvas.width = outputWidth;
-      canvas.height = outputHeight;
+      canvas.width = quality.width;
+      canvas.height = quality.height;
 
       const ctx = canvas.getContext("2d");
 
+      // 4:3の撮影エリア全体を黒で塗る。
+      // カメラ映像が4:3ではない端末でも、映像を切らずにcontainで中央表示する。
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+
+      const videoScale = Math.min(
+        canvas.width / videoWidth,
+        canvas.height / videoHeight
+      );
+
+      const drawVideoW = videoWidth * videoScale;
+      const drawVideoH = videoHeight * videoScale;
+      const drawVideoX = (canvas.width - drawVideoW) / 2;
+      const drawVideoY = (canvas.height - drawVideoH) / 2;
+
       ctx.drawImage(
         video,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
         0,
         0,
-        canvas.width,
-        canvas.height
+        videoWidth,
+        videoHeight,
+        drawVideoX,
+        drawVideoY,
+        drawVideoW,
+        drawVideoH
       );
 
       if (!isSectionMode) {
+        const frameRect = captureFrame.getBoundingClientRect();
         const boardRect = photoBoard.getBoundingClientRect();
 
-        /*
-         * 画面上の看板を、4:3保存写真へ焼き込む。
-         * ここで幅と高さを別々の比率で変換すると、看板が横長/縦長に伸びる。
-         * そのため、画面表示中の video object-fit: cover の実寸から
-         * 「画面座標 → 元動画座標 → 4:3保存Canvas座標」へ変換する。
-         */
-        const previewScale = Math.max(
-          screen.width / videoWidth,
-          screen.height / videoHeight
-        );
+        // 撮影エリア自体を4:3にしているので、画面上の座標をそのまま4:3 Canvasへ変換する。
+        // 横倍率・縦倍率は同じ比率になるため、看板は伸びない。
+        const scaleX = canvas.width / frameRect.width;
+        const scaleY = canvas.height / frameRect.height;
 
-        const displayedVideoWidth = videoWidth * previewScale;
-        const displayedVideoHeight = videoHeight * previewScale;
-        const displayedVideoX = (screen.width - displayedVideoWidth) / 2;
-        const displayedVideoY = (screen.height - displayedVideoHeight) / 2;
-
-        const boardVideoLeft = (boardRect.left - displayedVideoX) / previewScale;
-        const boardVideoTop = (boardRect.top - displayedVideoY) / previewScale;
-        const boardVideoWidth = boardRect.width / previewScale;
-        const boardVideoHeight = boardRect.height / previewScale;
-
-        const canvasScale = outputWidth / sourceWidth;
-
-        const boardX = (boardVideoLeft - sourceX) * canvasScale;
-        const boardY = (boardVideoTop - sourceY) * canvasScale;
-        const boardW = boardVideoWidth * canvasScale;
-        const boardH = boardVideoHeight * canvasScale;
+        const boardX = (boardRect.left - frameRect.left) * scaleX;
+        const boardY = (boardRect.top - frameRect.top) * scaleY;
+        const boardW = boardRect.width * scaleX;
+        const boardH = boardRect.height * scaleY;
 
         drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
       }

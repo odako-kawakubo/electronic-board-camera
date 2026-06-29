@@ -1,9 +1,10 @@
-const CACHE_NAME = "electronic-board-camera-v30";
+const CACHE_NAME = "electronic-board-camera-v31";
 
 const APP_FILES = [
   "./",
   "./index.html",
   "./manifest.json",
+  "./service-worker.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png"
 ];
@@ -13,23 +14,20 @@ self.addEventListener("install", (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_FILES);
+      return cache.addAll(APP_FILES).catch(() => undefined);
     })
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => {
-        return Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-        );
-      })
-      .then(() => self.clients.claim())
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      );
+    }).then(() => self.clients.claim())
   );
 });
 

@@ -60,6 +60,10 @@
       color: #fff;
       padding: calc(12px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));
       pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
     }
 
     #captureFrame {
@@ -127,6 +131,55 @@
       opacity: 0.72;
     }
 
+    .board-control-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding-bottom: 4px;
+    }
+
+    .board-side-button {
+      width: 64px;
+      min-height: 58px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.2;
+      cursor: pointer;
+      touch-action: manipulation;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .board-side-button .icon {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+
+    .board-side-button:active {
+      opacity: 0.72;
+    }
+
+    .board-size-button {
+      min-height: 52px;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .board-size-label {
+      margin-top: -6px;
+      font-size: 12px;
+      font-weight: 900;
+      color: rgba(255,255,255,0.92);
+    }
+
     /* 看板レイヤー */
     .board-layer {
       position: absolute;
@@ -144,13 +197,10 @@
       pointer-events: auto;
       touch-action: none;
       user-select: none;
-      cursor: grab;
+      cursor: default;
       will-change: transform;
     }
 
-    #boardWrap.dragging {
-      cursor: grabbing;
-    }
 
     /* 電子看板：横長長方形 */
     #photoBoard {
@@ -905,6 +955,17 @@
     <div class="left-panel">
       <div id="photoCount">撮影済み
 0枚</div>
+
+      <div class="board-control-panel" aria-label="看板操作">
+        <button class="board-side-button" type="button" onclick="cycleBoardPosition()">
+          <span class="icon">⌖</span>
+          位置
+        </button>
+        <button class="board-side-button board-size-button" type="button" onclick="increaseBoardSize()">＋</button>
+        <div class="board-size-label">拡大</div>
+        <button class="board-side-button board-size-button" type="button" onclick="decreaseBoardSize()">－</button>
+        <div class="board-size-label">縮小</div>
+      </div>
     </div>
 
     <div id="captureFrame">
@@ -1082,7 +1143,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v33";
+    const APP_VERSION = "v34";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1154,26 +1215,24 @@
     let isPreviewListMode = false;
     let photoQuality = loadPhotoQuality();
 
+    const BOARD_POSITIONS = ["bottom-left", "bottom-right", "top-right", "top-left"];
+    const BOARD_POSITION_LABELS = {
+      "bottom-left": "左下",
+      "bottom-right": "右下",
+      "top-right": "右上",
+      "top-left": "左上"
+    };
+
     const boardState = {
       x: 12,
       y: 12,
       scale: 1,
       minScale: 0.35,
-      maxScale: 1.8
-    };
-
-    const activePointers = new Map();
-
-    const gestureState = {
-      mode: null,
-      dragStartX: 0,
-      dragStartY: 0,
-      originX: 0,
-      originY: 0,
-      startScale: 1,
-      startDistance: 0,
-      localMidX: 0,
-      localMidY: 0
+      maxScale: 1.8,
+      sizeRatio: 0.31,
+      minSizeRatio: 0.23,
+      maxSizeRatio: 0.43,
+      position: "bottom-left"
     };
 
     let previewTouchStartX = 0;
@@ -1183,7 +1242,6 @@
       checkAppUpdate();
       initializeBoard();
       setupStatusButtons();
-      setupBoardGesture();
       setupPreviewSwipe();
       setupPreviewImageTap();
       setupPhotoCountHiddenShoot();
@@ -1281,34 +1339,13 @@
     }
 
     function setInitialBoardLayout() {
-      const screen = getScreenSize();
-      const base = getBoardBaseSize();
-
-      // デフォルト：看板は撮影エリアの左下に一回り小さく配置
-      const targetWidth = clamp(screen.width * 0.34, 205, 280);
-      boardState.scale = targetWidth / base.width;
-
-      const displayedHeight = base.height * boardState.scale;
-      boardState.x = 4;
-      boardState.y = screen.height - displayedHeight - 4;
-
-      if (boardState.y < 4) {
-        boardState.y = 4;
-      }
-
-      clampBoardWithinScreen();
-      applyBoardTransform();
+      placeBoardByFixedPosition();
       hasInitializedBoard = true;
     }
 
     function handleWindowResize() {
-      if (!hasInitializedBoard) {
-        setInitialBoardLayout();
-        return;
-      }
-
-      clampBoardWithinScreen();
-      applyBoardTransform();
+      placeBoardByFixedPosition();
+      hasInitializedBoard = true;
     }
 
     function getScreenSize() {
@@ -1330,19 +1367,61 @@
         `translate(${boardState.x}px, ${boardState.y}px) scale(${boardState.scale})`;
     }
 
-    function clampBoardWithinScreen() {
+    function placeBoardByFixedPosition() {
       const screen = getScreenSize();
       const base = getBoardBaseSize();
+      const margin = 4;
+
+      boardState.sizeRatio = clamp(boardState.sizeRatio, boardState.minSizeRatio, boardState.maxSizeRatio);
+      const targetWidth = screen.width * boardState.sizeRatio;
+      boardState.scale = clamp(targetWidth / base.width, boardState.minScale, boardState.maxScale);
 
       const boardWidth = base.width * boardState.scale;
       const boardHeight = base.height * boardState.scale;
+      const maxX = Math.max(margin, screen.width - boardWidth - margin);
+      const maxY = Math.max(margin, screen.height - boardHeight - margin);
 
-      const maxX = Math.max(0, screen.width - boardWidth);
-      const maxY = Math.max(0, screen.height - boardHeight);
+      switch (boardState.position) {
+        case "top-left":
+          boardState.x = margin;
+          boardState.y = margin;
+          break;
+        case "top-right":
+          boardState.x = maxX;
+          boardState.y = margin;
+          break;
+        case "bottom-right":
+          boardState.x = maxX;
+          boardState.y = maxY;
+          break;
+        case "bottom-left":
+        default:
+          boardState.x = margin;
+          boardState.y = maxY;
+          break;
+      }
 
-      boardState.x = clamp(boardState.x, 0, maxX);
-      boardState.y = clamp(boardState.y, 0, maxY);
-      boardState.scale = clamp(boardState.scale, boardState.minScale, boardState.maxScale);
+      applyBoardTransform();
+    }
+
+    function cycleBoardPosition() {
+      const currentIndex = BOARD_POSITIONS.indexOf(boardState.position);
+      const nextIndex = (currentIndex + 1) % BOARD_POSITIONS.length;
+      boardState.position = BOARD_POSITIONS[nextIndex];
+      placeBoardByFixedPosition();
+      showToast(`看板位置：${BOARD_POSITION_LABELS[boardState.position]}`);
+    }
+
+    function increaseBoardSize() {
+      boardState.sizeRatio = Math.min(boardState.maxSizeRatio, boardState.sizeRatio + 0.035);
+      placeBoardByFixedPosition();
+      showToast("看板を拡大しました");
+    }
+
+    function decreaseBoardSize() {
+      boardState.sizeRatio = Math.max(boardState.minSizeRatio, boardState.sizeRatio - 0.035);
+      placeBoardByFixedPosition();
+      showToast("看板を縮小しました");
     }
 
     function clamp(value, min, max) {

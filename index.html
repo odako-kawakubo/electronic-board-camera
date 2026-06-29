@@ -119,7 +119,7 @@
     #photoBoard {
       position: relative;
       width: 100%;
-      height: 230px;
+      height: 242px;
       padding: 4px;
       background: #fff;
       color: #000;
@@ -221,22 +221,22 @@
       word-break: break-all;
     }
 
-    .board-textarea {
-      display: block;
+    .board-editable {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 100%;
-      height: auto;
-      min-height: 0;
-      max-height: 100%;
+      min-height: 100%;
       border: none;
       outline: none;
-      resize: none;
-      overflow: hidden;
       background: transparent;
       color: #000;
       font-family: inherit;
       padding: 0;
       margin: 0;
       text-align: center;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .subject-textarea {
@@ -252,19 +252,20 @@
     }
 
     .inner-label {
-      width: 78px;
-      padding: 4px 5px;
+      /* 確定設定：No.セル「少し広」 */
+      width: 120px;
+      padding: 4px 5px 4px 12px;
       font-size: 17px;
       font-weight: 900;
       white-space: nowrap;
-      text-align: center;
+      text-align: left;
       border-right: none !important;
     }
 
     .inner-value {
       border-left: none !important;
-      /* ラベル横の縦線は消したまま、値1個分くらい空白を入れる */
-      padding: 0 6px 0 44px;
+      /* 確定設定：値位置「右」 */
+      padding: 0 6px 0 48px;
     }
 
     .board-input {
@@ -274,7 +275,7 @@
       outline: none;
       background: transparent;
       color: #000;
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 900;
       font-family: inherit;
       text-align: left;
@@ -330,7 +331,7 @@
     }
 
     .date-text {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 900;
       line-height: 1;
       letter-spacing: 0.06em;
@@ -698,7 +699,7 @@
               <td class="label-cell">件名</td>
               <td class="value-cell board-value-cell">
                 <div class="textarea-center-wrap">
-                  <textarea id="subjectText" class="board-textarea subject-textarea" rows="2" inputmode="text"></textarea>
+                  <div id="subjectText" class="board-editable subject-textarea" contenteditable="true" inputmode="text"></div>
                 </div>
               </td>
             </tr>
@@ -707,7 +708,7 @@
               <td class="label-cell">採取場所</td>
               <td class="value-cell board-value-cell">
                 <div class="textarea-center-wrap">
-                  <textarea id="addressText" class="board-textarea address-textarea" rows="2" inputmode="text"></textarea>
+                  <div id="addressText" class="board-editable address-textarea" contenteditable="true" inputmode="text"></div>
                 </div>
               </td>
             </tr>
@@ -717,14 +718,14 @@
               <td>
                 <table class="inner-table">
                   <tr>
-                    <td class="inner-label">部屋No.</td>
+                    <td class="inner-label">　部屋No.</td>
                     <td class="inner-value">
                       <input id="roomNoInput" class="board-input" type="text" inputmode="text" />
                     </td>
                   </tr>
 
                   <tr>
-                    <td class="inner-label">試料No.</td>
+                    <td class="inner-label">　試料No.</td>
                     <td class="inner-value">
                       <input id="sampleNoInput" class="board-input" type="text" inputmode="text" />
                     </td>
@@ -955,8 +956,8 @@
     });
 
     function initializeBoard() {
-      subjectText.value = APP_DATA.subject;
-      addressText.value = APP_DATA.address;
+      subjectText.textContent = APP_DATA.subject;
+      addressText.textContent = APP_DATA.address;
       roomNoInput.value = roomNoInput.value || "";
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
@@ -1222,7 +1223,7 @@
 
     function isInteractiveBoardTarget(target) {
       return Boolean(
-        target.closest(".board-input") || target.closest(".board-textarea") || target.closest(".status-btn")
+        target.closest(".board-input") || target.closest(".board-editable") || target.closest(".status-btn")
       );
     }
 
@@ -1892,8 +1893,8 @@
     /* キャンバス上に看板を描画 */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const data = {
-        subject: subjectText.value || "",
-        address: addressText.value || "",
+        subject: subjectText.textContent || "",
+        address: addressText.textContent || "",
         roomNo: roomNoInput.value.trim(),
         sampleNo: sampleNoInput.value.trim(),
         date: dateText.textContent || "",
@@ -1927,7 +1928,9 @@
       const contentY = y + row1H + row2H;
       const contentH = row3H;
 
-      const innerLabelW = rightW * 0.27;
+      // 確定設定：No.セル「少し広」+ 値位置「右」。
+      // テストHTMLの 120px + 48px を、右側幅416px基準の比率でCanvasへ反映する。
+      const innerLabelW = rightW * 0.404;
       const roomRowH = contentH * 0.31;
       const sampleRowH = contentH * 0.31;
       const statusRowH = contentH - roomRowH - sampleRowH;
@@ -1969,12 +1972,11 @@
       drawWrappedCenterText(ctx, data.subject, x + leftColW + 6, y, rightW - 12, row1H, titleFont, 1.25, 2);
       drawWrappedCenterText(ctx, data.address, x + leftColW + 6, y + row1H, rightW - 12, row2H, addressFont, 1.2, 2);
 
-      drawCenteredText(ctx, "部屋No.", x + leftColW, contentY, innerLabelW, roomRowH, innerLabelFont);
-      drawCenteredText(ctx, "試料No.", x + leftColW, contentY + roomRowH, innerLabelW, sampleRowH, innerLabelFont);
+      drawLeftMiddleText(ctx, "　部屋No.", x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);
+      drawLeftMiddleText(ctx, "　試料No.", x + leftColW + 8, contentY + roomRowH, innerLabelW - 8, sampleRowH, innerLabelFont);
 
-      const noValueGap = rightW * 0.15;
-      drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW + noValueGap, contentY, rightW - innerLabelW - noValueGap, roomRowH, innerValueFont);
-      drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW + noValueGap, contentY + roomRowH, rightW - innerLabelW - noValueGap, sampleRowH, innerValueFont);
+      drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
+      drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, innerValueFont);
 
       const statusStartX = x + leftColW + 3;
       const statusWidth = rightW - 6;

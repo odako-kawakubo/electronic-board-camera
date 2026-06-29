@@ -993,7 +993,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v29";
+    const APP_VERSION = "v30";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1626,12 +1626,33 @@
       if (!isSectionMode) {
         const boardRect = photoBoard.getBoundingClientRect();
 
-        // 画面上の看板位置を、4:3保存写真へ比率変換して焼き込む。
-        // 画面比率と保存比率が違う場合でも、横長すぎない4:3写真として保存する。
-        const boardX = (boardRect.left / screen.width) * canvas.width;
-        const boardY = (boardRect.top / screen.height) * canvas.height;
-        const boardW = (boardRect.width / screen.width) * canvas.width;
-        const boardH = (boardRect.height / screen.height) * canvas.height;
+        /*
+         * 画面上の看板を、4:3保存写真へ焼き込む。
+         * ここで幅と高さを別々の比率で変換すると、看板が横長/縦長に伸びる。
+         * そのため、画面表示中の video object-fit: cover の実寸から
+         * 「画面座標 → 元動画座標 → 4:3保存Canvas座標」へ変換する。
+         */
+        const previewScale = Math.max(
+          screen.width / videoWidth,
+          screen.height / videoHeight
+        );
+
+        const displayedVideoWidth = videoWidth * previewScale;
+        const displayedVideoHeight = videoHeight * previewScale;
+        const displayedVideoX = (screen.width - displayedVideoWidth) / 2;
+        const displayedVideoY = (screen.height - displayedVideoHeight) / 2;
+
+        const boardVideoLeft = (boardRect.left - displayedVideoX) / previewScale;
+        const boardVideoTop = (boardRect.top - displayedVideoY) / previewScale;
+        const boardVideoWidth = boardRect.width / previewScale;
+        const boardVideoHeight = boardRect.height / previewScale;
+
+        const canvasScale = outputWidth / sourceWidth;
+
+        const boardX = (boardVideoLeft - sourceX) * canvasScale;
+        const boardY = (boardVideoTop - sourceY) * canvasScale;
+        const boardW = boardVideoWidth * canvasScale;
+        const boardH = boardVideoHeight * canvasScale;
 
         drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
       }

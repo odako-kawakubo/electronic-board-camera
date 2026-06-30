@@ -449,8 +449,9 @@
       padding: 0;
       margin: 0;
       text-align: center;
-      white-space: normal;
+      white-space: pre-wrap;
       word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .subject-textarea {
@@ -463,6 +464,30 @@
       font-size: 17px;
       font-weight: 900;
       line-height: 1.2;
+    }
+
+    #boardWrap.text-small .subject-textarea {
+      font-size: 16px;
+    }
+
+    #boardWrap.text-small .address-textarea {
+      font-size: 15px;
+    }
+
+    #boardWrap.text-small #roomNoInput {
+      font-size: 21px;
+    }
+
+    #boardWrap.text-large .subject-textarea {
+      font-size: 20px;
+    }
+
+    #boardWrap.text-large .address-textarea {
+      font-size: 19px;
+    }
+
+    #boardWrap.text-large #roomNoInput {
+      font-size: 27px;
     }
 
     .inner-label {
@@ -1049,16 +1074,54 @@
       display: grid;
     }
 
+    .board-edit-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-width: 0;
+      justify-self: center;
+    }
+
     .board-edit-title {
       color: #fff;
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 900;
       text-align: center;
       line-height: 1.35;
       writing-mode: vertical-rl;
       text-orientation: upright;
-      justify-self: center;
       text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    .text-size-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .text-size-button {
+      width: 58px;
+      min-height: 34px;
+      border: 1px solid rgba(255,255,255,0.34);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .text-size-button.active {
+      background: #f2c94c;
+      color: #000;
+      border-color: #f2c94c;
     }
 
     #boardEditHost {
@@ -1443,14 +1506,22 @@
   </div>
 
   <div id="boardEditOverlay">
-    <div class="board-edit-title">看板編集モード</div>
+    <div class="board-edit-left">
+      <div class="board-edit-title">看板編集モード</div>
+      <div class="text-size-panel">
+        <div>文字</div>
+        <button id="textSizeSmallButton" class="text-size-button" type="button" onclick="setBoardTextSize('small')">小</button>
+        <button id="textSizeNormalButton" class="text-size-button" type="button" onclick="setBoardTextSize('normal')">標準</button>
+        <button id="textSizeLargeButton" class="text-size-button" type="button" onclick="setBoardTextSize('large')">大</button>
+      </div>
+    </div>
     <div id="boardEditHost"></div>
     <button class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
-    <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
+    <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.・日付を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
   </div>
 
   <script>
-    const APP_VERSION = "v38";
+    const APP_VERSION = "v39";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1471,6 +1542,12 @@
     const DEFAULT_POINT_NO = "1";
     const POINT_DISPLAY_DEFAULT = "1-①";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
+    const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
+    const BOARD_TEXT_SIZE_MULTIPLIERS = {
+      small: 0.88,
+      normal: 1,
+      large: 1.12
+    };
     const PHOTO_QUALITY_SETTINGS = {
       standard: { label: "標準", width: 3024, height: 2268 },
       high: { label: "高画質", width: 3264, height: 2448 }
@@ -1513,6 +1590,9 @@
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
     const boardModeToggle = document.getElementById("boardModeToggle");
+    const textSizeSmallButton = document.getElementById("textSizeSmallButton");
+    const textSizeNormalButton = document.getElementById("textSizeNormalButton");
+    const textSizeLargeButton = document.getElementById("textSizeLargeButton");
     const panelMainButtons = Array.from(document.querySelectorAll(".panel-main-button"));
     const sidePanels = {
       room: document.getElementById("roomPanel"),
@@ -1535,6 +1615,7 @@
     let previewIndex = 0;
     let isPreviewListMode = false;
     let photoQuality = loadPhotoQuality();
+    let boardTextSize = loadBoardTextSize();
     let boardMode = "survey";
     let activeSidePanel = null;
     let isDateManuallyEdited = false;
@@ -1576,6 +1657,7 @@
       setupPreviewImageTap();
       setupPhotoCountHiddenShoot();
       renderPhotoQualitySettings();
+      renderBoardTextSize();
 
       await loadPhotosFromIndexedDB();
 
@@ -1613,7 +1695,7 @@
     function initializeBoard() {
       subjectText.textContent = APP_DATA.subject;
       addressText.textContent = APP_DATA.address;
-      roomNoInput.value = roomNoInput.value || "";
+      roomNoInput.value = roomNoInput.value || "1-1";
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
       setStatus("visual");
@@ -2950,11 +3032,12 @@
       drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, x + w, contentY + roomRowH + sampleRowH);
       // 部屋No. / 試料No. はラベルと値の間の縦線を描かない。
 
+      const textMultiplier = BOARD_TEXT_SIZE_MULTIPLIERS[boardTextSize] || 1;
       const labelFont = Math.max(10, w * 0.046);
-      const titleFont = Math.max(10, w * 0.047);
-      const addressFont = Math.max(10, w * 0.044);
+      const titleFont = Math.max(10, w * 0.047 * textMultiplier);
+      const addressFont = Math.max(10, w * 0.044 * textMultiplier);
       const innerLabelFont = Math.max(9, w * 0.043);
-      const innerValueFont = Math.max(11, w * 0.055);
+      const innerValueFont = Math.max(11, w * 0.055 * textMultiplier);
       const statusFont = Math.max(9, w * 0.038);
       const dateFont = Math.max(12, w * 0.055);
 
@@ -3128,6 +3211,39 @@
 
       qualityStandardButton.classList.toggle("active", photoQuality === "standard");
       qualityHighButton.classList.toggle("active", photoQuality === "high");
+    }
+
+    function loadBoardTextSize() {
+      try {
+        const saved = localStorage.getItem(BOARD_TEXT_SIZE_STORAGE_KEY);
+        if (saved && BOARD_TEXT_SIZE_MULTIPLIERS[saved]) return saved;
+      } catch (error) {}
+
+      return "normal";
+    }
+
+    function setBoardTextSize(value) {
+      if (!BOARD_TEXT_SIZE_MULTIPLIERS[value]) return;
+
+      boardTextSize = value;
+
+      try {
+        localStorage.setItem(BOARD_TEXT_SIZE_STORAGE_KEY, value);
+      } catch (error) {}
+
+      renderBoardTextSize();
+      showToast(value === "small" ? "文字サイズ：小" : value === "large" ? "文字サイズ：大" : "文字サイズ：標準");
+    }
+
+    function renderBoardTextSize() {
+      if (!boardWrap) return;
+
+      boardWrap.classList.toggle("text-small", boardTextSize === "small");
+      boardWrap.classList.toggle("text-large", boardTextSize === "large");
+
+      if (textSizeSmallButton) textSizeSmallButton.classList.toggle("active", boardTextSize === "small");
+      if (textSizeNormalButton) textSizeNormalButton.classList.toggle("active", boardTextSize === "normal");
+      if (textSizeLargeButton) textSizeLargeButton.classList.toggle("active", boardTextSize === "large");
     }
 
     function openSettings() {

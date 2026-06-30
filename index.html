@@ -375,6 +375,13 @@
       padding: 0;
     }
 
+
+    /* v45: 入れ子表の外周罫線を消して、内容欄だけ太線に見えるのを防ぐ */
+    .inner-table tr:first-child td { border-top: none; }
+    .inner-table tr:last-child td { border-bottom: none; }
+    .inner-table td:first-child { border-left: none; }
+    .inner-table td:last-child { border-right: none; }
+
     .row-subject {
       height: 52px;
     }
@@ -463,11 +470,10 @@
     }
 
     textarea.board-editable {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: block;
       text-align-last: center;
       scrollbar-width: none;
+      box-sizing: border-box;
     }
 
     textarea.board-editable::-webkit-scrollbar {
@@ -481,6 +487,15 @@
       padding-left: 0;
       padding-right: 0;
       overflow: hidden;
+    }
+
+    /* v45: 件名・採取場所のtextareaを同じ仕組みで上下中央に見せる */
+    .subject-textarea,
+    .address-textarea {
+      display: block;
+      text-align: center;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
 
     .subject-textarea {
@@ -674,7 +689,7 @@
       background: #27ae60;
       color: #fff;
       min-width: 80px;
-      font-size: 14px;
+      font-size: 17px;
     }
 
     body:not(.sampling-mode) .btn-mode {
@@ -1301,35 +1316,31 @@
 
     .font-control-row {
       position: absolute;
-      left: 12%;
-      right: 10%;
+      left: 10%;
+      right: 8%;
       display: flex;
       justify-content: space-between;
       align-items: center;
       pointer-events: none;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 900;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
     }
 
     .font-control-row button {
       pointer-events: auto;
-      width: 34px;
-      height: 28px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.5);
-      background: rgba(0,0,0,0.62);
+      width: 38px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.68);
       color: #fff;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 900;
       font-family: inherit;
       line-height: 1;
     }
 
-    .font-subject { top: 10%; }
-    .font-address { top: 28%; }
-    .font-room { top: 50%; }
+    .font-subject { top: 9%; }
+    .font-address { top: 26%; }
+    .font-room { top: 49%; }
 
     @media (orientation: portrait) {
       #cameraScreen {
@@ -1579,7 +1590,7 @@
         type="button"
         onclick="cyclePhotoStatus()"
       >
-        ◀目視▶
+        目視
       </button>
     </div>
 
@@ -1643,9 +1654,9 @@
     </div>
     <div id="boardEditHost">
       <div id="fontControlOverlay" class="font-control-overlay">
-        <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><span>件名</span><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
-        <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><span>採取場所</span><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
-        <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><span>部屋/箇所</span><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
+        <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
+        <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
+        <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
       </div>
     </div>
     <button class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
@@ -1653,7 +1664,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v44";
+    const APP_VERSION = "v45";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1832,6 +1843,7 @@
     function initializeBoard() {
       subjectText.value = APP_DATA.subject;
       addressText.value = APP_DATA.address;
+      syncBoardTextAreaVerticalCenter();
       roomNoInput.value = roomNoInput.value || "1-1";
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
@@ -2050,7 +2062,7 @@
     function updateCategoryToggleButton() {
       if (!categoryToggleButton) return;
       const current = getActiveStatusList().find((item) => item.value === selectedStatus) || getActiveStatusList()[0];
-      categoryToggleButton.textContent = `◀${current.label}▶`;
+      categoryToggleButton.textContent = current.label;
     }
 
     function setInitialBoardLayout() {
@@ -3207,16 +3219,18 @@
 
       ctx.lineWidth = innerLine;
 
-      // 縦線が二重枠へ食い込んで見えないよう、上下を内側で止める。
+      // v45: 罫線は二重枠の内側だけに描く。内容欄の太線・下側の飛び出しを防ぐ。
       const gridTop = y + innerLine;
       const gridBottom = y + h - innerLine;
+      const gridLeft = x + innerLine;
+      const gridRight = x + w - innerLine;
       drawLine(ctx, x + leftColW, gridTop, x + leftColW, gridBottom);
-      drawLine(ctx, x, y + row1H, x + w, y + row1H);
-      drawLine(ctx, x, y + row1H + row2H, x + w, y + row1H + row2H);
-      drawLine(ctx, x, y + row1H + row2H + row3H, x + w, y + row1H + row2H + row3H);
+      drawLine(ctx, gridLeft, y + row1H, gridRight, y + row1H);
+      drawLine(ctx, gridLeft, y + row1H + row2H, gridRight, y + row1H + row2H);
+      drawLine(ctx, gridLeft, y + row1H + row2H + row3H, gridRight, y + row1H + row2H + row3H);
 
-      drawLine(ctx, x + leftColW, contentY + roomRowH, x + w - innerLine, contentY + roomRowH);
-      drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, x + w - innerLine, contentY + roomRowH + sampleRowH);
+      drawLine(ctx, x + leftColW, contentY + roomRowH, gridRight, contentY + roomRowH);
+      drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, gridRight, contentY + roomRowH + sampleRowH);
       // 部屋No. / 試料No. はラベルと値の間の縦線を描かない。
 
       const textMultiplier = BOARD_TEXT_SIZE_MULTIPLIERS[boardTextSize] || 1;
@@ -3378,6 +3392,31 @@
       return result.length ? result : [""];
     }
 
+
+    function setupBoardTextAreaCentering() {
+      [subjectText, addressText].forEach((element) => {
+        if (!element) return;
+        element.addEventListener("input", syncBoardTextAreaVerticalCenter);
+        element.addEventListener("change", syncBoardTextAreaVerticalCenter);
+      });
+      syncBoardTextAreaVerticalCenter();
+    }
+
+    function syncBoardTextAreaVerticalCenter() {
+      [subjectText, addressText].forEach((element) => {
+        if (!element) return;
+        element.style.paddingTop = "0px";
+        element.style.paddingBottom = "0px";
+
+        const visibleHeight = element.clientHeight;
+        const contentHeight = element.scrollHeight;
+        const padding = Math.max(0, Math.floor((visibleHeight - contentHeight) / 2));
+
+        element.style.paddingTop = `${padding}px`;
+        element.style.paddingBottom = "0px";
+      });
+    }
+
     function loadPhotoQuality() {
       try {
         const saved = localStorage.getItem(PHOTO_QUALITY_STORAGE_KEY);
@@ -3412,6 +3451,7 @@
       if (!boardFieldTextSize[field]) return;
       boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, 12, 32);
       applyBoardFieldTextSizes();
+      syncBoardTextAreaVerticalCenter();
       showToast("文字サイズを変更しました");
     }
 
@@ -3419,6 +3459,7 @@
       if (subjectText) subjectText.style.fontSize = `${boardFieldTextSize.subject}px`;
       if (addressText) addressText.style.fontSize = `${boardFieldTextSize.address}px`;
       if (roomNoInput) roomNoInput.style.fontSize = `${boardFieldTextSize.room}px`;
+      syncBoardTextAreaVerticalCenter();
     }
 
     function loadBoardTextSize() {

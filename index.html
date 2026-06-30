@@ -140,49 +140,154 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       width: 100%;
       padding-bottom: 4px;
     }
 
-    .board-side-button {
-      width: 64px;
-      min-height: 58px;
+    .mode-toggle-button,
+    .panel-main-button,
+    .panel-mini-button,
+    .panel-center-button {
       border: 1px solid rgba(255, 255, 255, 0.28);
-      border-radius: 14px;
       background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
       color: #fff;
       font-family: inherit;
-      font-size: 14px;
       font-weight: 900;
-      line-height: 1.2;
       cursor: pointer;
       touch-action: manipulation;
       box-shadow: 0 2px 8px rgba(0,0,0,0.35);
     }
 
-    .board-side-button .icon {
-      display: block;
-      font-size: 28px;
-      line-height: 1;
-      margin-bottom: 5px;
-    }
-
-    .board-side-button:active {
+    .mode-toggle-button:active,
+    .panel-main-button:active,
+    .panel-mini-button:active,
+    .panel-center-button:active {
       opacity: 0.72;
     }
 
-    .board-size-button {
-      min-height: 52px;
-      font-size: 30px;
-      line-height: 1;
+    .mode-toggle-button {
+      width: 72px;
+      min-height: 42px;
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1.15;
+      background: linear-gradient(180deg, rgba(47,128,237,0.9), rgba(47,128,237,0.55));
     }
 
-    .board-size-label {
-      margin-top: -6px;
+    body.sampling-mode .mode-toggle-button {
+      background: linear-gradient(180deg, rgba(39,174,96,0.9), rgba(39,174,96,0.55));
+    }
+
+    .panel-main-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      align-items: center;
+    }
+
+    .panel-main-button {
+      width: 72px;
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.15;
+    }
+
+    .panel-main-button.active {
+      border-color: rgba(242, 201, 76, 0.95);
+      box-shadow: 0 0 0 2px rgba(242, 201, 76, 0.25) inset, 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .panel-expanded {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .panel-expanded.show {
+      display: flex;
+    }
+
+    .panel-pair {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .panel-vertical {
+      display: grid;
+      grid-template-rows: 30px 32px 30px;
+      width: 34px;
+      gap: 3px;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .panel-mini-button {
+      width: 34px;
+      height: 30px;
+      border-radius: 9px;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .panel-center-button {
+      width: 34px;
+      height: 32px;
+      border-radius: 10px;
       font-size: 12px;
-      font-weight: 900;
+      line-height: 1;
+      padding: 0;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .panel-single {
+      width: 44px;
+      display: grid;
+      grid-template-rows: 32px 38px 32px;
+      gap: 5px;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .panel-single .panel-mini-button {
+      width: 44px;
+      height: 32px;
+      font-size: 17px;
+    }
+
+    .panel-single .panel-center-button {
+      width: 44px;
+      height: 38px;
+      font-size: 20px;
+    }
+
+    .panel-close-button {
+      width: 58px;
+      min-height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
       color: rgba(255,255,255,0.92);
+      font-size: 11px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    body.sampling-mode .survey-only {
+      display: none !important;
+    }
+
+    body:not(.sampling-mode) .sampling-only {
+      display: none !important;
     }
 
     /* 看板レイヤー */
@@ -904,29 +1009,34 @@
       inset: 0;
       z-index: 35000;
       display: none;
-      flex-direction: column;
+      grid-template-columns: 92px minmax(0, 1fr) 92px;
       align-items: center;
       justify-content: center;
-      gap: 18px;
-      padding: calc(18px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+      gap: 12px;
+      padding: calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));
       background: rgba(0, 0, 0, 0.78);
     }
 
     #boardEditOverlay.show {
-      display: flex;
+      display: grid;
     }
 
     .board-edit-title {
       color: #fff;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 900;
       text-align: center;
+      line-height: 1.35;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      justify-self: center;
       text-shadow: 0 2px 6px rgba(0,0,0,0.6);
     }
 
     #boardEditHost {
-      width: min(92vw, 760px);
-      height: min(58dvh, 470px);
+      width: 100%;
+      height: 100%;
+      max-height: calc(100dvh - 32px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -937,7 +1047,8 @@
       position: relative !important;
       left: auto !important;
       top: auto !important;
-      transform: scale(1.45) !important;
+      width: min(88%, 780px) !important;
+      transform: none !important;
       transform-origin: center center !important;
       pointer-events: auto;
     }
@@ -948,30 +1059,31 @@
 
     .board-edit-done {
       border: none;
-      border-radius: 999px;
-      padding: 14px 34px;
+      border-radius: 18px;
+      width: 68px;
+      min-height: 140px;
+      padding: 14px 10px;
       background: #27ae60;
       color: #fff;
-      font-size: 18px;
+      font-size: 19px;
       font-weight: 900;
       font-family: inherit;
       cursor: pointer;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      justify-self: center;
       box-shadow: 0 3px 12px rgba(0,0,0,0.35);
     }
 
     .board-edit-hint {
-      color: rgba(255,255,255,0.84);
-      font-size: 13px;
-      font-weight: 900;
-      text-align: center;
-      line-height: 1.45;
+      display: none;
     }
 
     #boardWrap.board-readonly .board-input,
-    #boardWrap.board-readonly .board-editable {
+    #boardWrap.board-readonly .board-editable,
+    #boardWrap.board-readonly .date-text {
       caret-color: transparent;
     }
-
 
     /* トースト */
     #toast {
@@ -1028,6 +1140,28 @@
         min-height: auto;
         padding: 13px 16px;
       }
+
+      #boardEditOverlay {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .board-edit-title {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+      }
+
+      .board-edit-done {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        width: auto;
+        min-height: auto;
+        padding: 13px 34px;
+      }
+
+      #boardEditHost #boardWrap {
+        width: min(92vw, 620px) !important;
+      }
     }
 
   </style>
@@ -1039,15 +1173,62 @@
       <div id="photoCount">撮影済み
 0枚</div>
 
-      <div class="board-control-panel" aria-label="看板操作">
-        <button class="board-side-button" type="button" onclick="cycleBoardPosition()">
-          <span class="icon">⌖</span>
-          位置
-        </button>
-        <button class="board-side-button board-size-button" type="button" onclick="increaseBoardSize()">＋</button>
-        <div class="board-size-label">拡大</div>
-        <button class="board-side-button board-size-button" type="button" onclick="decreaseBoardSize()">－</button>
-        <div class="board-size-label">縮小</div>
+      <div class="board-control-panel" aria-label="撮影補助操作">
+        <button id="boardModeToggle" class="mode-toggle-button" type="button" onclick="toggleBoardMode()">調査</button>
+
+        <div id="panelMainList" class="panel-main-list">
+          <button id="panelRoomButton" class="panel-main-button" type="button" onclick="openSidePanel('room')">部屋</button>
+          <button id="panelSampleButton" class="panel-main-button" type="button" onclick="openSidePanel('sample')">検体</button>
+          <button id="panelBoardButton" class="panel-main-button" type="button" onclick="openSidePanel('board')">看板</button>
+        </div>
+
+        <div id="roomPanel" class="panel-expanded">
+          <div class="panel-pair survey-only">
+            <div class="panel-vertical" aria-label="階操作">
+              <button class="panel-mini-button" type="button" onclick="changeRoomNumber('floor', 1)">▲</button>
+              <button class="panel-center-button" type="button" onclick="promptRoomNo()">階</button>
+              <button class="panel-mini-button" type="button" onclick="changeRoomNumber('floor', -1)">▼</button>
+            </div>
+            <div class="panel-vertical" aria-label="部屋操作">
+              <button class="panel-mini-button" type="button" onclick="changeRoomNumber('room', 1)">▲</button>
+              <button class="panel-center-button" type="button" onclick="promptRoomNo()">部屋</button>
+              <button class="panel-mini-button" type="button" onclick="changeRoomNumber('room', -1)">▼</button>
+            </div>
+          </div>
+
+          <div class="panel-single sampling-only" aria-label="採取箇所入力">
+            <button class="panel-mini-button" type="button" onclick="promptRoomNo()">▲</button>
+            <button class="panel-center-button" type="button" onclick="promptRoomNo()">📍</button>
+            <button class="panel-mini-button" type="button" onclick="promptRoomNo()">▼</button>
+          </div>
+
+          <button class="panel-close-button" type="button" onclick="closeSidePanel()">閉じる</button>
+        </div>
+
+        <div id="samplePanel" class="panel-expanded">
+          <div class="panel-pair">
+            <div class="panel-vertical" aria-label="検体操作">
+              <button class="panel-mini-button" type="button" onclick="changeSampleNo(1)">▲</button>
+              <button class="panel-center-button" type="button" onclick="promptSampleNo()">検体</button>
+              <button class="panel-mini-button" type="button" onclick="changeSampleNo(-1)">▼</button>
+            </div>
+            <div class="panel-vertical" aria-label="箇所操作">
+              <button class="panel-mini-button" type="button" onclick="changePointNo(1)">▲</button>
+              <button class="panel-center-button" type="button" onclick="promptSampleNo()">箇所</button>
+              <button class="panel-mini-button" type="button" onclick="changePointNo(-1)">▼</button>
+            </div>
+          </div>
+          <button class="panel-close-button" type="button" onclick="closeSidePanel()">閉じる</button>
+        </div>
+
+        <div id="boardPanel" class="panel-expanded">
+          <div class="panel-single" aria-label="看板操作">
+            <button class="panel-mini-button" type="button" onclick="increaseBoardSize()">▲</button>
+            <button class="panel-center-button" type="button" onclick="cycleBoardPosition()">🪧</button>
+            <button class="panel-mini-button" type="button" onclick="decreaseBoardSize()">▼</button>
+          </div>
+          <button class="panel-close-button" type="button" onclick="closeSidePanel()">閉じる</button>
+        </div>
       </div>
     </div>
 
@@ -1085,7 +1266,7 @@
               <td>
                 <table class="inner-table">
                   <tr>
-                    <td class="inner-label">　部屋No.</td>
+                    <td id="roomLabelCell" class="inner-label">　部屋No.</td>
                     <td class="inner-value">
                       <input id="roomNoInput" class="board-input" type="text" inputmode="text" />
                     </td>
@@ -1101,7 +1282,7 @@
                   <tr>
                     <td colspan="2" class="status-cell">
                       <div class="status-row">
-                        <button class="status-btn" type="button" data-value="visual">
+                        <button id="visualStatusButton" class="status-btn" type="button" data-value="visual">
                           <span class="status-box">■</span><span>目視</span>
                         </button>
 
@@ -1234,7 +1415,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v36";
+    const APP_VERSION = "v37";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1296,6 +1477,15 @@
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
+    const boardModeToggle = document.getElementById("boardModeToggle");
+    const panelMainButtons = Array.from(document.querySelectorAll(".panel-main-button"));
+    const sidePanels = {
+      room: document.getElementById("roomPanel"),
+      sample: document.getElementById("samplePanel"),
+      board: document.getElementById("boardPanel")
+    };
+    const roomLabelCell = document.getElementById("roomLabelCell");
+    const visualStatusButton = document.getElementById("visualStatusButton");
     const toast = document.getElementById("toast");
 
     let currentStream = null;
@@ -1309,6 +1499,9 @@
     let previewIndex = 0;
     let isPreviewListMode = false;
     let photoQuality = loadPhotoQuality();
+    let boardMode = "survey";
+    let activeSidePanel = null;
+    let isDateManuallyEdited = false;
 
     const BOARD_POSITIONS = ["bottom-left", "bottom-right", "top-right", "top-left"];
     const BOARD_POSITION_LABELS = {
@@ -1339,6 +1532,8 @@
       checkAppUpdate();
       initializeBoard();
       setupStatusButtons();
+      setupBoardMode();
+      setupDateEditTracking();
       setupBoardEditGesture();
       setBoardEditable(false);
       setupPreviewSwipe();
@@ -1386,6 +1581,7 @@
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
       setStatus("visual");
+      applyBoardMode();
       setSectionMode(false);
       updatePhotoCount();
     }
@@ -1409,6 +1605,145 @@
       const min = String(date.getMinutes()).padStart(2, "0");
       const s = String(date.getSeconds()).padStart(2, "0");
       return `${y}${m}${d}_${h}${min}${s}`;
+    }
+
+    function setupBoardMode() {
+      applyBoardMode();
+    }
+
+    function toggleBoardMode() {
+      boardMode = boardMode === "survey" ? "sampling" : "survey";
+      applyBoardMode();
+      showToast(boardMode === "sampling" ? "サンプリング看板" : "調査看板");
+    }
+
+    function applyBoardMode() {
+      const isSampling = boardMode === "sampling";
+      document.body.classList.toggle("sampling-mode", isSampling);
+
+      if (boardModeToggle) {
+        boardModeToggle.textContent = isSampling ? "サンプリング" : "調査";
+      }
+
+      if (roomLabelCell) {
+        roomLabelCell.textContent = isSampling ? "　箇所" : "　部屋No.";
+      }
+
+      if (visualStatusButton) {
+        visualStatusButton.style.display = isSampling ? "none" : "inline-flex";
+      }
+
+      if (isSampling && selectedStatus === "visual") {
+        setStatus("before");
+      }
+    }
+
+    function openSidePanel(name) {
+      activeSidePanel = activeSidePanel === name ? null : name;
+
+      Object.entries(sidePanels).forEach(([key, panel]) => {
+        if (panel) panel.classList.toggle("show", key === activeSidePanel);
+      });
+
+      panelMainButtons.forEach((button) => {
+        const isActive =
+          (activeSidePanel === "room" && button.id === "panelRoomButton") ||
+          (activeSidePanel === "sample" && button.id === "panelSampleButton") ||
+          (activeSidePanel === "board" && button.id === "panelBoardButton");
+        button.classList.toggle("active", isActive);
+      });
+    }
+
+    function closeSidePanel() {
+      activeSidePanel = null;
+      Object.values(sidePanels).forEach((panel) => {
+        if (panel) panel.classList.remove("show");
+      });
+      panelMainButtons.forEach((button) => button.classList.remove("active"));
+    }
+
+    function promptRoomNo() {
+      const label = boardMode === "sampling" ? "採取箇所" : "部屋No.";
+      const next = window.prompt(`${label}を入力してください`, roomNoInput.value || "");
+      if (next === null) return;
+      roomNoInput.value = next.trim();
+      showToast(`${label}を変更しました`);
+    }
+
+    function promptSampleNo() {
+      const next = window.prompt("試料No.を入力してください", sampleNoInput.value || POINT_DISPLAY_DEFAULT);
+      if (next === null) return;
+      sampleNoInput.value = next.trim() || POINT_DISPLAY_DEFAULT;
+      showToast("試料No.を変更しました");
+    }
+
+    function changeRoomNumber(part, delta) {
+      if (boardMode === "sampling") {
+        promptRoomNo();
+        return;
+      }
+
+      roomNoInput.value = incrementNumberInText(roomNoInput.value, part === "floor" ? "first" : "last", delta);
+      showToast(part === "floor" ? "階を変更しました" : "部屋を変更しました");
+    }
+
+    function incrementNumberInText(value, target, delta) {
+      const text = String(value || "1");
+      const matches = Array.from(text.matchAll(/\d+/g));
+
+      if (!matches.length) {
+        return String(Math.max(1, 1 + delta));
+      }
+
+      const match = target === "first" ? matches[0] : matches[matches.length - 1];
+      const current = Number(match[0]);
+      const next = Math.max(1, current + delta);
+
+      return text.slice(0, match.index) + String(next) + text.slice(match.index + match[0].length);
+    }
+
+    function changeSampleNo(delta) {
+      const parts = parseSampleDisplayValue(sampleNoInput.value);
+      parts.sampleNo = Math.max(1, parts.sampleNo + delta);
+      sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo);
+      showToast("検体No.を変更しました");
+    }
+
+    function changePointNo(delta) {
+      const parts = parseSampleDisplayValue(sampleNoInput.value);
+      parts.pointNo = Math.max(1, parts.pointNo + delta);
+      sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo);
+      showToast("箇所No.を変更しました");
+    }
+
+    function parseSampleDisplayValue(value) {
+      const parsed = parseSampleAndPoint(value || POINT_DISPLAY_DEFAULT);
+      return {
+        sampleNo: Number(parsed.sampleNo) || 1,
+        pointNo: Number(parsed.pointNo) || 1
+      };
+    }
+
+    function formatSampleDisplayValue(sampleNo, pointNo) {
+      return `${sampleNo}-${toCircledNumber(pointNo)}`;
+    }
+
+    function toCircledNumber(value) {
+      const circles = ["", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳"];
+      return circles[value] || String(value);
+    }
+
+    function setupDateEditTracking() {
+      if (!dateText) return;
+      dateText.addEventListener("input", () => {
+        isDateManuallyEdited = true;
+      });
+    }
+
+    function getActiveStatusList() {
+      return boardMode === "sampling"
+        ? STATUS_LIST.filter((item) => item.value !== "visual")
+        : STATUS_LIST;
     }
 
     function setupStatusButtons() {
@@ -1548,6 +1883,7 @@
       addressText.contentEditable = enabled ? "true" : "false";
       roomNoInput.readOnly = !enabled;
       sampleNoInput.readOnly = !enabled;
+      dateText.contentEditable = enabled ? "true" : "false";
       boardWrap.classList.toggle("board-readonly", !enabled);
     }
 
@@ -1852,7 +2188,9 @@
         return;
       }
 
-      updateCurrentDate();
+      if (!isDateManuallyEdited) {
+        updateCurrentDate();
+      }
 
       try {
         // Canvasに文字を焼き込む前に、フォント読み込み完了を待つ
@@ -2507,7 +2845,8 @@
         roomNo: roomNoInput.value.trim(),
         sampleNo: sampleNoInput.value.trim(),
         date: dateText.textContent || "",
-        status: selectedStatus
+        status: selectedStatus,
+        roomLabel: boardMode === "sampling" ? "　箇所" : "　部屋No."
       };
 
       const outerLine = Math.max(1.2, h * 0.0085);
@@ -2581,7 +2920,7 @@
       drawWrappedCenterText(ctx, data.subject, x + leftColW + 6, y, rightW - 12, row1H, titleFont, 1.25, 2);
       drawWrappedCenterText(ctx, data.address, x + leftColW + 6, y + row1H, rightW - 12, row2H, addressFont, 1.2, 2);
 
-      drawLeftMiddleText(ctx, "　部屋No.", x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);
+      drawLeftMiddleText(ctx, data.roomLabel, x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);
       drawLeftMiddleText(ctx, "　試料No.", x + leftColW + 8, contentY + roomRowH, innerLabelW - 8, sampleRowH, innerLabelFont);
 
       drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
@@ -2589,7 +2928,8 @@
 
       const statusStartX = x + leftColW + 3;
       const statusWidth = rightW - 6;
-      const segmentW = statusWidth / STATUS_LIST.length;
+      const activeStatusList = getActiveStatusList();
+      const segmentW = statusWidth / activeStatusList.length;
       const statusCenterY = contentY + roomRowH + sampleRowH + statusRowH / 2;
 
       ctx.fillStyle = "#000";
@@ -2597,7 +2937,7 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      STATUS_LIST.forEach((item, index) => {
+      activeStatusList.forEach((item, index) => {
         const symbol = item.value === data.status ? "■" : "□";
         const text = `${symbol}${item.label}`;
         const centerX = statusStartX + segmentW * index + segmentW / 2;

@@ -63,7 +63,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 8px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .left-panel::-webkit-scrollbar {
+      display: none;
     }
 
     #captureFrame {
@@ -119,10 +126,10 @@
       z-index: 9999;
       background: rgba(255, 255, 255, 0.12);
       color: #fff;
-      padding: 10px 8px;
-      border-radius: 10px;
-      font-size: 13px;
-      line-height: 1.45;
+      padding: 7px 6px;
+      border-radius: 9px;
+      font-size: 11px;
+      line-height: 1.25;
       font-weight: 900;
       text-align: center;
       pointer-events: auto;
@@ -130,6 +137,7 @@
       user-select: none;
       touch-action: manipulation;
       white-space: pre-line;
+      width: 68px;
     }
 
     #photoCount:active {
@@ -140,9 +148,10 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       width: 100%;
       padding-bottom: 4px;
+      flex: 0 0 auto;
     }
 
     .mode-toggle-button,
@@ -288,6 +297,14 @@
 
     body:not(.sampling-mode) .sampling-only {
       display: none !important;
+    }
+
+    body.sampling-mode #roomLabelCell {
+      display: none;
+    }
+
+    body.sampling-mode #roomValueCell {
+      padding-left: 12px;
     }
 
     /* 看板レイヤー */
@@ -597,6 +614,17 @@
       background: #fff;
       color: #eb5757;
       box-shadow: 0 0 0 3px #eb5757 inset, 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .btn-mode {
+      background: #27ae60;
+      color: #fff;
+      min-width: 80px;
+      font-size: 14px;
+    }
+
+    body:not(.sampling-mode) .btn-mode {
+      background: #2f80ed;
     }
 
 
@@ -1174,8 +1202,6 @@
 0枚</div>
 
       <div class="board-control-panel" aria-label="撮影補助操作">
-        <button id="boardModeToggle" class="mode-toggle-button" type="button" onclick="toggleBoardMode()">調査</button>
-
         <div id="panelMainList" class="panel-main-list">
           <button id="panelRoomButton" class="panel-main-button" type="button" onclick="openSidePanel('room')">部屋</button>
           <button id="panelSampleButton" class="panel-main-button" type="button" onclick="openSidePanel('sample')">検体</button>
@@ -1267,7 +1293,7 @@
                 <table class="inner-table">
                   <tr>
                     <td id="roomLabelCell" class="inner-label">　部屋No.</td>
-                    <td class="inner-value">
+                    <td id="roomValueCell" class="inner-value">
                       <input id="roomNoInput" class="board-input" type="text" inputmode="text" />
                     </td>
                   </tr>
@@ -1352,6 +1378,15 @@
       >
         断面
       </button>
+
+      <button
+        id="boardModeToggle"
+        class="control-button btn-mode hidden-control"
+        type="button"
+        onclick="toggleBoardMode()"
+      >
+        調査
+      </button>
     </div>
 
     <div id="toast"></div>
@@ -1415,7 +1450,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v37";
+    const APP_VERSION = "v38";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1485,6 +1520,7 @@
       board: document.getElementById("boardPanel")
     };
     const roomLabelCell = document.getElementById("roomLabelCell");
+    const roomValueCell = document.getElementById("roomValueCell");
     const visualStatusButton = document.getElementById("visualStatusButton");
     const toast = document.getElementById("toast");
 
@@ -1626,7 +1662,15 @@
       }
 
       if (roomLabelCell) {
-        roomLabelCell.textContent = isSampling ? "　箇所" : "　部屋No.";
+        roomLabelCell.textContent = isSampling ? "" : "　部屋No.";
+      }
+
+      if (roomValueCell) {
+        roomValueCell.colSpan = isSampling ? 2 : 1;
+      }
+
+      if (roomNoInput) {
+        roomNoInput.placeholder = isSampling ? "例：階段 1-2階 / 駐車場" : "";
       }
 
       if (visualStatusButton) {
@@ -2119,6 +2163,7 @@
       viewButton.classList.remove("hidden-control");
       sectionButton.classList.remove("hidden-control");
       shootButton.classList.remove("hidden-control");
+      if (boardModeToggle) boardModeToggle.classList.remove("hidden-control");
     }
 
     function showStartButton() {
@@ -2127,6 +2172,7 @@
       viewButton.classList.add("hidden-control");
       sectionButton.classList.add("hidden-control");
       shootButton.classList.add("hidden-control");
+      if (boardModeToggle) boardModeToggle.classList.add("hidden-control");
     }
 
     function toggleSectionMode() {
@@ -2846,7 +2892,7 @@
         sampleNo: sampleNoInput.value.trim(),
         date: dateText.textContent || "",
         status: selectedStatus,
-        roomLabel: boardMode === "sampling" ? "　箇所" : "　部屋No."
+        roomLabel: boardMode === "sampling" ? "" : "　部屋No."
       };
 
       const outerLine = Math.max(1.2, h * 0.0085);
@@ -2920,10 +2966,14 @@
       drawWrappedCenterText(ctx, data.subject, x + leftColW + 6, y, rightW - 12, row1H, titleFont, 1.25, 2);
       drawWrappedCenterText(ctx, data.address, x + leftColW + 6, y + row1H, rightW - 12, row2H, addressFont, 1.2, 2);
 
-      drawLeftMiddleText(ctx, data.roomLabel, x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);
-      drawLeftMiddleText(ctx, "　試料No.", x + leftColW + 8, contentY + roomRowH, innerLabelW - 8, sampleRowH, innerLabelFont);
+      if (boardMode === "sampling") {
+        drawLeftMiddleText(ctx, data.roomNo, x + leftColW + 10, contentY, rightW - 20, roomRowH, innerValueFont);
+      } else {
+        drawLeftMiddleText(ctx, data.roomLabel, x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);
+        drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
+      }
 
-      drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
+      drawLeftMiddleText(ctx, "　試料No.", x + leftColW + 8, contentY + roomRowH, innerLabelW - 8, sampleRowH, innerLabelFont);
       drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, innerValueFont);
 
       const statusStartX = x + leftColW + 3;

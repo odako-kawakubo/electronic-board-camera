@@ -1258,6 +1258,79 @@
     }
 
 
+
+
+    /* v44: 通常時は看板内を直接編集させない。編集は看板編集モードのみ */
+    body:not(.board-editing) #photoBoard textarea,
+    body:not(.board-editing) #photoBoard input,
+    body:not(.board-editing) #photoBoard .date-text,
+    body:not(.board-editing) #photoBoard .status-btn {
+      pointer-events: none;
+    }
+
+    .edit-mode-toggle {
+      width: 72px;
+      min-height: 58px;
+      border: 1px solid rgba(255,255,255,0.34);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(47,128,237,0.95), rgba(47,128,237,0.55));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      font-family: inherit;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    body.sampling-mode .edit-mode-toggle {
+      background: linear-gradient(180deg, rgba(39,174,96,0.95), rgba(39,174,96,0.55));
+    }
+
+    #boardEditHost {
+      position: relative;
+    }
+
+    .font-control-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .font-control-row {
+      position: absolute;
+      left: 12%;
+      right: 10%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    }
+
+    .font-control-row button {
+      pointer-events: auto;
+      width: 34px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.5);
+      background: rgba(0,0,0,0.62);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+      font-family: inherit;
+      line-height: 1;
+    }
+
+    .font-subject { top: 10%; }
+    .font-address { top: 28%; }
+    .font-room { top: 50%; }
+
     @media (orientation: portrait) {
       #cameraScreen {
         flex-direction: column;
@@ -1501,12 +1574,12 @@
       </button>
 
       <button
-        id="boardModeToggle"
+        id="categoryToggleButton"
         class="control-button btn-mode hidden-control"
         type="button"
-        onclick="toggleBoardMode()"
+        onclick="cyclePhotoStatus()"
       >
-        調査
+        ◀目視▶
       </button>
     </div>
 
@@ -1566,20 +1639,21 @@
   <div id="boardEditOverlay">
     <div class="board-edit-left">
       <div class="board-edit-title">看板編集モード</div>
-      <div class="text-size-panel">
-        <div>文字</div>
-        <button id="textSizeSmallButton" class="text-size-button" type="button" onclick="setBoardTextSize('small')">小</button>
-        <button id="textSizeNormalButton" class="text-size-button" type="button" onclick="setBoardTextSize('normal')">標準</button>
-        <button id="textSizeLargeButton" class="text-size-button" type="button" onclick="setBoardTextSize('large')">大</button>
+      <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardMode()">調査</button>
+    </div>
+    <div id="boardEditHost">
+      <div id="fontControlOverlay" class="font-control-overlay">
+        <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><span>件名</span><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
+        <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><span>採取場所</span><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
+        <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><span>部屋/箇所</span><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
       </div>
     </div>
-    <div id="boardEditHost"></div>
     <button class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
     <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.・日付を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
   </div>
 
   <script>
-    const APP_VERSION = "v43";
+    const APP_VERSION = "v44";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1647,7 +1721,9 @@
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
-    const boardModeToggle = document.getElementById("boardModeToggle");
+    const categoryToggleButton = document.getElementById("categoryToggleButton");
+    const editBoardModeButton = document.getElementById("editBoardModeButton");
+    const samplingLocationInput = null;
     const textSizeSmallButton = document.getElementById("textSizeSmallButton");
     const textSizeNormalButton = document.getElementById("textSizeNormalButton");
     const textSizeLargeButton = document.getElementById("textSizeLargeButton");
@@ -1674,6 +1750,7 @@
     let isPreviewListMode = false;
     let photoQuality = loadPhotoQuality();
     let boardTextSize = loadBoardTextSize();
+    const boardFieldTextSize = { subject: 18, address: 17, room: 24 };
     let boardMode = "survey";
     let activeSidePanel = null;
     let isDateManuallyEdited = false;
@@ -1717,6 +1794,7 @@
       setupBoardTextareaAutoCenter();
       renderPhotoQualitySettings();
       renderBoardTextSize();
+      applyBoardFieldTextSizes();
 
       await loadPhotosFromIndexedDB();
 
@@ -1799,9 +1877,10 @@
       const isSampling = boardMode === "sampling";
       document.body.classList.toggle("sampling-mode", isSampling);
 
-      if (boardModeToggle) {
-        boardModeToggle.textContent = isSampling ? "サンプリング" : "調査";
+      if (editBoardModeButton) {
+        editBoardModeButton.textContent = isSampling ? "サンプリング" : "調査";
       }
+      updateCategoryToggleButton();
 
       if (roomLabelCell) {
         roomLabelCell.textContent = isSampling ? "" : "　部屋No.";
@@ -1956,6 +2035,22 @@
           box.textContent = checked ? "■" : "□";
         }
       });
+
+      updateCategoryToggleButton();
+    }
+
+    function cyclePhotoStatus() {
+      const list = getActiveStatusList();
+      const currentIndex = Math.max(0, list.findIndex((item) => item.value === selectedStatus));
+      const next = list[(currentIndex + 1) % list.length];
+      setStatus(next.value);
+      showToast(`区分：${next.label}`);
+    }
+
+    function updateCategoryToggleButton() {
+      if (!categoryToggleButton) return;
+      const current = getActiveStatusList().find((item) => item.value === selectedStatus) || getActiveStatusList()[0];
+      categoryToggleButton.textContent = `◀${current.label}▶`;
     }
 
     function setInitialBoardLayout() {
@@ -2048,34 +2143,19 @@
 
 
     function setupBoardEditGesture() {
-      boardWrap.addEventListener("dblclick", (event) => {
-        if (event.target.closest(".status-btn")) return;
-        event.preventDefault();
-        openBoardEditMode();
-      });
+      let lastTapAt = 0;
+      photoBoard.addEventListener("pointerup", (event) => {
+        if (isBoardEditMode) return;
+        if (isSectionMode) return;
 
-      boardWrap.addEventListener("touchend", (event) => {
-        if (event.target.closest(".status-btn")) return;
         const now = Date.now();
-        if (now - lastBoardTapAt < 330) {
+        if (now - lastTapAt < 380) {
           event.preventDefault();
+          event.stopPropagation();
           openBoardEditMode();
         }
-        lastBoardTapAt = now;
-      }, { passive: false });
-
-      // iPhone PWAでdblclick/touchendが拾えない場合の保険。
-      // 看板を素早く2回タップしたら編集モードを開く。
-      boardWrap.addEventListener("pointerup", (event) => {
-        if (event.pointerType === "mouse") return;
-        if (event.target.closest(".status-btn")) return;
-        const now = Date.now();
-        if (now - lastBoardTapAt < 380) {
-          event.preventDefault();
-          openBoardEditMode();
-        }
-        lastBoardTapAt = now;
-      });
+        lastTapAt = now;
+      }, true);
     }
 
     function setBoardEditable(enabled) {
@@ -2348,7 +2428,7 @@
       viewButton.classList.remove("hidden-control");
       sectionButton.classList.remove("hidden-control");
       shootButton.classList.remove("hidden-control");
-      if (boardModeToggle) boardModeToggle.classList.remove("hidden-control");
+      if (categoryToggleButton) categoryToggleButton.classList.remove("hidden-control");
     }
 
     function showStartButton() {
@@ -2357,7 +2437,7 @@
       viewButton.classList.add("hidden-control");
       sectionButton.classList.add("hidden-control");
       shootButton.classList.add("hidden-control");
-      if (boardModeToggle) boardModeToggle.classList.add("hidden-control");
+      if (categoryToggleButton) categoryToggleButton.classList.add("hidden-control");
     }
 
     function toggleSectionMode() {
@@ -3326,6 +3406,19 @@
 
       qualityStandardButton.classList.toggle("active", photoQuality === "standard");
       qualityHighButton.classList.toggle("active", photoQuality === "high");
+    }
+
+    function adjustBoardFieldTextSize(field, delta) {
+      if (!boardFieldTextSize[field]) return;
+      boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, 12, 32);
+      applyBoardFieldTextSizes();
+      showToast("文字サイズを変更しました");
+    }
+
+    function applyBoardFieldTextSizes() {
+      if (subjectText) subjectText.style.fontSize = `${boardFieldTextSize.subject}px`;
+      if (addressText) addressText.style.fontSize = `${boardFieldTextSize.address}px`;
+      if (roomNoInput) roomNoInput.style.fontSize = `${boardFieldTextSize.room}px`;
     }
 
     function loadBoardTextSize() {

@@ -470,6 +470,15 @@
       display: none;
     }
 
+
+    .textarea-center-wrap textarea.board-editable {
+      height: 100%;
+      line-height: 1.25;
+      padding-left: 0;
+      padding-right: 0;
+      overflow: hidden;
+    }
+
     .subject-textarea {
       font-size: 18px;
       font-weight: 900;
@@ -770,20 +779,27 @@
       display: none;
     }
 
+    #previewOverlay.list-mode {
+      justify-content: flex-start;
+    }
+
     #previewOverlay.list-mode #previewList {
       display: grid;
     }
 
     #previewList {
       width: 100%;
-      max-width: 760px;
-      flex: 1 1 auto;
+      max-width: 820px;
+      height: calc(100dvh - 126px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      flex: 0 0 auto;
       display: none;
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-content: start;
       gap: 12px;
       overflow-y: auto;
-      padding: 8px 4px 12px;
+      padding: 8px 4px 18px;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
 
     .photo-list-item {
@@ -809,6 +825,9 @@
 
     .photo-list-item img {
       width: 100%;
+      height: calc((100dvh - 238px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 2);
+      min-height: 132px;
+      max-height: 260px;
       aspect-ratio: 4 / 3;
       object-fit: cover;
       display: block;
@@ -1537,7 +1556,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v40";
+    const APP_VERSION = "v41";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1672,6 +1691,7 @@
       setupPreviewSwipe();
       setupPreviewImageTap();
       setupPhotoCountHiddenShoot();
+      setupBoardTextareaAutoCenter();
       renderPhotoQualitySettings();
       renderBoardTextSize();
 
@@ -1714,6 +1734,7 @@
       roomNoInput.value = roomNoInput.value || "1-1";
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
+      syncBoardTextareas();
       setStatus("visual");
       applyBoardMode();
       setSectionMode(false);
@@ -1978,6 +1999,7 @@
       }
 
       applyBoardTransform();
+      syncBoardTextareas();
     }
 
     function cycleBoardPosition() {
@@ -2043,6 +2065,7 @@
       setBoardEditable(true);
 
       setTimeout(() => {
+        syncBoardTextareas();
         if (subjectText && subjectText.focus) subjectText.focus();
       }, 120);
     }
@@ -2059,6 +2082,34 @@
       showToast("看板編集を完了しました");
     }
 
+
+
+    function syncBoardTextareas() {
+      const targets = [subjectText, addressText, samplingLocationInput].filter(Boolean);
+
+      targets.forEach((textarea) => {
+        if (!textarea || textarea.tagName !== "TEXTAREA") return;
+
+        textarea.style.paddingTop = "0px";
+        textarea.style.paddingBottom = "0px";
+
+        const parent = textarea.parentElement;
+        const boxHeight = parent ? parent.clientHeight : textarea.clientHeight;
+        const scrollHeight = textarea.scrollHeight;
+        const top = Math.max(0, (boxHeight - scrollHeight) / 2);
+
+        textarea.style.paddingTop = `${top}px`;
+      });
+    }
+
+    function setupBoardTextareaAutoCenter() {
+      [subjectText, addressText, samplingLocationInput].filter(Boolean).forEach((textarea) => {
+        if (!textarea || textarea.tagName !== "TEXTAREA") return;
+        textarea.addEventListener("input", syncBoardTextareas);
+      });
+
+      requestAnimationFrame(syncBoardTextareas);
+    }
 
     function clamp(value, min, max) {
       return Math.min(Math.max(value, min), max);
@@ -3034,18 +3085,22 @@
 
       ctx.strokeStyle = "#000000";
       ctx.lineJoin = "miter";
+      ctx.lineCap = "butt";
       drawOuterBorder(ctx, outerX, outerY, outerW, outerH, outerLine);
       drawOuterBorder(ctx, x, y, w, h, innerLine);
 
       ctx.lineWidth = innerLine;
 
-      drawLine(ctx, x + leftColW, y, x + leftColW, y + h);
+      // 縦線が二重枠へ食い込んで見えないよう、上下を内側で止める。
+      const gridTop = y + innerLine;
+      const gridBottom = y + h - innerLine;
+      drawLine(ctx, x + leftColW, gridTop, x + leftColW, gridBottom);
       drawLine(ctx, x, y + row1H, x + w, y + row1H);
       drawLine(ctx, x, y + row1H + row2H, x + w, y + row1H + row2H);
       drawLine(ctx, x, y + row1H + row2H + row3H, x + w, y + row1H + row2H + row3H);
 
-      drawLine(ctx, x + leftColW, contentY + roomRowH, x + w, contentY + roomRowH);
-      drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, x + w, contentY + roomRowH + sampleRowH);
+      drawLine(ctx, x + leftColW, contentY + roomRowH, x + w - innerLine, contentY + roomRowH);
+      drawLine(ctx, x + leftColW, contentY + roomRowH + sampleRowH, x + w - innerLine, contentY + roomRowH + sampleRowH);
       // 部屋No. / 試料No. はラベルと値の間の縦線を描かない。
 
       const textMultiplier = BOARD_TEXT_SIZE_MULTIPLIERS[boardTextSize] || 1;

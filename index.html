@@ -436,13 +436,14 @@
     }
 
     .board-editable {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: block;
       width: 100%;
+      height: 100%;
       min-height: 100%;
       border: none;
       outline: none;
+      resize: none;
+      overflow: hidden;
       background: transparent;
       color: #000;
       font-family: inherit;
@@ -452,6 +453,21 @@
       white-space: pre-wrap;
       word-break: break-word;
       overflow-wrap: anywhere;
+      line-break: strict;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    textarea.board-editable {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align-last: center;
+      scrollbar-width: none;
+    }
+
+    textarea.board-editable::-webkit-scrollbar {
+      display: none;
     }
 
     .subject-textarea {
@@ -1336,7 +1352,7 @@
               <td class="label-cell">件名</td>
               <td class="value-cell board-value-cell">
                 <div class="textarea-center-wrap">
-                  <div id="subjectText" class="board-editable subject-textarea" contenteditable="true" inputmode="text"></div>
+                  <textarea id="subjectText" class="board-editable subject-textarea" inputmode="text" rows="2"></textarea>
                 </div>
               </td>
             </tr>
@@ -1345,7 +1361,7 @@
               <td class="label-cell">採取場所</td>
               <td class="value-cell board-value-cell">
                 <div class="textarea-center-wrap">
-                  <div id="addressText" class="board-editable address-textarea" contenteditable="true" inputmode="text"></div>
+                  <textarea id="addressText" class="board-editable address-textarea" inputmode="text" rows="2"></textarea>
                 </div>
               </td>
             </tr>
@@ -1521,7 +1537,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v39";
+    const APP_VERSION = "v40";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1693,8 +1709,8 @@
     });
 
     function initializeBoard() {
-      subjectText.textContent = APP_DATA.subject;
-      addressText.textContent = APP_DATA.address;
+      subjectText.value = APP_DATA.subject;
+      addressText.value = APP_DATA.address;
       roomNoInput.value = roomNoInput.value || "1-1";
       sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
       updateCurrentDate();
@@ -2005,8 +2021,8 @@
     }
 
     function setBoardEditable(enabled) {
-      subjectText.contentEditable = enabled ? "true" : "false";
-      addressText.contentEditable = enabled ? "true" : "false";
+      subjectText.readOnly = !enabled;
+      addressText.readOnly = !enabled;
       roomNoInput.readOnly = !enabled;
       sampleNoInput.readOnly = !enabled;
       dateText.contentEditable = enabled ? "true" : "false";
@@ -2968,8 +2984,8 @@
     /* キャンバス上に看板を描画 */
     function drawBoardOnCanvas(ctx, x, y, w, h) {
       const data = {
-        subject: subjectText.textContent || "",
-        address: addressText.textContent || "",
+        subject: subjectText.value || "",
+        address: addressText.value || "",
         roomNo: roomNoInput.value.trim(),
         sampleNo: sampleNoInput.value.trim(),
         date: dateText.textContent || "",
@@ -3164,23 +3180,31 @@
     }
 
     function getWrappedLines(ctx, text, maxWidth) {
-      const lines = [];
-      let current = "";
+      const result = [];
+      const source = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      const manualLines = source.split("\n");
 
-      for (const char of String(text)) {
-        const test = current + char;
-        const testWidth = ctx.measureText(test).width;
+      manualLines.forEach((manualLine) => {
+        const segment = manualLine || "";
+        let current = "";
 
-        if (testWidth > maxWidth && current !== "") {
-          lines.push(current);
-          current = char;
-        } else {
-          current = test;
+        for (const char of segment) {
+          const test = current + char;
+          const testWidth = ctx.measureText(test).width;
+
+          if (testWidth > maxWidth && current !== "") {
+            result.push(current);
+            current = char;
+          } else {
+            current = test;
+          }
         }
-      }
 
-      if (current) lines.push(current);
-      return lines.length ? lines : [""];
+        // 手動改行だけの空行も保持する
+        result.push(current);
+      });
+
+      return result.length ? result : [""];
     }
 
     function loadPhotoQuality() {

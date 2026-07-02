@@ -99,6 +99,46 @@
       z-index: 1;
     }
 
+    #captureFreezeImage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+      z-index: 4;
+      display: none;
+      pointer-events: none;
+    }
+
+    #captureFreezeImage.show {
+      display: block;
+    }
+
+    #cameraFlash {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.16s ease;
+    }
+
+    #cameraFlash.flash {
+      opacity: 0.92;
+      transition: opacity 0.04s ease;
+    }
+
+    .control-button:disabled {
+      opacity: 0.45;
+      cursor: wait;
+    }
+
+    #toast.error {
+      background: rgba(235, 87, 87, 0.92);
+    }
+
     #cameraGuide {
       position: absolute;
       inset: 0;
@@ -959,6 +999,99 @@
       right: 6px;
     }
 
+
+    .preview-casebar {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 0 4px;
+    }
+
+    .case-select-button {
+      max-width: min(92vw, 620px);
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      font-family: inherit;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    #casePickerOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 26000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.68);
+      padding: 18px;
+    }
+
+    #casePickerOverlay.show {
+      display: flex;
+    }
+
+    .case-picker-panel {
+      width: min(92vw, 520px);
+      max-height: min(80dvh, 560px);
+      overflow-y: auto;
+      border-radius: 18px;
+      background: #fff;
+      color: #000;
+      padding: 14px;
+      font-family: inherit;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+    }
+
+    .case-picker-title {
+      margin: 0 0 12px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .case-item {
+      width: 100%;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      color: #000;
+      padding: 10px 12px;
+      margin: 8px 0;
+      text-align: left;
+      font-family: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .case-item.active {
+      border-color: #27ae60;
+      box-shadow: 0 0 0 2px rgba(39,174,96,0.16) inset;
+    }
+
+    .case-name {
+      font-size: 14px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .case-count {
+      margin-top: 4px;
+      color: #555;
+      font-size: 12px;
+    }
+
     .preview-controls {
       width: 100%;
       display: flex;
@@ -1465,6 +1598,8 @@
 
     <div id="captureFrame">
       <video id="video" playsinline muted autoplay></video>
+      <img id="captureFreezeImage" alt="撮影画像" />
+      <div id="cameraFlash"></div>
 
       <div id="cameraGuide">右側の「カメラ起動」を押してください</div>
 
@@ -1602,6 +1737,10 @@
       <button class="settings-button" type="button" onclick="openSettings()" aria-label="設定">⚙</button>
     </div>
 
+    <div class="preview-casebar">
+      <button id="caseSelectButton" class="case-select-button" type="button" onclick="openCasePicker()">案件選択</button>
+    </div>
+
     <div id="previewCounter">0 / 0</div>
 
     <div id="previewImageWrap">
@@ -1615,13 +1754,23 @@
     <div id="previewList"></div>
 
     <div class="preview-controls">
-      <button id="previewModeToggleButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewListMode()">表示切替</button>
+      <button class="preview-button btn-list-toggle" type="button" onclick="checkMissingPhotos()">チェック</button>
+      <button id="previewSortButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewSortMode()">撮影順</button>
       <button id="selectAllButton" class="preview-button btn-list-toggle" type="button" onclick="toggleSelectAllPhotos()">全選択</button>
       <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
       <button class="preview-button btn-delete" type="button" onclick="deleteSelectedPreviewPhotos()">削除</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
     </div>
   </div>
+
+  <div id="casePickerOverlay">
+    <div class="case-picker-panel">
+      <h2 class="case-picker-title">案件を選択</h2>
+      <div id="casePickerList"></div>
+      <button class="settings-close" type="button" onclick="closeCasePicker()">閉じる</button>
+    </div>
+  </div>
+
 
   <div id="settingsOverlay">
     <div class="settings-panel">
@@ -1664,7 +1813,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v45";
+    const APP_VERSION = "v47";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1699,6 +1848,8 @@
     const cameraScreen = document.getElementById("cameraScreen");
     const captureFrame = document.getElementById("captureFrame");
     const video = document.getElementById("video");
+    const captureFreezeImage = document.getElementById("captureFreezeImage");
+    const cameraFlash = document.getElementById("cameraFlash");
     const cameraGuide = document.getElementById("cameraGuide");
 
     const boardLayer = document.querySelector(".board-layer");
@@ -1724,10 +1875,14 @@
     const previewOverlay = document.getElementById("previewOverlay");
     const previewImage = document.getElementById("previewImage");
     const previewCounter = document.getElementById("previewCounter");
+    const caseSelectButton = document.getElementById("caseSelectButton");
+    const casePickerOverlay = document.getElementById("casePickerOverlay");
+    const casePickerList = document.getElementById("casePickerList");
     const previewMeta = document.getElementById("previewMeta");
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
     const previewModeToggleButton = document.getElementById("previewModeToggleButton");
+    const previewSortButton = document.getElementById("previewSortButton");
     const selectAllButton = document.getElementById("selectAllButton");
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
@@ -1750,6 +1905,7 @@
     const toast = document.getElementById("toast");
 
     let currentStream = null;
+    let isTakingPhoto = false;
     let selectedStatus = "visual";
     let isSectionMode = false;
     let hasInitializedBoard = false;
@@ -1759,6 +1915,8 @@
     const capturedPhotos = [];
     let previewIndex = 0;
     let isPreviewListMode = false;
+    let previewSortMode = "shooting";
+    let selectedCaseSubject = "";
     let photoQuality = loadPhotoQuality();
     let boardTextSize = loadBoardTextSize();
     const boardFieldTextSize = { subject: 18, address: 17, room: 24 };
@@ -2506,16 +2664,21 @@
     }
 
     async function takePhoto() {
+      if (isTakingPhoto) return;
+
       if (!currentStream || !video.srcObject || video.readyState < 2) {
         showToast("先にカメラを起動してください");
         return;
       }
 
-      if (!isDateManuallyEdited) {
-        updateCurrentDate();
-      }
+      isTakingPhoto = true;
+      shootButton.disabled = true;
 
       try {
+        if (!isDateManuallyEdited) {
+          updateCurrentDate();
+        }
+
         // Canvasに文字を焼き込む前に、フォント読み込み完了を待つ
         // iPhone/iPadで日本語フォントの描画が不安定になるのを軽減する
         if (document.fonts && document.fonts.ready) {
@@ -2524,11 +2687,18 @@
 
         const canvas = captureCompositedImage();
 
+        // 白フラッシュで撮影感を出す
+        runCameraFlash();
+
         /*
          * iPhone/iPad向けに少し軽量化
          * 0.95だと重くなりやすいので 0.82
          */
         const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+
+        // 実際に保存する合成後画像を一時表示する
+        showCapturedStill(dataUrl);
+
         const createdAt = new Date();
         const photoType = getCurrentPhotoType();
         const sampleParts = parseSampleAndPoint(sampleNoInput.value);
@@ -2545,14 +2715,16 @@
           sampleNo,
           pointNo,
           roomNo: roomNoInput.value.trim(),
+          subjectName: getCurrentSubjectName(),
           isSection: photoType.value === SECTION_PHOTO_TYPE.value,
           selected: false,
           createdAt: createdAt.toISOString()
         };
 
-        capturedPhotos.push(photo);
+        // 保存成功を確認してから、撮影済み配列と表示枚数へ反映する
         await savePhotoToIndexedDB(photo);
 
+        capturedPhotos.push(photo);
         previewIndex = capturedPhotos.length - 1;
         updatePhotoCount();
 
@@ -2560,11 +2732,48 @@
           navigator.vibrate(50);
         }
 
+        await delay(520);
         showToast("撮影しました");
+        hideCapturedStill();
       } catch (error) {
         console.error(error);
-        showToast("撮影に失敗しました");
+        showErrorToast("撮影データの保存に失敗しました");
+        hideCapturedStill();
+      } finally {
+        isTakingPhoto = false;
+        shootButton.disabled = false;
       }
+    }
+
+    function runCameraFlash() {
+      if (!cameraFlash) return;
+
+      cameraFlash.classList.add("flash");
+      setTimeout(() => {
+        cameraFlash.classList.remove("flash");
+      }, 90);
+    }
+
+    function showCapturedStill(dataUrl) {
+      if (!captureFreezeImage) return;
+
+      captureFreezeImage.src = dataUrl;
+      captureFreezeImage.classList.add("show");
+    }
+
+    function hideCapturedStill() {
+      if (!captureFreezeImage) return;
+
+      captureFreezeImage.classList.remove("show");
+      setTimeout(() => {
+        if (!captureFreezeImage.classList.contains("show")) {
+          captureFreezeImage.removeAttribute("src");
+        }
+      }, 120);
+    }
+
+    function delay(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     function captureCompositedImage() {
@@ -2625,14 +2834,182 @@
       return canvas;
     }
 
+
+    function getCurrentSubjectName() {
+      const value = subjectText && ("value" in subjectText ? subjectText.value : subjectText.textContent);
+      return String(value || "").trim() || "無題案件";
+    }
+
+    function getPhotoSubject(photo) {
+      return String(photo.subjectName || photo.subject || APP_DATA.subject || "無題案件").trim() || "無題案件";
+    }
+
+    function getCaseSummaries() {
+      const map = new Map();
+
+      capturedPhotos.forEach((photo) => {
+        const subject = getPhotoSubject(photo);
+        const current = map.get(subject) || { subject, count: 0, latest: 0 };
+        current.count += 1;
+        current.latest = Math.max(current.latest, new Date(photo.createdAt || 0).getTime());
+        map.set(subject, current);
+      });
+
+      return Array.from(map.values()).sort((a, b) => b.latest - a.latest);
+    }
+
+    function getLatestCaseSubject() {
+      const cases = getCaseSummaries();
+      return cases.length ? cases[0].subject : "";
+    }
+
+    function getPreviewPhotos() {
+      let photos = capturedPhotos.slice();
+
+      if (selectedCaseSubject) {
+        photos = photos.filter((photo) => getPhotoSubject(photo) === selectedCaseSubject);
+      }
+
+      if (previewSortMode === "sample") {
+        photos.sort(comparePhotosBySample);
+      } else {
+        photos.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+      }
+
+      return photos;
+    }
+
+    function comparePhotosBySample(a, b) {
+      const sampleA = Number(a.sampleNo || 0);
+      const sampleB = Number(b.sampleNo || 0);
+      if (sampleA !== sampleB) return sampleA - sampleB;
+
+      const pointA = Number(a.pointNo || 0);
+      const pointB = Number(b.pointNo || 0);
+      if (pointA !== pointB) return pointA - pointB;
+
+      const codeA = Number(a.statusCode || getStatusCode(a.status));
+      const codeB = Number(b.statusCode || getStatusCode(b.status));
+      if (codeA !== codeB) return codeA - codeB;
+
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    }
+
+    function updatePreviewHeader() {
+      if (caseSelectButton) {
+        const title = selectedCaseSubject || getLatestCaseSubject() || "案件なし";
+        const count = getPreviewPhotos().length;
+        caseSelectButton.textContent = `${title}　${count}枚 ▼`;
+      }
+
+      if (previewSortButton) {
+        previewSortButton.textContent = previewSortMode === "sample" ? "検体順" : "撮影順";
+      }
+    }
+
+    function openCasePicker() {
+      renderCasePicker();
+      casePickerOverlay.classList.add("show");
+    }
+
+    function closeCasePicker() {
+      casePickerOverlay.classList.remove("show");
+    }
+
+    function renderCasePicker() {
+      casePickerList.innerHTML = "";
+
+      getCaseSummaries().forEach((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "case-item";
+        button.classList.toggle("active", item.subject === selectedCaseSubject);
+        button.onclick = () => {
+          selectedCaseSubject = item.subject;
+          previewIndex = 0;
+          closeCasePicker();
+          renderPreview();
+        };
+
+        const name = document.createElement("div");
+        name.className = "case-name";
+        name.textContent = item.subject;
+
+        const count = document.createElement("div");
+        count.className = "case-count";
+        count.textContent = `${item.count}枚`;
+
+        button.appendChild(name);
+        button.appendChild(count);
+        casePickerList.appendChild(button);
+      });
+    }
+
+    function togglePreviewSortMode() {
+      previewSortMode = previewSortMode === "shooting" ? "sample" : "shooting";
+      previewIndex = 0;
+      renderPreview();
+      showToast(previewSortMode === "sample" ? "検体順にしました" : "撮影順にしました");
+    }
+
+    function checkMissingPhotos() {
+      const photos = getPreviewPhotos();
+      if (!photos.length) {
+        showToast("写真がありません");
+        return;
+      }
+
+      const required = ["1", "2", "3"];
+      const labels = { "1": "施工前", "2": "施工中", "3": "施工後" };
+      const groups = new Map();
+
+      photos.forEach((photo) => {
+        const key = `${photo.sampleNo || "1"}-${photo.pointNo || "1"}`;
+        if (!groups.has(key)) groups.set(key, new Set());
+        groups.get(key).add(String(photo.statusCode || getStatusCode(photo.status)));
+      });
+
+      const missingLines = [];
+      groups.forEach((codes, key) => {
+        const hasSampling = required.some((code) => codes.has(code));
+        if (!hasSampling) return;
+
+        const missing = required.filter((code) => !codes.has(code));
+        if (missing.length) {
+          missingLines.push(`${formatSamplePointLabel(key)}：${missing.map((code) => labels[code]).join("・")}`);
+        }
+      });
+
+      if (!missingLines.length) {
+        window.alert("撮影不足はありません。");
+        return;
+      }
+
+      window.alert(`撮影不足\n\n${missingLines.join("\n")}`);
+    }
+
+    function formatSamplePointLabel(key) {
+      const [sample, point] = String(key).split("-");
+      return `${sample || "1"}-${numberToCircle(Number(point || 1))}`;
+    }
+
+    function numberToCircle(num) {
+      const circles = ["", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳"];
+      return circles[num] || String(num);
+    }
+
     /* 写真ビューア */
-    function openPreview() {
+    async function openPreview() {
+      await loadPhotosFromIndexedDB();
+
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");
         return;
       }
 
-      previewIndex = capturedPhotos.length - 1;
+      selectedCaseSubject = getLatestCaseSubject();
+      const photos = getPreviewPhotos();
+      previewIndex = Math.max(0, photos.length - 1);
       setPreviewListMode(false);
       renderPreview();
       previewOverlay.classList.add("show");
@@ -2650,23 +3027,25 @@
     }
 
     function showPrevPhoto() {
-      if (!capturedPhotos.length) return;
+      const photos = getPreviewPhotos();
+      if (!photos.length) return;
 
       previewIndex -= 1;
 
       if (previewIndex < 0) {
-        previewIndex = capturedPhotos.length - 1;
+        previewIndex = photos.length - 1;
       }
 
       renderPreview();
     }
 
     function showNextPhoto() {
-      if (!capturedPhotos.length) return;
+      const photos = getPreviewPhotos();
+      if (!photos.length) return;
 
       previewIndex += 1;
 
-      if (previewIndex >= capturedPhotos.length) {
+      if (previewIndex >= photos.length) {
         previewIndex = 0;
       }
 
@@ -2674,10 +3053,25 @@
     }
 
     function renderPreview() {
-      const photo = capturedPhotos[previewIndex];
+      const photos = getPreviewPhotos();
+
+      if (!photos.length) {
+        previewImage.removeAttribute("src");
+        previewCounter.textContent = "0 / 0";
+        previewMeta.textContent = "この案件の写真がありません";
+        previewThumbnails.innerHTML = "";
+        previewList.innerHTML = "";
+        updatePreviewHeader();
+        updateSelectAllButton();
+        return;
+      }
+
+      previewIndex = clamp(previewIndex, 0, photos.length - 1);
+      const photo = photos[previewIndex];
       previewImage.src = photo.dataUrl;
-      previewCounter.textContent = `${previewIndex + 1} / ${capturedPhotos.length}`;
+      previewCounter.textContent = `${previewIndex + 1} / ${photos.length}`;
       previewMeta.textContent = `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
+      updatePreviewHeader();
       renderThumbnails();
       renderPhotoList();
       updateSelectAllButton();
@@ -2686,7 +3080,7 @@
     function renderThumbnails() {
       previewThumbnails.innerHTML = "";
 
-      capturedPhotos.forEach((photo, index) => {
+      getPreviewPhotos().forEach((photo, index) => {
         const item = document.createElement("button");
         item.type = "button";
         item.className = "thumb-item";
@@ -2724,7 +3118,7 @@
     function renderPhotoList() {
       previewList.innerHTML = "";
 
-      capturedPhotos.forEach((photo, index) => {
+      getPreviewPhotos().forEach((photo, index) => {
         const item = document.createElement("button");
         item.type = "button";
         item.className = "photo-list-item";
@@ -2783,12 +3177,15 @@
     }
 
     async function toggleCurrentPhotoSelected() {
-      if (!capturedPhotos.length) return;
+      const photos = getPreviewPhotos();
+      if (!photos.length) return;
       await togglePhotoSelected(previewIndex);
     }
 
     async function togglePhotoSelected(index, options = {}) {
-      const photo = capturedPhotos[index];
+      const photos = getPreviewPhotos();
+      const photo = photos[index];
+      if (!photo) return;
       photo.selected = !photo.selected;
       await savePhotoToIndexedDB(photo);
       updatePhotoCount();
@@ -2800,31 +3197,33 @@
     }
 
     async function toggleSelectAllPhotos() {
-      if (!capturedPhotos.length) {
+      const photos = getPreviewPhotos();
+      if (!photos.length) {
         showToast("撮影した写真がありません");
         return;
       }
 
-      const allSelected = capturedPhotos.every((photo) => photo.selected);
+      const allSelected = photos.every((photo) => photo.selected);
       const nextSelected = !allSelected;
 
-      for (const photo of capturedPhotos) {
+      for (const photo of photos) {
         photo.selected = nextSelected;
         await savePhotoToIndexedDB(photo);
       }
 
       updatePhotoCount();
       renderPreview();
-      showToast(nextSelected ? "全て選択しました" : "全て解除しました");
+      showToast(nextSelected ? "表示中の写真を全選択しました" : "表示中の写真を全解除しました");
     }
 
     function updateSelectAllButton() {
       if (!selectAllButton) return;
-      if (!capturedPhotos.length) {
+      const photos = getPreviewPhotos();
+      if (!photos.length) {
         selectAllButton.textContent = "全選択";
         return;
       }
-      const allSelected = capturedPhotos.every((photo) => photo.selected);
+      const allSelected = photos.every((photo) => photo.selected);
       selectAllButton.textContent = allSelected ? "全解除" : "全選択";
     }
 
@@ -2834,7 +3233,7 @@
         return;
       }
 
-      const selectedPhotos = capturedPhotos.filter((photo) => photo.selected);
+      const selectedPhotos = getPreviewPhotos().filter((photo) => photo.selected);
 
       if (!selectedPhotos.length) {
         showToast("共有する写真をチェックしてください");
@@ -2850,7 +3249,7 @@
         return;
       }
 
-      const selectedPhotos = capturedPhotos.filter((photo) => photo.selected);
+      const selectedPhotos = getPreviewPhotos().filter((photo) => photo.selected);
 
       if (!selectedPhotos.length) {
         showToast("削除する写真をチェックしてください");
@@ -2872,14 +3271,13 @@
         }
       }
 
-      if (!capturedPhotos.length) {
-        previewOverlay.classList.remove("show");
-        setPreviewListMode(false);
-        previewIndex = 0;
+      const remainingPhotos = getPreviewPhotos();
 
-        await resumeCameraAfterPreview();
+      if (!remainingPhotos.length) {
+        previewIndex = 0;
+        renderPreview();
       } else {
-        previewIndex = Math.min(previewIndex, capturedPhotos.length - 1);
+        previewIndex = Math.min(previewIndex, remainingPhotos.length - 1);
         renderPreview();
       }
 
@@ -3110,6 +3508,10 @@
         capturedPhotos.splice(0, capturedPhotos.length, ...photos.sort((a, b) => {
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         }));
+
+        capturedPhotos.forEach((photo) => {
+          if (!photo.subjectName) photo.subjectName = getPhotoSubject(photo);
+        });
 
         if (capturedPhotos.length) {
           previewIndex = capturedPhotos.length - 1;
@@ -3538,12 +3940,25 @@
 
     function showToast(message) {
       toast.textContent = message;
+      toast.classList.remove("error");
       toast.classList.add("show");
 
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => {
         toast.classList.remove("show");
       }, 1400);
+    }
+
+    function showErrorToast(message) {
+      toast.textContent = message;
+      toast.classList.add("error");
+      toast.classList.add("show");
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+        toast.classList.remove("error");
+      }, 2400);
     }
   </script>
   <script>

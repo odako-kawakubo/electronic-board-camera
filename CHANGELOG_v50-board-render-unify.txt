@@ -1,7 +1,0 @@
-v50-board-render-unify
-
-- 表示看板と保存看板の差異を減らすため、通常表示の看板をCanvasプレビューへ統一。
-- 撮影保存・看板修正再合成・通常プレビューで同じCanvas描画関数を使用。
-- HTML/CSS看板は編集モード用として残置。
-- 案件名・住所・サンプリング採取箇所名の中央寄せを維持。
-- Service WorkerのCACHE_NAMEをv50-board-render-unifyへ更新。

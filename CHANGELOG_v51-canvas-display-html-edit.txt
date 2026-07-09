@@ -1,8 +1,0 @@
-v51-canvas-display-html-edit
-
-- 通常表示の看板をCanvas表示に統一
-- 撮影保存・撮影後看板修正も同じCanvas描画を使用
-- 看板ダブルタップ時だけHTML編集モードへ切替
-- 既存の階数/検体数/撮影区分ボタンの操作感は維持
-- v50の中央寄せ調整を維持
-- Service Worker cacheをv51へ更新

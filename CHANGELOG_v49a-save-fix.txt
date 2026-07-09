@@ -1,6 +1,0 @@
-# v49a-save-fix
-
-- iOS/Safariで撮影後に「撮影データの保存に失敗しました」と出る問題を修正。
-- HTML看板合成でCanvasがSecurityErrorになる場合、旧Canvas看板描画へ自動フォールバック。
-- iPhone/iPad/Safariでは保存安定性を優先し、旧Canvas看板描画を使用。
-- PC Chrome等では引き続きHTML看板キャプチャを使用。

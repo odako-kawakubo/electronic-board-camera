@@ -847,8 +847,9 @@
     }
 
     #previewImage {
+      width: min(100%, calc((100dvh - 168px) * 4 / 3));
       max-width: 100%;
-      max-height: calc(100dvh - 205px);
+      max-height: calc(100dvh - 168px);
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
@@ -1037,8 +1038,8 @@
     }
 
     .capture-review-panel {
-      width: min(96vw, 920px);
-      max-height: 96vh;
+      width: min(100vw, calc((100dvh - 74px) * 4 / 3));
+      max-height: 100dvh;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -1046,8 +1047,9 @@
     }
 
     #captureReviewImage {
+      width: 100%;
       max-width: 100%;
-      max-height: calc(96vh - 96px);
+      max-height: calc(100dvh - 74px);
       object-fit: contain;
       border-radius: 10px;
       background: #111;
@@ -1293,27 +1295,28 @@
     }
 
     .settings-version-box {
-      margin: 10px 0 14px;
-      padding: 10px 12px;
+      margin: 8px 0 8px;
+      padding: 8px 10px;
       border: 1px solid #d9e2ef;
-      border-radius: 12px;
+      border-radius: 10px;
       background: #f7faff;
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 12px;
+      line-height: 1.35;
       color: #223;
     }
 
     .settings-update-button {
-      width: 100%;
+      width: auto;
+      min-width: 160px;
       border: none;
-      border-radius: 12px;
-      padding: 12px;
+      border-radius: 999px;
+      padding: 9px 14px;
       background: #007aff;
       color: #fff;
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 900;
       cursor: pointer;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
 
     #settingsOverlay {
@@ -1699,6 +1702,56 @@
     .font-address { top: 26%; }
     .font-room { top: 49%; }
 
+
+
+    /* v52: 編集時も看板文字を上下左右中央寄せに近づける */
+    #boardEditHost .value-cell,
+    #boardEditHost .board-value-cell,
+    #boardEditHost .inner-value,
+    #boardEditHost .date-cell {
+      vertical-align: middle;
+    }
+
+    #boardEditHost .textarea-center-wrap {
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #boardEditHost .board-input,
+    #boardEditHost .date-text {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      line-height: 1.05;
+    }
+
+    #boardEditHost .status-btn {
+      font-size: 16px;
+    }
+
+    .saved-badge {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      z-index: 5;
+      padding: 3px 6px;
+      border-radius: 999px;
+      background: rgba(39, 174, 96, 0.92);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      pointer-events: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    }
+
+    #previewMeta .saved-meta {
+      color: #6ee7a8;
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
     @media (orientation: portrait) {
       #cameraScreen {
         flex-direction: column;
@@ -2017,8 +2070,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在のバージョン：<strong id="settingsVersionText">v51-canvas-display-html-edit</strong><br>
-        更新ボタンはこの設定画面に集約しています。
+        現在：<strong id="settingsVersionText">v52</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2062,7 +2114,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v51-canvas-display-html-edit";
+    const APP_VERSION = "v52-camera-polish";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2084,6 +2136,7 @@
     const POINT_DISPLAY_DEFAULT = "1-①";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
     const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
+    const BOARD_FIELD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-field-text-size-v1";
     const BOARD_FORM_STORAGE_KEY = "electronic-board-camera-board-form-v1";
     const SAMPLING_NAME_HISTORY_STORAGE_KEY = "electronic-board-camera-sampling-name-history-v1";
     const BOARD_TEXT_SIZE_MULTIPLIERS = {
@@ -2182,7 +2235,7 @@
     let boardEditTargetPhotoId = null;
     let photoQuality = loadPhotoQuality();
     let boardTextSize = loadBoardTextSize();
-    const boardFieldTextSize = { subject: 18, address: 17, room: 24 };
+    const boardFieldTextSize = loadBoardFieldTextSizes();
     let boardMode = "survey";
     let activeSidePanel = null;
     let isDateManuallyEdited = false;
@@ -3070,7 +3123,9 @@
           subjectName: getCurrentSubjectName(),
           isSection: photoType.value === SECTION_PHOTO_TYPE.value,
           selected: false,
-          createdAt: createdAt.toISOString()
+          createdAt: createdAt.toISOString(),
+          savedLocal: true,
+          savedAt: createdAt.toISOString()
         };
 
         // 保存成功を確認してから、撮影済み配列と表示枚数へ反映する
@@ -3084,7 +3139,7 @@
           navigator.vibrate(50);
         }
 
-        showToast("撮影しました");
+        showToast("保存しました");
       } catch (error) {
         console.error(error);
         showErrorToast("撮影データの保存に失敗しました");
@@ -3801,7 +3856,7 @@
       previewCounter.textContent = `${previewIndex + 1} / ${photos.length}`;
       previewMeta.textContent = isBoardCorrectionSelectMode
         ? "看板修正する写真を選択してください"
-        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
+        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.savedLocal ? "　✓保存済" : ""}${photo.selected ? "　✓選択中" : ""}`;
       updatePreviewHeader();
       renderThumbnails();
       renderPhotoList();
@@ -3839,6 +3894,12 @@
           await togglePhotoSelected(index);
         };
 
+        if (photo.savedLocal) {
+          const savedBadge = document.createElement("span");
+          savedBadge.className = "saved-badge";
+          savedBadge.textContent = "保存済";
+          item.appendChild(savedBadge);
+        }
         item.appendChild(img);
         item.appendChild(check);
         previewThumbnails.appendChild(item);
@@ -3894,6 +3955,12 @@
 
         info.appendChild(status);
         info.appendChild(file);
+        if (photo.savedLocal) {
+          const savedBadge = document.createElement("span");
+          savedBadge.className = "saved-badge";
+          savedBadge.textContent = "保存済";
+          item.appendChild(savedBadge);
+        }
         item.appendChild(img);
         item.appendChild(check);
         item.appendChild(info);
@@ -4490,12 +4557,15 @@
       // 部屋No. / 試料No. はラベルと値の間の縦線を描かない。
 
       const textMultiplier = BOARD_TEXT_SIZE_MULTIPLIERS[boardTextSize] || 1;
+      const subjectMultiplier = (boardFieldTextSize.subject || 18) / 18;
+      const addressMultiplier = (boardFieldTextSize.address || 17) / 17;
+      const roomMultiplier = (boardFieldTextSize.room || 24) / 24;
       const labelFont = Math.max(10, w * 0.046);
-      const titleFont = Math.max(10, w * 0.047 * textMultiplier);
-      const addressFont = Math.max(10, w * 0.044 * textMultiplier);
+      const titleFont = Math.max(10, w * 0.047 * textMultiplier * subjectMultiplier);
+      const addressFont = Math.max(10, w * 0.044 * textMultiplier * addressMultiplier);
       const innerLabelFont = Math.max(9, w * 0.043);
-      const innerValueFont = Math.max(11, w * 0.055 * textMultiplier);
-      const statusFont = Math.max(9, w * 0.038);
+      const innerValueFont = Math.max(11, w * 0.055 * textMultiplier * roomMultiplier);
+      const statusFont = Math.max(10, w * 0.043);
       const dateFont = Math.max(12, w * 0.055);
 
       drawCenteredText(ctx, "件名", x, y, leftColW, row1H, labelFont);
@@ -4706,9 +4776,32 @@
       qualityHighButton.classList.toggle("active", photoQuality === "high");
     }
 
+    function loadBoardFieldTextSizes() {
+      const defaults = { subject: 18, address: 17, room: 24 };
+      try {
+        const raw = localStorage.getItem(BOARD_FIELD_TEXT_SIZE_STORAGE_KEY);
+        const saved = raw ? JSON.parse(raw) : null;
+        if (saved && typeof saved === "object") {
+          return {
+            subject: clamp(Number(saved.subject) || defaults.subject, 12, 32),
+            address: clamp(Number(saved.address) || defaults.address, 12, 32),
+            room: clamp(Number(saved.room) || defaults.room, 12, 36)
+          };
+        }
+      } catch (error) {}
+      return defaults;
+    }
+
+    function saveBoardFieldTextSizes() {
+      try {
+        localStorage.setItem(BOARD_FIELD_TEXT_SIZE_STORAGE_KEY, JSON.stringify(boardFieldTextSize));
+      } catch (error) {}
+    }
+
     function adjustBoardFieldTextSize(field, delta) {
       if (!boardFieldTextSize[field]) return;
-      boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, 12, 32);
+      boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, 12, field === "room" ? 36 : 32);
+      saveBoardFieldTextSizes();
       applyBoardFieldTextSizes();
       syncBoardTextAreaVerticalCenter();
       showToast("文字サイズを変更しました");
@@ -4765,9 +4858,14 @@
       settingsOverlay.classList.remove("show");
     }
 
+    function getShortAppVersion(version = APP_VERSION) {
+      const match = String(version || "").match(/^v?([0-9]+[a-z]?)/i);
+      return match ? `v${match[1]}` : String(version || "");
+    }
+
     function renderAppVersion() {
-      if (appVersionBadge) appVersionBadge.textContent = APP_VERSION.replace(/^v/, "v");
-      if (settingsVersionText) settingsVersionText.textContent = APP_VERSION;
+      if (appVersionBadge) appVersionBadge.textContent = getShortAppVersion();
+      if (settingsVersionText) settingsVersionText.textContent = getShortAppVersion();
     }
 
     async function getLatestAppVersion() {
@@ -4821,8 +4919,8 @@
           const ok = window.confirm(
             `新しいバージョンがあります。
 
-現在：${APP_VERSION}
-最新：${latestVersion}
+現在：${getShortAppVersion(APP_VERSION)}
+最新：${getShortAppVersion(latestVersion)}
 
 更新しますか？`
           );
@@ -4842,8 +4940,8 @@
           const ok = window.confirm(
             `新しいバージョンがあります。
 
-現在：${APP_VERSION}
-最新：${latestVersion}
+現在：${getShortAppVersion(APP_VERSION)}
+最新：${getShortAppVersion(latestVersion)}
 
 更新しますか？`
           );
@@ -4853,7 +4951,7 @@
         }
 
         const ok = window.confirm(
-          `現在のバージョン：${APP_VERSION}
+          `現在のバージョン：${getShortAppVersion(APP_VERSION)}
 
 キャッシュを削除して、このバージョンを読み込み直しますか？`
         );

@@ -1217,6 +1217,60 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     }
 
+    .version-pill {
+      min-width: 64px;
+      height: 42px;
+      padding: 0 12px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.58);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 42px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      white-space: nowrap;
+    }
+
+    .update-button {
+      height: 42px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 122, 255, 0.92);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      white-space: nowrap;
+    }
+
+    .settings-version-box {
+      margin: 10px 0 14px;
+      padding: 10px 12px;
+      border: 1px solid #d9e2ef;
+      border-radius: 12px;
+      background: #f7faff;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #223;
+    }
+
+    .settings-update-button {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      background: #007aff;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-bottom: 14px;
+    }
+
     #settingsOverlay {
       position: fixed;
       inset: 0;
@@ -1808,6 +1862,8 @@
 
   <div id="previewOverlay">
     <div class="preview-topbar">
+      <div id="appVersionBadge" class="version-pill">v49</div>
+      <button class="update-button" type="button" onclick="forceAppUpdate()">更新</button>
       <button class="settings-button" type="button" onclick="openSettings()" aria-label="設定">⚙</button>
     </div>
 
@@ -1850,6 +1906,13 @@
     <div class="settings-panel">
       <h2 class="settings-title">設定</h2>
 
+      <div class="settings-section-title">🔄 アプリ更新</div>
+      <div class="settings-version-box">
+        現在のバージョン：<strong id="settingsVersionText">v49-inapp-update</strong><br>
+        画面右上にも現在バージョンを表示します。
+      </div>
+      <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
+
       <div class="settings-section-title">📷 写真画質</div>
 
       <button id="qualityStandardButton" class="quality-option" type="button" onclick="setPhotoQuality('standard')">
@@ -1887,7 +1950,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v48-board-sync";
+    const APP_VERSION = "v49-inapp-update";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1982,6 +2045,8 @@
     const roomValueCell = document.getElementById("roomValueCell");
     const visualStatusButton = document.getElementById("visualStatusButton");
     const toast = document.getElementById("toast");
+    const appVersionBadge = document.getElementById("appVersionBadge");
+    const settingsVersionText = document.getElementById("settingsVersionText");
 
     let currentStream = null;
     let isTakingPhoto = false;
@@ -2030,6 +2095,7 @@
     let captureReviewResolver = null;
 
     document.addEventListener("DOMContentLoaded", async () => {
+      renderAppVersion();
       checkAppUpdate();
       initializeBoard();
       setupStatusButtons();
@@ -4290,35 +4356,102 @@
       settingsOverlay.classList.remove("show");
     }
 
+    function renderAppVersion() {
+      if (appVersionBadge) appVersionBadge.textContent = APP_VERSION.replace(/^v/, "v");
+      if (settingsVersionText) settingsVersionText.textContent = APP_VERSION;
+    }
+
+    async function getLatestAppVersion() {
+      const url = new URL(window.location.href);
+      url.searchParams.set("_update_check", Date.now());
+
+      const response = await fetch(url.toString(), {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" }
+      });
+
+      const html = await response.text();
+      const match = html.match(/const APP_VERSION = "([^"]+)"/);
+      return match ? match[1] : null;
+    }
+
+    async function clearAppCachesAndServiceWorker() {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+        }
+      } catch (error) {
+        console.log("Service Worker解除に失敗しました", error);
+      }
+
+      try {
+        if (window.caches) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+      } catch (error) {
+        console.log("キャッシュ削除に失敗しました", error);
+      }
+    }
+
+    async function reloadAppWithVersion(versionLabel) {
+      await clearAppCachesAndServiceWorker();
+      const reloadUrl = new URL(window.location.href);
+      reloadUrl.searchParams.set("v", versionLabel || Date.now());
+      reloadUrl.searchParams.set("_reload", Date.now());
+      window.location.replace(reloadUrl.toString());
+    }
+
     async function checkAppUpdate() {
       try {
-        const url = new URL(window.location.href);
-        url.searchParams.set("_update_check", Date.now());
-
-        const response = await fetch(url.toString(), {
-          cache: "no-store"
-        });
-
-        const html = await response.text();
-        const match = html.match(/const APP_VERSION = "([^"]+)"/);
-
-        if (!match) return;
-
-        const latestVersion = match[1];
+        const latestVersion = await getLatestAppVersion();
+        if (!latestVersion) return;
 
         if (latestVersion !== APP_VERSION) {
           const ok = window.confirm(
-            `新しいバージョンがあります。\n\n現在：${APP_VERSION}\n最新：${latestVersion}\n\n更新しますか？`
+            `新しいバージョンがあります。
+
+現在：${APP_VERSION}
+最新：${latestVersion}
+
+更新しますか？`
           );
 
-          if (ok) {
-            const reloadUrl = new URL(window.location.href);
-            reloadUrl.searchParams.set("v", latestVersion);
-            window.location.href = reloadUrl.toString();
-          }
+          if (ok) await reloadAppWithVersion(latestVersion);
         }
       } catch (error) {
         console.log("更新確認に失敗しました", error);
+      }
+    }
+
+    async function forceAppUpdate() {
+      try {
+        showToast("最新版を確認中...");
+        const latestVersion = await getLatestAppVersion();
+        if (latestVersion && latestVersion !== APP_VERSION) {
+          const ok = window.confirm(
+            `新しいバージョンがあります。
+
+現在：${APP_VERSION}
+最新：${latestVersion}
+
+更新しますか？`
+          );
+          if (!ok) return;
+          await reloadAppWithVersion(latestVersion);
+          return;
+        }
+
+        const ok = window.confirm(
+          `現在のバージョン：${APP_VERSION}
+
+キャッシュを削除して、このバージョンを読み込み直しますか？`
+        );
+        if (ok) await reloadAppWithVersion(latestVersion || APP_VERSION);
+      } catch (error) {
+        console.log("手動更新に失敗しました", error);
+        showErrorToast("更新に失敗しました");
       }
     }
 

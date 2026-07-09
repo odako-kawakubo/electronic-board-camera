@@ -1,0 +1,6 @@
+v49-inapp-update
+
+- アプリ内バージョン表示を追加
+- アプリ内更新ボタンを追加
+- Service Worker / Cache Storage の削除後に再読み込みする強制更新処理を追加
+- service-worker.js の CACHE_NAME を v49 に更新

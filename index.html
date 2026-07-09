@@ -1862,8 +1862,6 @@
 
   <div id="previewOverlay">
     <div class="preview-topbar">
-      <div id="appVersionBadge" class="version-pill">v49</div>
-      <button class="update-button" type="button" onclick="forceAppUpdate()">更新</button>
       <button class="settings-button" type="button" onclick="openSettings()" aria-label="設定">⚙</button>
     </div>
 
@@ -1887,6 +1885,7 @@
       <button class="preview-button btn-list-toggle" type="button" onclick="checkMissingPhotos()">チェック</button>
       <button id="previewSortButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewSortMode()">撮影順</button>
       <button id="selectAllButton" class="preview-button btn-list-toggle" type="button" onclick="toggleSelectAllPhotos()">全選択</button>
+      <button class="preview-button btn-list-toggle" type="button" onclick="applyCurrentBoardToPreviewPhoto()">看板修正</button>
       <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
       <button class="preview-button btn-delete" type="button" onclick="deleteSelectedPreviewPhotos()">削除</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
@@ -1908,8 +1907,8 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在のバージョン：<strong id="settingsVersionText">v49-inapp-update</strong><br>
-        画面右上にも現在バージョンを表示します。
+        現在のバージョン：<strong id="settingsVersionText">v49b-preview-board-edit</strong><br>
+        更新ボタンはこの設定画面に集約しています。
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -1950,7 +1949,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v49a-save-fix";
+    const APP_VERSION = "v49b-preview-board-edit";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2864,6 +2863,9 @@
           await document.fonts.ready;
         }
 
+        const baseCanvas = await captureBaseImage();
+        const baseDataUrl = baseCanvas.toDataURL("image/jpeg", 0.82);
+
         let canvas = await captureCompositedImage();
 
         // 白フラッシュで撮影感を出す
@@ -2910,6 +2912,7 @@
         const photo = {
           id: `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
           dataUrl,
+          baseDataUrl,
           fileName,
           status: photoType.value,
           statusLabel: photoType.label,
@@ -3246,6 +3249,96 @@
       return isIOS || isSafari;
     }
 
+    async function captureBaseImage() {
+      const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = quality.width;
+      canvas.height = quality.height;
+
+      const ctx = canvas.getContext("2d");
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+
+      const videoScale = Math.max(
+        canvas.width / videoWidth,
+        canvas.height / videoHeight
+      );
+
+      const drawVideoW = videoWidth * videoScale;
+      const drawVideoH = videoHeight * videoScale;
+      const drawVideoX = (canvas.width - drawVideoW) / 2;
+      const drawVideoY = (canvas.height - drawVideoH) / 2;
+
+      ctx.drawImage(
+        video,
+        0,
+        0,
+        videoWidth,
+        videoHeight,
+        drawVideoX,
+        drawVideoY,
+        drawVideoW,
+        drawVideoH
+      );
+
+      return canvas;
+    }
+
+    function getBoardDrawRectForCanvas(canvas) {
+      const frameRect = captureFrame.getBoundingClientRect();
+      const boardRect = photoBoard.getBoundingClientRect();
+
+      const scaleX = canvas.width / frameRect.width;
+      const scaleY = canvas.height / frameRect.height;
+
+      return {
+        x: (boardRect.left - frameRect.left) * scaleX,
+        y: (boardRect.top - frameRect.top) * scaleY,
+        w: boardRect.width * scaleX,
+        h: boardRect.height * scaleY
+      };
+    }
+
+    async function drawCurrentBoardToCanvas(ctx, canvas, options = {}) {
+      if (isSectionMode && !options.forceBoard) return;
+
+      const rect = getBoardDrawRectForCanvas(canvas);
+
+      if (options.forceLegacyBoard || shouldUseLegacyBoardCapture()) {
+        drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
+        return;
+      }
+
+      try {
+        const boardCanvas = await renderBoardElementToCanvas(photoBoard);
+        ctx.drawImage(boardCanvas, rect.x, rect.y, rect.w, rect.h);
+      } catch (error) {
+        console.warn("HTML看板の画像化に失敗したため、旧Canvas描画へフォールバックします", error);
+        drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
+      }
+    }
+
+    async function composeBoardOnBaseImage(baseDataUrl, options = {}) {
+      const img = await loadImage(baseDataUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      await drawCurrentBoardToCanvas(ctx, canvas, { forceBoard: true, forceLegacyBoard: options.forceLegacyBoard });
+      return canvas;
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
     async function captureCompositedImage(options = {}) {
       const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
 
@@ -3286,29 +3379,7 @@
       );
 
       if (!isSectionMode) {
-        const frameRect = captureFrame.getBoundingClientRect();
-        const boardRect = photoBoard.getBoundingClientRect();
-
-        // 撮影エリアの中の看板だけを、4:3保存画像へ同じ比率で変換する。
-        const scaleX = canvas.width / frameRect.width;
-        const scaleY = canvas.height / frameRect.height;
-
-        const boardX = (boardRect.left - frameRect.left) * scaleX;
-        const boardY = (boardRect.top - frameRect.top) * scaleY;
-        const boardW = boardRect.width * scaleX;
-        const boardH = boardRect.height * scaleY;
-
-        if (options.forceLegacyBoard || shouldUseLegacyBoardCapture()) {
-          drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
-        } else {
-          try {
-            const boardCanvas = await renderBoardElementToCanvas(photoBoard);
-            ctx.drawImage(boardCanvas, boardX, boardY, boardW, boardH);
-          } catch (error) {
-            console.warn("HTML看板の画像化に失敗したため、旧Canvas描画へフォールバックします", error);
-            drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
-          }
-        }
+        await drawCurrentBoardToCanvas(ctx, canvas, options);
       }
 
       return canvas;
@@ -3481,11 +3552,6 @@
     /* 写真ビューア */
     async function openPreview() {
       await loadPhotosFromIndexedDB();
-
-      if (!capturedPhotos.length) {
-        showToast("撮影した写真がありません");
-        return;
-      }
 
       selectedCaseSubject = getLatestCaseSubject();
       const photos = getPreviewPhotos();
@@ -3705,6 +3771,56 @@
       }
       const allSelected = photos.every((photo) => photo.selected);
       selectAllButton.textContent = allSelected ? "全解除" : "全選択";
+    }
+
+    async function applyCurrentBoardToPreviewPhoto() {
+      const photos = getPreviewPhotos();
+      if (!photos.length) {
+        showToast("修正する写真がありません");
+        return;
+      }
+
+      const photo = photos[previewIndex];
+      if (!photo) return;
+
+      if (!photo.baseDataUrl) {
+        window.alert("この写真は看板修正用データがありません。\n\nv49b以降で撮影した写真から、撮影後に看板を修正できます。");
+        return;
+      }
+
+      const ok = window.confirm("現在表示中の看板内容で、この写真の看板を上書き修正しますか？");
+      if (!ok) return;
+
+      try {
+        saveBoardForm();
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        let canvas;
+        let newDataUrl;
+        try {
+          canvas = await composeBoardOnBaseImage(photo.baseDataUrl);
+          newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        } catch (error) {
+          console.warn("HTML看板での再合成に失敗したため、旧Canvas描画で再合成します", error);
+          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { forceLegacyBoard: true });
+          newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        }
+
+        photo.dataUrl = newDataUrl;
+        photo.subjectName = getCurrentSubjectName();
+        photo.roomNo = roomNoInput.value.trim();
+        photo.updatedAt = new Date().toISOString();
+
+        await savePhotoToIndexedDB(photo);
+        renderPreview();
+        updatePhotoCount();
+        showToast("看板を修正しました");
+      } catch (error) {
+        console.error(error);
+        showErrorToast("看板修正に失敗しました");
+      }
     }
 
     async function saveCurrentPreviewPhoto() {

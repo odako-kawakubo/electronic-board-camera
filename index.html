@@ -344,7 +344,22 @@
     }
 
     body.sampling-mode #roomValueCell {
-      padding-left: 12px;
+      padding-left: 0;
+      padding-right: 0;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    body.sampling-mode #roomNoInput {
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      text-align-last: center;
+      padding-left: 0;
+      padding-right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     /* 看板レイヤー */
@@ -366,6 +381,33 @@
       user-select: none;
       cursor: default;
       will-change: transform;
+    }
+
+
+    /* v50: 表示看板と保存看板を同一Canvas描画に統一する */
+    #boardCanvasPreview {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 242px;
+      z-index: 8;
+      pointer-events: none;
+      display: block;
+      background: transparent;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    body:not(.board-editing) #photoBoard {
+      visibility: hidden;
+    }
+
+    body.board-editing #photoBoard {
+      visibility: visible;
+    }
+
+    body.board-editing #boardCanvasPreview {
+      display: none;
     }
 
 
@@ -527,6 +569,9 @@
       padding-left: 0;
       padding-right: 0;
       overflow: hidden;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
     }
 
     /* v45: 件名・採取場所のtextareaを同じ仕組みで上下中央に見せる */
@@ -1379,7 +1424,7 @@
 
 
 
-    /* v49c: 写真選択→看板修正フロー */
+    /* v50: 看板文字中央寄せ調整 */
     #previewOverlay.board-correction-selecting #previewMeta {
       color: #f2c94c;
       font-weight: 900;
@@ -1786,6 +1831,7 @@
 
       <div class="board-layer">
       <div id="boardWrap">
+        <canvas id="boardCanvasPreview" aria-hidden="true"></canvas>
         <div id="photoBoard">
           <table class="board-table">
             <tr class="row-subject">
@@ -1971,7 +2017,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在のバージョン：<strong id="settingsVersionText">v49c-board-edit-flow</strong><br>
+        現在のバージョン：<strong id="settingsVersionText">v50-board-render-unify</strong><br>
         更新ボタンはこの設定画面に集約しています。
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
@@ -2016,7 +2062,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v49c-board-edit-flow";
+    const APP_VERSION = "v50-board-render-unify";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2063,6 +2109,7 @@
     const boardLayer = document.querySelector(".board-layer");
     const boardWrap = document.getElementById("boardWrap");
     const photoBoard = document.getElementById("photoBoard");
+    const boardCanvasPreview = document.getElementById("boardCanvasPreview");
     const boardEditOverlay = document.getElementById("boardEditOverlay");
     const boardEditPhotoBackdrop = document.getElementById("boardEditPhotoBackdrop");
     const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
@@ -2189,6 +2236,7 @@
 
       requestAnimationFrame(() => {
         setInitialBoardLayout();
+        scheduleBoardPreviewRender();
       });
     });
 
@@ -2312,6 +2360,7 @@
       if (isSampling && selectedStatus === "visual") {
         setStatus("before");
       }
+      scheduleBoardPreviewRender();
     }
 
     function openSidePanel(name) {
@@ -2456,6 +2505,7 @@
 
       updateCategoryToggleButton();
       saveBoardForm();
+      scheduleBoardPreviewRender();
     }
 
     function cyclePhotoStatus() {
@@ -2537,6 +2587,7 @@
 
       applyBoardTransform();
       syncBoardTextareas();
+      scheduleBoardPreviewRender();
     }
 
     function cycleBoardPosition() {
@@ -2620,6 +2671,7 @@
       isBoardEditMode = false;
       placeBoardByFixedPosition();
       saveBoardForm();
+      scheduleBoardPreviewRender();
       if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
 
       if (shouldFinishPhotoCorrection) {
@@ -2655,7 +2707,10 @@
     function setupBoardTextareaAutoCenter() {
       [subjectText, addressText, samplingLocationInput].filter(Boolean).forEach((textarea) => {
         if (!textarea || textarea.tagName !== "TEXTAREA") return;
-        textarea.addEventListener("input", syncBoardTextareas);
+        textarea.addEventListener("input", () => {
+          syncBoardTextareas();
+          scheduleBoardPreviewRender();
+        });
       });
 
       requestAnimationFrame(syncBoardTextareas);
@@ -3041,10 +3096,12 @@
         if (!element) return;
         element.addEventListener("input", () => {
           saveBoardForm();
+          scheduleBoardPreviewRender();
           if (element === subjectText) updateSamplingNameHistoryList();
         });
         element.addEventListener("change", () => {
           saveBoardForm();
+          scheduleBoardPreviewRender();
           if (boardMode === "sampling" && element === roomNoInput) {
             saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
           }
@@ -3291,6 +3348,38 @@
       });
     }
 
+    let boardPreviewRenderQueued = false;
+
+    function scheduleBoardPreviewRender() {
+      if (boardPreviewRenderQueued) return;
+      boardPreviewRenderQueued = true;
+      requestAnimationFrame(() => {
+        boardPreviewRenderQueued = false;
+        renderBoardPreviewCanvas();
+      });
+    }
+
+    function renderBoardPreviewCanvas() {
+      if (!boardCanvasPreview || !photoBoard) return;
+
+      const cssWidth = Math.max(1, Math.round(photoBoard.offsetWidth || 390));
+      const cssHeight = Math.max(1, Math.round(photoBoard.offsetHeight || 242));
+      const ratio = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      const pixelWidth = Math.round(cssWidth * ratio);
+      const pixelHeight = Math.round(cssHeight * ratio);
+
+      if (boardCanvasPreview.width !== pixelWidth) boardCanvasPreview.width = pixelWidth;
+      if (boardCanvasPreview.height !== pixelHeight) boardCanvasPreview.height = pixelHeight;
+      boardCanvasPreview.style.width = `${cssWidth}px`;
+      boardCanvasPreview.style.height = `${cssHeight}px`;
+
+      const ctx = boardCanvasPreview.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, pixelWidth, pixelHeight);
+      drawBoardOnCanvas(ctx, 0, 0, pixelWidth, pixelHeight);
+    }
+
     function runCameraFlash() {
       if (!cameraFlash) return;
 
@@ -3390,19 +3479,7 @@
       if (isSectionMode && !options.forceBoard) return;
 
       const rect = getBoardDrawRectForCanvas(canvas);
-
-      if (options.forceLegacyBoard || shouldUseLegacyBoardCapture()) {
-        drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
-        return;
-      }
-
-      try {
-        const boardCanvas = await renderBoardElementToCanvas(photoBoard);
-        ctx.drawImage(boardCanvas, rect.x, rect.y, rect.w, rect.h);
-      } catch (error) {
-        console.warn("HTML看板の画像化に失敗したため、旧Canvas描画へフォールバックします", error);
-        drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
-      }
+      drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
     }
 
     async function composeBoardOnBaseImage(baseDataUrl, options = {}) {
@@ -4421,7 +4498,7 @@
       drawWrappedCenterText(ctx, data.address, x + leftColW + 6, y + row1H, rightW - 12, row2H, addressFont, 1.2, 2);
 
       if (boardMode === "sampling") {
-        drawLeftMiddleText(ctx, data.roomNo, x + leftColW + 10, contentY, rightW - 20, roomRowH, innerValueFont);
+        drawCenteredText(ctx, data.roomNo, x + leftColW + 10, contentY, rightW - 20, roomRowH, innerValueFont);
       } else {
         drawLeftMiddleText(ctx, data.roomLabel, x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);
         drawLeftMiddleText(ctx, data.roomNo, x + leftColW + innerLabelW, contentY, rightW - innerLabelW, roomRowH, innerValueFont);
@@ -4579,7 +4656,10 @@
         element.style.paddingBottom = "0px";
 
         const visibleHeight = element.clientHeight;
-        const contentHeight = element.scrollHeight;
+        const lineHeight = parseFloat(getComputedStyle(element).lineHeight) || 20;
+        const rawLines = String(element.value || "").split(/\n/);
+        const estimatedLines = Math.max(1, rawLines.length);
+        const contentHeight = Math.min(element.scrollHeight, Math.ceil(lineHeight * estimatedLines + 2));
         const padding = Math.max(0, Math.floor((visibleHeight - contentHeight) / 2));
 
         element.style.paddingTop = `${padding}px`;
@@ -4630,6 +4710,7 @@
       if (addressText) addressText.style.fontSize = `${boardFieldTextSize.address}px`;
       if (roomNoInput) roomNoInput.style.fontSize = `${boardFieldTextSize.room}px`;
       syncBoardTextAreaVerticalCenter();
+      scheduleBoardPreviewRender();
     }
 
     function loadBoardTextSize() {
@@ -4663,6 +4744,7 @@
       if (textSizeSmallButton) textSizeSmallButton.classList.toggle("active", boardTextSize === "small");
       if (textSizeNormalButton) textSizeNormalButton.classList.toggle("active", boardTextSize === "normal");
       if (textSizeLargeButton) textSizeLargeButton.classList.toggle("active", boardTextSize === "large");
+      scheduleBoardPreviewRender();
     }
 
     function openSettings() {

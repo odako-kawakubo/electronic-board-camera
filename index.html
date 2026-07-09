@@ -973,6 +973,67 @@
       background: #27ae60;
     }
 
+
+
+    /* 撮影直後確認：保存前にOK/撮り直しを選ぶ */
+    #captureReviewOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.88);
+      padding: 14px;
+    }
+
+    #captureReviewOverlay.show {
+      display: flex;
+    }
+
+    .capture-review-panel {
+      width: min(96vw, 920px);
+      max-height: 96vh;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #captureReviewImage {
+      max-width: 100%;
+      max-height: calc(96vh - 96px);
+      object-fit: contain;
+      border-radius: 10px;
+      background: #111;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    .capture-review-controls {
+      display: flex;
+      gap: 12px;
+      width: min(100%, 520px);
+    }
+
+    .capture-review-button {
+      flex: 1;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 18px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.3);
+    }
+
+    .capture-review-ok {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    .capture-review-retake {
+      background: linear-gradient(135deg, #64748b, #475569);
+    }
+
     .preview-arrow {
       position: absolute;
       top: 50%;
@@ -1732,6 +1793,19 @@
     <div id="toast"></div>
   </div>
 
+
+  <datalist id="samplingNameHistoryList"></datalist>
+
+  <div id="captureReviewOverlay" aria-modal="true" role="dialog">
+    <div class="capture-review-panel">
+      <img id="captureReviewImage" alt="撮影確認" />
+      <div class="capture-review-controls">
+        <button class="capture-review-button capture-review-retake" type="button" onclick="rejectCaptureReview()">撮り直し</button>
+        <button class="capture-review-button capture-review-ok" type="button" onclick="acceptCaptureReview()">OK</button>
+      </div>
+    </div>
+  </div>
+
   <div id="previewOverlay">
     <div class="preview-topbar">
       <button class="settings-button" type="button" onclick="openSettings()" aria-label="設定">⚙</button>
@@ -1813,7 +1887,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v47";
+    const APP_VERSION = "v48-board-sync";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1835,6 +1909,8 @@
     const POINT_DISPLAY_DEFAULT = "1-①";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
     const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
+    const BOARD_FORM_STORAGE_KEY = "electronic-board-camera-board-form-v1";
+    const SAMPLING_NAME_HISTORY_STORAGE_KEY = "electronic-board-camera-sampling-name-history-v1";
     const BOARD_TEXT_SIZE_MULTIPLIERS = {
       small: 0.88,
       normal: 1,
@@ -1850,6 +1926,9 @@
     const video = document.getElementById("video");
     const captureFreezeImage = document.getElementById("captureFreezeImage");
     const cameraFlash = document.getElementById("cameraFlash");
+    const captureReviewOverlay = document.getElementById("captureReviewOverlay");
+    const captureReviewImage = document.getElementById("captureReviewImage");
+    const samplingNameHistoryList = document.getElementById("samplingNameHistoryList");
     const cameraGuide = document.getElementById("cameraGuide");
 
     const boardLayer = document.querySelector(".board-layer");
@@ -1948,6 +2027,7 @@
     let previewTouchStartY = 0;
     let lastBoardTapAt = 0;
     let isBoardEditMode = false;
+    let captureReviewResolver = null;
 
     document.addEventListener("DOMContentLoaded", async () => {
       checkAppUpdate();
@@ -1955,6 +2035,8 @@
       setupStatusButtons();
       setupBoardMode();
       setupDateEditTracking();
+      setupBoardPersistence();
+      setupSamplingNameHistory();
       setupBoardEditGesture();
       setBoardEditable(false);
       setupPreviewSwipe();
@@ -1999,17 +2081,30 @@
     });
 
     function initializeBoard() {
-      subjectText.value = APP_DATA.subject;
-      addressText.value = APP_DATA.address;
+      const savedBoard = loadSavedBoardForm();
+      subjectText.value = savedBoard.subject || APP_DATA.subject;
+      addressText.value = savedBoard.address || APP_DATA.address;
       syncBoardTextAreaVerticalCenter();
-      roomNoInput.value = roomNoInput.value || "1-1";
-      sampleNoInput.value = sampleNoInput.value || POINT_DISPLAY_DEFAULT;
-      updateCurrentDate();
+      roomNoInput.value = savedBoard.roomNo || roomNoInput.value || "1-1";
+      sampleNoInput.value = savedBoard.sampleNo || sampleNoInput.value || POINT_DISPLAY_DEFAULT;
+
+      if (savedBoard.date && savedBoard.isDateManuallyEdited) {
+        dateText.textContent = savedBoard.date;
+        isDateManuallyEdited = true;
+      } else {
+        updateCurrentDate();
+      }
+
+      if (savedBoard.boardMode === "sampling" || savedBoard.boardMode === "survey") {
+        boardMode = savedBoard.boardMode;
+      }
+
       syncBoardTextareas();
-      setStatus("visual");
+      setStatus(savedBoard.selectedStatus || "visual");
       applyBoardMode();
       setSectionMode(false);
       updatePhotoCount();
+      updateSamplingNameHistoryList();
     }
 
     function updateCurrentDate() {
@@ -2062,7 +2157,15 @@
 
       if (roomNoInput) {
         roomNoInput.placeholder = isSampling ? "例：階段 1-2階 / 駐車場" : "";
+        if (isSampling) {
+          roomNoInput.setAttribute("list", "samplingNameHistoryList");
+        } else {
+          roomNoInput.removeAttribute("list");
+        }
       }
+
+      updateSamplingNameHistoryList();
+      saveBoardForm();
 
       if (visualStatusButton) {
         visualStatusButton.style.display = isSampling ? "none" : "inline-flex";
@@ -2102,6 +2205,8 @@
       const next = window.prompt(`${label}を入力してください`, roomNoInput.value || "");
       if (next === null) return;
       roomNoInput.value = next.trim();
+      saveBoardForm();
+      if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
       showToast(`${label}を変更しました`);
     }
 
@@ -2109,6 +2214,7 @@
       const next = window.prompt("試料No.を入力してください", sampleNoInput.value || POINT_DISPLAY_DEFAULT);
       if (next === null) return;
       sampleNoInput.value = next.trim() || POINT_DISPLAY_DEFAULT;
+      saveBoardForm();
       showToast("試料No.を変更しました");
     }
 
@@ -2119,6 +2225,7 @@
       }
 
       roomNoInput.value = incrementNumberInText(roomNoInput.value, part === "floor" ? "first" : "last", delta);
+      saveBoardForm();
       showToast(part === "floor" ? "階を変更しました" : "部屋を変更しました");
     }
 
@@ -2141,6 +2248,7 @@
       const parts = parseSampleDisplayValue(sampleNoInput.value);
       parts.sampleNo = Math.max(1, parts.sampleNo + delta);
       sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo);
+      saveBoardForm();
       showToast("検体No.を変更しました");
     }
 
@@ -2148,6 +2256,7 @@
       const parts = parseSampleDisplayValue(sampleNoInput.value);
       parts.pointNo = Math.max(1, parts.pointNo + delta);
       sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo);
+      saveBoardForm();
       showToast("箇所No.を変更しました");
     }
 
@@ -2172,6 +2281,7 @@
       if (!dateText) return;
       dateText.addEventListener("input", () => {
         isDateManuallyEdited = true;
+        saveBoardForm();
       });
     }
 
@@ -2207,6 +2317,7 @@
       });
 
       updateCategoryToggleButton();
+      saveBoardForm();
     }
 
     function cyclePhotoStatus() {
@@ -2365,6 +2476,8 @@
       setBoardEditable(false);
       isBoardEditMode = false;
       placeBoardByFixedPosition();
+      saveBoardForm();
+      if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
       showToast("看板編集を完了しました");
     }
 
@@ -2685,7 +2798,7 @@
           await document.fonts.ready;
         }
 
-        const canvas = captureCompositedImage();
+        const canvas = await captureCompositedImage();
 
         // 白フラッシュで撮影感を出す
         runCameraFlash();
@@ -2696,8 +2809,18 @@
          */
         const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
 
-        // 実際に保存する合成後画像を一時表示する
+        // 実際に保存する合成後画像を確認してから保存する
+        const accepted = await showCaptureReview(dataUrl);
+        if (!accepted) {
+          showToast("撮り直しできます");
+          return;
+        }
         showCapturedStill(dataUrl);
+        await delay(650);
+        hideCapturedStill();
+
+        saveBoardForm();
+        if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
 
         const createdAt = new Date();
         const photoType = getCurrentPhotoType();
@@ -2732,9 +2855,7 @@
           navigator.vibrate(50);
         }
 
-        await delay(520);
         showToast("撮影しました");
-        hideCapturedStill();
       } catch (error) {
         console.error(error);
         showErrorToast("撮影データの保存に失敗しました");
@@ -2743,6 +2864,263 @@
         isTakingPhoto = false;
         shootButton.disabled = false;
       }
+    }
+
+
+
+    function setupBoardPersistence() {
+      [subjectText, addressText, roomNoInput, sampleNoInput].forEach((element) => {
+        if (!element) return;
+        element.addEventListener("input", () => {
+          saveBoardForm();
+          if (element === subjectText) updateSamplingNameHistoryList();
+        });
+        element.addEventListener("change", () => {
+          saveBoardForm();
+          if (boardMode === "sampling" && element === roomNoInput) {
+            saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
+          }
+        });
+      });
+    }
+
+    function loadSavedBoardForm() {
+      try {
+        const raw = localStorage.getItem(BOARD_FORM_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveBoardForm() {
+      try {
+        const data = {
+          subject: subjectText ? subjectText.value : "",
+          address: addressText ? addressText.value : "",
+          roomNo: roomNoInput ? roomNoInput.value : "",
+          sampleNo: sampleNoInput ? sampleNoInput.value : "",
+          date: dateText ? dateText.textContent : "",
+          isDateManuallyEdited,
+          selectedStatus,
+          boardMode,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(BOARD_FORM_STORAGE_KEY, JSON.stringify(data));
+      } catch (error) {}
+    }
+
+    function setupSamplingNameHistory() {
+      updateSamplingNameHistoryList();
+    }
+
+    function getSamplingHistoryKey() {
+      const subject = getCurrentSubjectName();
+      return subject || "無題案件";
+    }
+
+    function loadSamplingNameHistoryMap() {
+      try {
+        const raw = localStorage.getItem(SAMPLING_NAME_HISTORY_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveSamplingNameHistoryMap(map) {
+      try {
+        localStorage.setItem(SAMPLING_NAME_HISTORY_STORAGE_KEY, JSON.stringify(map));
+      } catch (error) {}
+    }
+
+    function getSamplingNameHistoryForCurrentCase() {
+      const map = loadSamplingNameHistoryMap();
+      const list = Array.isArray(map[getSamplingHistoryKey()]) ? map[getSamplingHistoryKey()] : [];
+      return list.filter(Boolean).slice(0, 12);
+    }
+
+    function saveSamplingNameHistoryForCurrentCase(value) {
+      const name = String(value || "").trim();
+      if (!name) return;
+      const key = getSamplingHistoryKey();
+      const map = loadSamplingNameHistoryMap();
+      const list = Array.isArray(map[key]) ? map[key] : [];
+      map[key] = [name, ...list.filter((item) => item !== name)].slice(0, 20);
+      saveSamplingNameHistoryMap(map);
+      updateSamplingNameHistoryList();
+    }
+
+    function updateSamplingNameHistoryList() {
+      if (!samplingNameHistoryList) return;
+      samplingNameHistoryList.innerHTML = "";
+      getSamplingNameHistoryForCurrentCase().forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        samplingNameHistoryList.appendChild(option);
+      });
+    }
+
+    function showCaptureReview(dataUrl) {
+      return new Promise((resolve) => {
+        if (!captureReviewOverlay || !captureReviewImage) {
+          resolve(true);
+          return;
+        }
+
+        captureReviewResolver = resolve;
+        captureReviewImage.src = dataUrl;
+        captureReviewOverlay.classList.add("show");
+      });
+    }
+
+    function closeCaptureReview(result) {
+      if (!captureReviewOverlay || !captureReviewImage) return;
+      captureReviewOverlay.classList.remove("show");
+      setTimeout(() => {
+        if (!captureReviewOverlay.classList.contains("show")) {
+          captureReviewImage.removeAttribute("src");
+        }
+      }, 120);
+
+      const resolver = captureReviewResolver;
+      captureReviewResolver = null;
+      if (resolver) resolver(Boolean(result));
+    }
+
+    function acceptCaptureReview() {
+      closeCaptureReview(true);
+    }
+
+    function rejectCaptureReview() {
+      closeCaptureReview(false);
+    }
+
+    async function renderBoardElementToCanvas(element) {
+      if (!element) throw new Error("看板要素がありません");
+
+      syncBoardTextareas();
+      syncBoardTextAreaVerticalCenter();
+
+      const rect = element.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+      const clone = element.cloneNode(true);
+
+      prepareBoardCloneForCapture(element, clone);
+      addBoardInnerFrameForCapture(clone);
+      inlineComputedStyles(element, clone);
+
+      clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+      clone.style.margin = "0";
+      clone.style.transform = "none";
+      clone.style.width = `${width}px`;
+      clone.style.height = `${height}px`;
+      clone.style.boxSizing = "border-box";
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(clone)}</foreignObject>
+        </svg>`;
+
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      try {
+        const image = await loadImage(url);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, width, height);
+        return canvas;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function prepareBoardCloneForCapture(sourceNode, cloneNode) {
+      const sourceControls = sourceNode.querySelectorAll("textarea, input, [contenteditable]");
+      const cloneControls = cloneNode.querySelectorAll("textarea, input, [contenteditable]");
+
+      sourceControls.forEach((source, index) => {
+        const clone = cloneControls[index];
+        if (!clone) return;
+
+        const value = source.tagName === "INPUT" || source.tagName === "TEXTAREA"
+          ? source.value
+          : source.textContent;
+
+        if (clone.tagName === "TEXTAREA" || clone.tagName === "INPUT") {
+          const replacement = document.createElement("div");
+          replacement.textContent = value || "";
+          replacement.className = clone.className;
+          replacement.style.whiteSpace = "pre-wrap";
+          replacement.style.display = "flex";
+          replacement.style.alignItems = "center";
+          replacement.style.justifyContent = "center";
+          replacement.style.width = "100%";
+          replacement.style.height = "100%";
+          replacement.style.border = "0";
+          replacement.style.outline = "0";
+          replacement.style.background = "transparent";
+          replacement.style.boxSizing = "border-box";
+          clone.replaceWith(replacement);
+        } else {
+          clone.textContent = value || "";
+        }
+      });
+    }
+
+
+
+    function addBoardInnerFrameForCapture(clone) {
+      if (!clone) return;
+      const frame = document.createElement("div");
+      frame.style.position = "absolute";
+      frame.style.left = "4px";
+      frame.style.top = "4px";
+      frame.style.right = "4px";
+      frame.style.bottom = "4px";
+      frame.style.border = "1.5px solid #000";
+      frame.style.pointerEvents = "none";
+      frame.style.zIndex = "50";
+      frame.style.boxSizing = "border-box";
+      clone.appendChild(frame);
+    }
+
+    function inlineComputedStyles(sourceNode, cloneNode) {
+      if (!sourceNode || !cloneNode || sourceNode.nodeType !== 1 || cloneNode.nodeType !== 1) return;
+
+      const computed = window.getComputedStyle(sourceNode);
+      const importantProperties = [
+        "display", "position", "box-sizing", "width", "height", "min-width", "min-height",
+        "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+        "margin", "border", "border-top", "border-right", "border-bottom", "border-left",
+        "border-collapse", "border-spacing", "background", "background-color", "color",
+        "font", "font-family", "font-size", "font-weight", "line-height", "letter-spacing",
+        "text-align", "vertical-align", "white-space", "overflow", "border-radius",
+        "align-items", "justify-content", "flex-direction", "gap", "table-layout"
+      ];
+
+      importantProperties.forEach((property) => {
+        try {
+          cloneNode.style.setProperty(property, computed.getPropertyValue(property), computed.getPropertyPriority(property));
+        } catch (error) {}
+      });
+
+      const sourceChildren = Array.from(sourceNode.children);
+      const cloneChildren = Array.from(cloneNode.children);
+      sourceChildren.forEach((child, index) => inlineComputedStyles(child, cloneChildren[index]));
+    }
+
+    function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("看板画像の生成に失敗しました"));
+        image.src = url;
+      });
     }
 
     function runCameraFlash() {
@@ -2776,7 +3154,7 @@
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    function captureCompositedImage() {
+    async function captureCompositedImage() {
       const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
 
       const canvas = document.createElement("canvas");
@@ -2828,7 +3206,13 @@
         const boardW = boardRect.width * scaleX;
         const boardH = boardRect.height * scaleY;
 
-        drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
+        try {
+          const boardCanvas = await renderBoardElementToCanvas(photoBoard);
+          ctx.drawImage(boardCanvas, boardX, boardY, boardW, boardH);
+        } catch (error) {
+          console.warn("HTML看板の画像化に失敗したため、旧Canvas描画へフォールバックします", error);
+          drawBoardOnCanvas(ctx, boardX, boardY, boardW, boardH);
+        }
       }
 
       return canvas;

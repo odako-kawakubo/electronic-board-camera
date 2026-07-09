@@ -392,7 +392,7 @@
       width: 100%;
       height: 242px;
       z-index: 8;
-      pointer-events: none;
+      pointer-events: auto;
       display: block;
       background: transparent;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
@@ -2017,7 +2017,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在のバージョン：<strong id="settingsVersionText">v50-board-render-unify</strong><br>
+        現在のバージョン：<strong id="settingsVersionText">v51-canvas-display-html-edit</strong><br>
         更新ボタンはこの設定画面に集約しています。
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
@@ -2062,7 +2062,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v50-board-render-unify";
+    const APP_VERSION = "v51-canvas-display-html-edit";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2614,7 +2614,8 @@
 
     function setupBoardEditGesture() {
       let lastTapAt = 0;
-      photoBoard.addEventListener("pointerup", (event) => {
+
+      const handleBoardTap = (event) => {
         if (isBoardEditMode) return;
         if (isSectionMode) return;
 
@@ -2623,9 +2624,14 @@
           event.preventDefault();
           event.stopPropagation();
           openBoardEditMode();
+          lastTapAt = 0;
+          return;
         }
         lastTapAt = now;
-      }, true);
+      };
+
+      if (photoBoard) photoBoard.addEventListener("pointerup", handleBoardTap, true);
+      if (boardCanvasPreview) boardCanvasPreview.addEventListener("pointerup", handleBoardTap, true);
     }
 
     function setBoardEditable(enabled) {
@@ -3132,6 +3138,9 @@
           savedAt: new Date().toISOString()
         };
         localStorage.setItem(BOARD_FORM_STORAGE_KEY, JSON.stringify(data));
+        if (typeof scheduleBoardPreviewRender === "function") {
+          scheduleBoardPreviewRender();
+        }
       } catch (error) {}
     }
 

@@ -1377,6 +1377,70 @@
 
 
 
+
+
+    /* v49c: 写真選択→看板修正フロー */
+    #previewOverlay.board-correction-selecting #previewMeta {
+      color: #f2c94c;
+      font-weight: 900;
+    }
+
+    #previewOverlay.board-correction-selecting .thumb-item,
+    #previewOverlay.board-correction-selecting .photo-list-item,
+    #previewOverlay.board-correction-selecting #previewImage {
+      outline: 3px solid rgba(242, 201, 76, 0.95);
+      outline-offset: 2px;
+    }
+
+    #boardEditOverlay.photo-board-correction {
+      background: rgba(0, 0, 0, 0.92);
+    }
+
+    #boardEditPhotoStage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-height: calc(100dvh - 32px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #111;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+    }
+
+    #boardEditPhotoBackdrop {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      pointer-events: none;
+      background: #000;
+    }
+
+    #boardEditOverlay.photo-board-correction #boardEditPhotoBackdrop {
+      opacity: 1;
+    }
+
+    #boardEditOverlay.photo-board-correction #boardWrap {
+      z-index: 2;
+    }
+
+    #boardEditOverlay.photo-board-correction #photoBoard {
+      box-shadow: 0 8px 28px rgba(0,0,0,0.65);
+    }
+
+    #boardEditOverlay.photo-board-correction .board-edit-title::after {
+      content: "写真看板修正";
+      display: block;
+      margin-top: 10px;
+      color: #f2c94c;
+      font-size: 14px;
+    }
+
     /* 看板編集モード */
     #boardEditOverlay {
       position: fixed;
@@ -1885,7 +1949,7 @@
       <button class="preview-button btn-list-toggle" type="button" onclick="checkMissingPhotos()">チェック</button>
       <button id="previewSortButton" class="preview-button btn-list-toggle" type="button" onclick="togglePreviewSortMode()">撮影順</button>
       <button id="selectAllButton" class="preview-button btn-list-toggle" type="button" onclick="toggleSelectAllPhotos()">全選択</button>
-      <button class="preview-button btn-list-toggle" type="button" onclick="applyCurrentBoardToPreviewPhoto()">看板修正</button>
+      <button id="boardCorrectionButton" class="preview-button btn-list-toggle" type="button" onclick="startBoardCorrectionSelectMode()">看板修正</button>
       <button class="preview-button btn-save" type="button" onclick="saveCurrentPreviewPhoto()">保存</button>
       <button class="preview-button btn-delete" type="button" onclick="deleteSelectedPreviewPhotos()">削除</button>
       <button class="preview-button btn-close" type="button" onclick="closePreview()">戻る</button>
@@ -1907,7 +1971,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在のバージョン：<strong id="settingsVersionText">v49b-preview-board-edit</strong><br>
+        現在のバージョン：<strong id="settingsVersionText">v49c-board-edit-flow</strong><br>
         更新ボタンはこの設定画面に集約しています。
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
@@ -1938,18 +2002,21 @@
       <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardMode()">調査</button>
     </div>
     <div id="boardEditHost">
-      <div id="fontControlOverlay" class="font-control-overlay">
-        <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
-        <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
-        <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
+      <div id="boardEditPhotoStage">
+        <img id="boardEditPhotoBackdrop" alt="看板修正対象写真" />
+        <div id="fontControlOverlay" class="font-control-overlay">
+          <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
+          <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
+          <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
+        </div>
       </div>
     </div>
-    <button class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
+    <button id="boardEditDoneButton" class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
     <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.・日付を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
   </div>
 
   <script>
-    const APP_VERSION = "v49b-preview-board-edit";
+    const APP_VERSION = "v49c-board-edit-flow";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -1997,6 +2064,9 @@
     const boardWrap = document.getElementById("boardWrap");
     const photoBoard = document.getElementById("photoBoard");
     const boardEditOverlay = document.getElementById("boardEditOverlay");
+    const boardEditPhotoBackdrop = document.getElementById("boardEditPhotoBackdrop");
+    const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
+    const boardEditDoneButton = document.getElementById("boardEditDoneButton");
     const boardEditHost = document.getElementById("boardEditHost");
 
     const subjectText = document.getElementById("subjectText");
@@ -2024,6 +2094,7 @@
     const previewList = document.getElementById("previewList");
     const previewModeToggleButton = document.getElementById("previewModeToggleButton");
     const previewSortButton = document.getElementById("previewSortButton");
+    const boardCorrectionButton = document.getElementById("boardCorrectionButton");
     const selectAllButton = document.getElementById("selectAllButton");
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
@@ -2060,6 +2131,8 @@
     let isPreviewListMode = false;
     let previewSortMode = "shooting";
     let selectedCaseSubject = "";
+    let isBoardCorrectionSelectMode = false;
+    let boardEditTargetPhotoId = null;
     let photoQuality = loadPhotoQuality();
     let boardTextSize = loadBoardTextSize();
     const boardFieldTextSize = { subject: 18, address: 17, room: 24 };
@@ -2513,7 +2586,7 @@
       boardWrap.classList.toggle("board-readonly", !enabled);
     }
 
-    function openBoardEditMode() {
+    function openBoardEditMode(options = {}) {
       if (isBoardEditMode) return;
       if (isSectionMode) {
         showToast("断面モード中は看板を編集できません");
@@ -2522,27 +2595,40 @@
 
       isBoardEditMode = true;
       document.body.classList.add("board-editing");
-      boardEditHost.appendChild(boardWrap);
+      (boardEditPhotoStage || boardEditHost).appendChild(boardWrap);
       boardEditOverlay.classList.add("show");
       setBoardEditable(true);
 
       setTimeout(() => {
         syncBoardTextareas();
-        if (subjectText && subjectText.focus) subjectText.focus();
+        if (options.focusFirstField !== false && subjectText && subjectText.focus) subjectText.focus();
       }, 120);
     }
 
-    function closeBoardEditMode() {
+    async function closeBoardEditMode() {
       if (!isBoardEditMode) return;
+
+      const shouldFinishPhotoCorrection = Boolean(boardEditTargetPhotoId);
 
       boardLayer.appendChild(boardWrap);
       boardEditOverlay.classList.remove("show");
+      boardEditOverlay.classList.remove("photo-board-correction");
+      if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
+      if (boardEditDoneButton) boardEditDoneButton.textContent = "完了";
       document.body.classList.remove("board-editing");
       setBoardEditable(false);
       isBoardEditMode = false;
       placeBoardByFixedPosition();
       saveBoardForm();
       if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
+
+      if (shouldFinishPhotoCorrection) {
+        await finishPhotoBoardCorrection();
+        previewOverlay.classList.add("show");
+        renderPreview();
+        return;
+      }
+
       showToast("看板編集を完了しました");
     }
 
@@ -3562,6 +3648,8 @@
     }
 
     async function closePreview() {
+      isBoardCorrectionSelectMode = false;
+      previewOverlay.classList.remove("board-correction-selecting");
       previewOverlay.classList.remove("show");
       setPreviewListMode(false);
 
@@ -3600,6 +3688,10 @@
 
     function renderPreview() {
       const photos = getPreviewPhotos();
+      previewOverlay.classList.toggle("board-correction-selecting", isBoardCorrectionSelectMode);
+      if (boardCorrectionButton) {
+        boardCorrectionButton.textContent = isBoardCorrectionSelectMode ? "中止" : "看板修正";
+      }
 
       if (!photos.length) {
         previewImage.removeAttribute("src");
@@ -3615,8 +3707,15 @@
       previewIndex = clamp(previewIndex, 0, photos.length - 1);
       const photo = photos[previewIndex];
       previewImage.src = photo.dataUrl;
+      previewImage.onclick = () => {
+        if (isBoardCorrectionSelectMode) {
+          selectPhotoForBoardCorrection(previewIndex);
+        }
+      };
       previewCounter.textContent = `${previewIndex + 1} / ${photos.length}`;
-      previewMeta.textContent = `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
+      previewMeta.textContent = isBoardCorrectionSelectMode
+        ? "看板修正する写真を選択してください"
+        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
       updatePreviewHeader();
       renderThumbnails();
       renderPhotoList();
@@ -3633,6 +3732,10 @@
         item.classList.toggle("current", index === previewIndex);
         item.classList.toggle("selected", Boolean(photo.selected));
         item.onclick = () => {
+          if (isBoardCorrectionSelectMode) {
+            selectPhotoForBoardCorrection(index);
+            return;
+          }
           previewIndex = index;
           renderPreview();
         };
@@ -3671,6 +3774,10 @@
         item.classList.toggle("current", index === previewIndex);
         item.classList.toggle("selected", Boolean(photo.selected));
         item.onclick = () => {
+          if (isBoardCorrectionSelectMode) {
+            selectPhotoForBoardCorrection(index);
+            return;
+          }
           previewIndex = index;
           setPreviewListMode(false);
           renderPreview();
@@ -3773,14 +3880,26 @@
       selectAllButton.textContent = allSelected ? "全解除" : "全選択";
     }
 
-    async function applyCurrentBoardToPreviewPhoto() {
+    function startBoardCorrectionSelectMode() {
       const photos = getPreviewPhotos();
       if (!photos.length) {
         showToast("修正する写真がありません");
         return;
       }
 
-      const photo = photos[previewIndex];
+      isBoardCorrectionSelectMode = !isBoardCorrectionSelectMode;
+      if (isBoardCorrectionSelectMode) {
+        setPreviewListMode(false);
+        showToast("看板修正する写真を選択してください");
+      } else {
+        showToast("看板修正を中止しました");
+      }
+      renderPreview();
+    }
+
+    async function selectPhotoForBoardCorrection(index) {
+      const photos = getPreviewPhotos();
+      const photo = photos[index];
       if (!photo) return;
 
       if (!photo.baseDataUrl) {
@@ -3788,8 +3907,53 @@
         return;
       }
 
-      const ok = window.confirm("現在表示中の看板内容で、この写真の看板を上書き修正しますか？");
-      if (!ok) return;
+      previewIndex = index;
+      isBoardCorrectionSelectMode = false;
+      previewOverlay.classList.remove("board-correction-selecting");
+      previewOverlay.classList.remove("show");
+      setPreviewListMode(false);
+      await openPhotoBoardCorrectionMode(photo.id);
+    }
+
+    async function openPhotoBoardCorrectionMode(photoId) {
+      const photo = capturedPhotos.find((item) => item.id === photoId);
+      if (!photo) {
+        showToast("修正対象の写真が見つかりません");
+        return;
+      }
+
+      boardEditTargetPhotoId = photo.id;
+
+      // 選択した写真の撮影時情報を、修正開始時の看板に戻す
+      if (photo.subjectName) subjectText.value = photo.subjectName;
+      if (photo.roomNo) roomNoInput.value = photo.roomNo;
+      if (photo.sampleNo) sampleNoInput.value = formatSamplePointLabel(`${photo.sampleNo}-${photo.pointNo || 1}`);
+      if (photo.status) setStatus(photo.status);
+      syncBoardTextareas();
+
+      if (boardEditPhotoBackdrop) {
+        boardEditPhotoBackdrop.src = photo.baseDataUrl || photo.dataUrl;
+      }
+      if (boardEditDoneButton) {
+        boardEditDoneButton.textContent = "修正\n完了";
+      }
+      boardEditOverlay.classList.add("photo-board-correction");
+      openBoardEditMode({ focusFirstField: false });
+      showToast("看板を直して、完了を押してください");
+    }
+
+    async function finishPhotoBoardCorrection() {
+      const photo = capturedPhotos.find((item) => item.id === boardEditTargetPhotoId);
+      if (!photo) {
+        boardEditTargetPhotoId = null;
+        return;
+      }
+
+      if (!photo.baseDataUrl) {
+        boardEditTargetPhotoId = null;
+        window.alert("この写真は看板修正用データがありません。");
+        return;
+      }
 
       try {
         saveBoardForm();
@@ -3811,16 +3975,24 @@
         photo.dataUrl = newDataUrl;
         photo.subjectName = getCurrentSubjectName();
         photo.roomNo = roomNoInput.value.trim();
+        photo.status = selectedStatus;
+        photo.statusLabel = getStatusLabel(selectedStatus);
         photo.updatedAt = new Date().toISOString();
 
         await savePhotoToIndexedDB(photo);
-        renderPreview();
+        previewIndex = Math.max(0, getPreviewPhotos().findIndex((item) => item.id === photo.id));
         updatePhotoCount();
         showToast("看板を修正しました");
       } catch (error) {
         console.error(error);
         showErrorToast("看板修正に失敗しました");
+      } finally {
+        boardEditTargetPhotoId = null;
       }
+    }
+
+    async function applyCurrentBoardToPreviewPhoto() {
+      startBoardCorrectionSelectMode();
     }
 
     async function saveCurrentPreviewPhoto() {

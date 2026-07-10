@@ -11,6 +11,48 @@
   <title>電子看板カメラ</title>
 
   <style>
+    :root {
+      --app-vw: 100vw;
+      --app-vh: 100dvh;
+    }
+
+    #appOrientationShell {
+      position: fixed;
+      inset: 0;
+      width: var(--app-vw);
+      height: var(--app-vh);
+      overflow: hidden;
+      background: #000;
+      transform-origin: center center;
+    }
+
+    #landscapeFlipButton {
+      display: none;
+    }
+
+    @media (orientation: portrait) {
+      :root {
+        --app-vw: 100dvh;
+        --app-vh: 100vw;
+      }
+
+      #appOrientationShell {
+        left: 50%;
+        top: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translate(-50%, -50%) rotate(90deg);
+      }
+
+      body.landscape-flipped #appOrientationShell {
+        transform: translate(-50%, -50%) rotate(-90deg);
+      }
+
+      #landscapeFlipButton {
+        display: block;
+      }
+    }
+
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
@@ -32,8 +74,8 @@
 
     #cameraScreen {
       position: relative;
-      width: 100vw;
-      height: 100dvh;
+      width: var(--app-vw);
+      height: var(--app-vh);
       overflow: hidden;
       background: #000;
       display: flex;
@@ -54,7 +96,7 @@
       position: relative;
       z-index: 4;
       width: 92px;
-      height: 100dvh;
+      height: var(--app-vh);
       flex: 0 0 92px;
       background: #000;
       color: #fff;
@@ -79,8 +121,8 @@
        * 左右の黒帯（左92px + 右92px）を差し引き、
        * iPhone/PWAの下見切れ対策として安全側に少し小さくする。
        */
-      --capture-safe-h: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px);
-      --capture-safe-w: calc(100vw - 184px);
+      --capture-safe-h: calc(var(--app-vh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px);
+      --capture-safe-w: calc(var(--app-vw) - 184px);
       width: min(var(--capture-safe-w), calc(var(--capture-safe-h) * 4 / 3));
       height: min(var(--capture-safe-h), calc(var(--capture-safe-w) * 3 / 4));
       aspect-ratio: 4 / 3;
@@ -712,7 +754,7 @@
       position: relative !important;
       z-index: 9999 !important;
       width: 92px !important;
-      height: 100dvh !important;
+      height: var(--app-vh) !important;
       flex: 0 0 92px !important;
       display: flex !important;
       flex-direction: column !important;
@@ -849,9 +891,9 @@
     }
 
     #previewImage {
-      width: min(100%, calc((100dvh - 168px) * 4 / 3));
+      width: min(100%, calc((var(--app-vh) - 168px) * 4 / 3));
       max-width: 100%;
-      max-height: calc(100dvh - 168px);
+      max-height: calc(var(--app-vh) - 168px);
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
@@ -907,11 +949,11 @@
     #previewList {
       width: 100%;
       max-width: 980px;
-      height: calc(100dvh - 118px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      height: calc(var(--app-vh) - 118px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
       flex: 0 0 auto;
       display: none;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-auto-rows: calc(100dvh - 176px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      grid-auto-rows: calc(var(--app-vh) - 176px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
       align-content: start;
       gap: 12px;
       overflow-y: auto;
@@ -1040,8 +1082,8 @@
     }
 
     .capture-review-panel {
-      width: min(100vw, calc((100dvh - 74px) * 4 / 3));
-      max-height: 100dvh;
+      width: min(var(--app-vw), calc((var(--app-vh) - 74px) * 4 / 3));
+      max-height: var(--app-vh);
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -1051,7 +1093,7 @@
     #captureReviewImage {
       width: 100%;
       max-width: 100%;
-      max-height: calc(100dvh - 74px);
+      max-height: calc(var(--app-vh) - 74px);
       object-fit: contain;
       border-radius: 10px;
       background: #111;
@@ -1338,7 +1380,7 @@
 
     .settings-panel {
       width: min(100%, 520px);
-      max-height: calc(100dvh - 40px);
+      max-height: calc(var(--app-vh) - 40px);
       overflow-y: auto;
       background: #fff;
       color: #000;
@@ -1450,7 +1492,7 @@
       position: relative;
       width: 100%;
       height: 100%;
-      max-height: calc(100dvh - 32px);
+      max-height: calc(var(--app-vh) - 32px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1612,7 +1654,7 @@
     #boardEditHost {
       width: 100%;
       height: 100%;
-      max-height: calc(100dvh - 32px);
+      max-height: calc(var(--app-vh) - 32px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1625,7 +1667,7 @@
       left: auto !important;
       top: auto !important;
       width: min(72vw, 760px) !important;
-      max-width: calc(100vw - 230px) !important;
+      max-width: calc(var(--app-vw) - 230px) !important;
       transform: none !important;
       transform-origin: center center !important;
       pointer-events: auto;
@@ -1739,7 +1781,7 @@
       position: absolute;
       left: 50%;
       width: min(72vw, 760px);
-      max-width: calc(100vw - 230px);
+      max-width: calc(var(--app-vw) - 230px);
       transform: translateX(-50%);
       display: flex;
       justify-content: space-between;
@@ -1844,7 +1886,7 @@
       white-space: nowrap;
     }
 
-    @media (orientation: portrait) {
+    @media (orientation: portrait) and (max-width: 0px) {
       #cameraScreen {
         flex-direction: column;
       }
@@ -1854,12 +1896,12 @@
       }
 
       #captureFrame {
-        width: 100vw;
-        height: min(calc(100vw * 3 / 4), calc(100dvh - 92px));
+        width: var(--app-vw);
+        height: min(calc(var(--app-vw) * 3 / 4), calc(var(--app-vh) - 92px));
       }
 
       .controls {
-        width: 100vw !important;
+        width: var(--app-vw) !important;
         height: 92px !important;
         flex: 0 0 92px !important;
         flex-direction: row !important;
@@ -2052,10 +2094,12 @@
 </head>
 
 <body>
+  <div id="appOrientationShell">
   <div id="cameraScreen">
     <div class="left-panel">
       <div id="photoCount">撮影済み
 0枚</div>
+      <button id="landscapeFlipButton" class="panel-mini-button" type="button" onclick="toggleLandscapeFlip()">上下<br>反転</button>
 
       <div class="board-control-panel" aria-label="撮影補助操作">
         <div id="panelMainList" class="panel-main-list">
@@ -2390,8 +2434,8 @@
         <div id="boardEditCanvasWrap"><canvas id="boardEditCanvas"></canvas></div>
       </div>
       <div class="board-preview-size-controls">
-        <span id="boardEditSelectedFieldLabel">件名</span>
         <button type="button" onclick="adjustSelectedBoardEditTextSize(-1)">A-</button>
+        <span id="boardEditSelectedFieldLabel">件名</span>
         <button type="button" onclick="adjustSelectedBoardEditTextSize(1)">A+</button>
       </div>
     </div>
@@ -2401,9 +2445,10 @@
       <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardEditModeFromForm()">調査</button>
     </div>
   </div>
+  </div>
 
   <script>
-    const APP_VERSION = "v52.3-form-canvas-editor";
+    const APP_VERSION = "v53-forced-landscape";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2574,6 +2619,7 @@
     let boardEditRenderQueued = false;
 
     document.addEventListener("DOMContentLoaded", async () => {
+      setupForcedLandscape();
       renderAppVersion();
       checkAppUpdate();
       initializeBoard();
@@ -2627,6 +2673,25 @@
         resumeCameraAfterPreview();
       }
     });
+
+    function setupForcedLandscape() {
+      const savedFlip = localStorage.getItem("electronicBoardLandscapeFlip") === "1";
+      document.body.classList.toggle("landscape-flipped", savedFlip);
+      updateLandscapeFlipButton();
+    }
+
+    function toggleLandscapeFlip() {
+      const flipped = document.body.classList.toggle("landscape-flipped");
+      localStorage.setItem("electronicBoardLandscapeFlip", flipped ? "1" : "0");
+      updateLandscapeFlipButton();
+      setTimeout(handleWindowResize, 80);
+    }
+
+    function updateLandscapeFlipButton() {
+      const button = document.getElementById("landscapeFlipButton");
+      if (!button) return;
+      button.setAttribute("aria-pressed", document.body.classList.contains("landscape-flipped") ? "true" : "false");
+    }
 
     function initializeBoard() {
       const savedBoard = loadSavedBoardForm();

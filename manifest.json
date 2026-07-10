@@ -2,7 +2,7 @@
   "name": "電子看板カメラ",
   "short_name": "看板カメラ",
   "description": "電子看板をカメラ映像に重ねて撮影する調査用カメラアプリ",
-  "start_url": "./?v=52.2",
+  "start_url": "./?v=53",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",

@@ -2090,6 +2090,57 @@
       .edit-mode-toggle { width: 58px; }
     }
 
+
+    /* v53.1: 回転表示中でも編集操作を確実にタップ可能にする */
+    .board-edit-history-preview {
+      width: 100%;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 36010;
+      pointer-events: auto;
+    }
+    .board-edit-history-preview button {
+      min-width: 52px;
+      min-height: 42px;
+      border: 0;
+      border-radius: 11px;
+      padding: 0 13px;
+      background: #e9eef6;
+      color: #111;
+      font: 900 17px/1 inherit;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      pointer-events: auto;
+    }
+    .board-edit-history-preview .board-edit-reset-inline {
+      min-width: 92px;
+      background: #eb5757;
+      color: #fff;
+      font-size: 14px;
+    }
+    #boardEditHost,
+    .board-edit-right,
+    .board-preview-size-controls {
+      position: relative;
+      z-index: 36005;
+      pointer-events: auto;
+    }
+    #boardEditDoneButton,
+    #editBoardModeButton,
+    #boardEditSizeDownButton,
+    #boardEditSizeUpButton {
+      touch-action: manipulation;
+      pointer-events: auto !important;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
   </style>
 </head>
 
@@ -2355,7 +2406,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v52.3</strong>
+        現在：<strong id="settingsVersionText">v53.1</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2383,11 +2434,7 @@
     <div class="board-edit-form-panel">
       <div class="board-edit-form-header">
         <div class="board-edit-form-title">看板編集</div>
-        <div class="board-edit-history-inline">
-          <button type="button" onclick="undoBoardEdit()" aria-label="戻る">↶</button>
-          <button type="button" onclick="redoBoardEdit()" aria-label="進む">↷</button>
-          <button class="board-edit-reset-inline" type="button" onclick="resetBoardEdit()">最初から</button>
-        </div>
+
       </div>
       <div class="board-form-grid">
         <div class="board-form-field" data-board-field="subject">
@@ -2429,26 +2476,31 @@
     </div>
 
     <div id="boardEditHost">
+      <div class="board-edit-history-preview" aria-label="編集履歴操作">
+        <button id="boardEditUndoButton" type="button" aria-label="戻る">↶</button>
+        <button id="boardEditRedoButton" type="button" aria-label="進む">↷</button>
+        <button id="boardEditResetButton" class="board-edit-reset-inline" type="button">最初から</button>
+      </div>
       <div id="boardEditPhotoStage">
         <img id="boardEditPhotoBackdrop" alt="看板修正対象写真" />
         <div id="boardEditCanvasWrap"><canvas id="boardEditCanvas"></canvas></div>
       </div>
       <div class="board-preview-size-controls">
-        <button type="button" onclick="adjustSelectedBoardEditTextSize(-1)">A-</button>
+        <button id="boardEditSizeDownButton" type="button">A-</button>
         <span id="boardEditSelectedFieldLabel">件名</span>
-        <button type="button" onclick="adjustSelectedBoardEditTextSize(1)">A+</button>
+        <button id="boardEditSizeUpButton" type="button">A+</button>
       </div>
     </div>
 
     <div class="board-edit-right">
-      <button id="boardEditDoneButton" class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
-      <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardEditModeFromForm()">調査</button>
+      <button id="boardEditDoneButton" class="board-edit-done" type="button">完了</button>
+      <button id="editBoardModeButton" class="edit-mode-toggle" type="button">調査</button>
     </div>
   </div>
   </div>
 
   <script>
-    const APP_VERSION = "v53-forced-landscape";
+    const APP_VERSION = "v53.1-controls-fix";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2636,6 +2688,7 @@
       setupBoardTextareaAutoCenter();
       setupBoardEditHistoryTracking();
     setupBoardEditForm();
+      setupReliableBoardEditControls();
       renderPhotoQualitySettings();
       renderBoardTextSize();
       applyBoardFieldTextSizes();
@@ -3208,6 +3261,41 @@
       boardEditModeSelect.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
+    function setupReliableBoardEditControls() {
+      const bindTap = (element, handler) => {
+        if (!element || element.dataset.tapBound === "1") return;
+        element.dataset.tapBound = "1";
+        let lastRun = 0;
+        const run = (event) => {
+          const now = Date.now();
+          if (now - lastRun < 350) return;
+          lastRun = now;
+          if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          if (document.activeElement && typeof document.activeElement.blur === "function") {
+            document.activeElement.blur();
+          }
+          handler();
+        };
+        element.addEventListener("pointerup", run, { passive: false });
+        element.addEventListener("touchend", run, { passive: false });
+        element.addEventListener("click", run, false);
+      };
+
+      bindTap(document.getElementById("boardEditUndoButton"), undoBoardEdit);
+      bindTap(document.getElementById("boardEditRedoButton"), redoBoardEdit);
+      bindTap(document.getElementById("boardEditResetButton"), resetBoardEdit);
+      bindTap(document.getElementById("boardEditSizeDownButton"), () => adjustSelectedBoardEditTextSize(-1));
+      bindTap(document.getElementById("boardEditSizeUpButton"), () => adjustSelectedBoardEditTextSize(1));
+      bindTap(document.getElementById("editBoardModeButton"), toggleBoardEditModeFromForm);
+      bindTap(document.getElementById("boardEditDoneButton"), () => {
+        flushBoardEditHistory();
+        closeBoardEditMode();
+      });
+    }
+
     function openBoardEditMode(options = {}) {
       if (isBoardEditMode) return;
       if (isSectionMode) {
@@ -3354,7 +3442,16 @@
       boardEditHistoryIndex = boardEditHistory.length - 1;
     }
 
+    function flushBoardEditHistory() {
+      if (boardEditHistoryTimer) {
+        clearTimeout(boardEditHistoryTimer);
+        boardEditHistoryTimer = null;
+        pushBoardEditHistory();
+      }
+    }
+
     function undoBoardEdit() {
+      flushBoardEditHistory();
       if (!isBoardEditMode || boardEditHistoryIndex <= 0) {
         showToast("これ以上戻せません");
         return;
@@ -3364,6 +3461,7 @@
     }
 
     function redoBoardEdit() {
+      flushBoardEditHistory();
       if (!isBoardEditMode || boardEditHistoryIndex >= boardEditHistory.length - 1) {
         showToast("これ以上進めません");
         return;
@@ -3373,6 +3471,7 @@
     }
 
     function resetBoardEdit() {
+      flushBoardEditHistory();
       if (!isBoardEditMode || !boardEditHistory.length) return;
       applyBoardEditSnapshot(boardEditHistory[0]);
       boardEditHistory = [getBoardEditSnapshot()];

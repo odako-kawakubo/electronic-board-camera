@@ -315,7 +315,7 @@
     .panel-single .panel-center-button {
       width: 44px;
       height: 38px;
-      font-size: 20px;
+      font-size: 16px;
     }
 
     .panel-close-button {
@@ -417,6 +417,7 @@
       width: 100%;
       height: 242px;
       padding: 4px;
+      box-sizing: border-box;
       background: #fff;
       color: #000;
       border: 2px solid #000;
@@ -439,6 +440,7 @@
 
     .board-table,
     .inner-table {
+      box-sizing: border-box;
       width: 100%;
       height: 100%;
       border-collapse: collapse;
@@ -1452,7 +1454,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow: visible;
       border-radius: 12px;
       background: #111;
       box-shadow: 0 8px 28px rgba(0,0,0,0.55);
@@ -1490,19 +1492,17 @@
     }
 
     .board-history-controls {
-      position: absolute;
-      left: 50%;
-      top: -48px;
-      transform: translateX(-50%);
-      z-index: 50;
+      position: relative;
+      z-index: 80;
       display: flex;
-      gap: 18px;
+      flex-direction: column;
+      gap: 8px;
       pointer-events: auto;
     }
 
     .board-history-button {
-      width: 46px;
-      height: 40px;
+      width: 54px;
+      height: 42px;
       border: 1px solid rgba(255,255,255,0.55);
       border-radius: 999px;
       background: rgba(0,0,0,0.72);
@@ -1527,9 +1527,9 @@
     .board-edit-reset {
       border: none;
       border-radius: 16px;
-      width: 68px;
-      min-height: 98px;
-      padding: 12px 8px;
+      width: 60px;
+      min-height: 94px;
+      padding: 10px 6px;
       background: #eb5757;
       color: #fff;
       font-size: 17px;
@@ -1564,7 +1564,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
       justify-self: center;
     }
@@ -1621,6 +1621,7 @@
 
     #boardEditHost #boardWrap {
       position: relative !important;
+      z-index: 40;
       left: auto !important;
       top: auto !important;
       width: min(72vw, 760px) !important;
@@ -1730,37 +1731,44 @@
     .font-control-overlay {
       position: absolute;
       inset: 0;
-      z-index: 20;
+      z-index: 120;
       pointer-events: none;
     }
 
     .font-control-row {
       position: absolute;
-      left: -54px;
-      right: -54px;
+      left: 50%;
+      width: min(72vw, 760px);
+      max-width: calc(100vw - 230px);
+      transform: translateX(-50%);
       display: flex;
       justify-content: space-between;
       align-items: center;
       pointer-events: none;
+      padding-left: 58px;
+      padding-right: 8px;
+      box-sizing: border-box;
     }
 
     .font-control-row button {
       pointer-events: auto;
-      width: 40px;
-      height: 36px;
-      border-radius: 12px;
+      width: 31px;
+      height: 29px;
+      border-radius: 9px;
       border: 1px solid rgba(255,255,255,0.55);
-      background: rgba(0,0,0,0.68);
+      background: rgba(0,0,0,0.72);
       color: #fff;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 900;
       font-family: inherit;
       line-height: 1;
     }
 
-    .font-subject { top: 10%; }
-    .font-address { top: 28%; }
-    .font-room { top: 52%; }
+    .font-subject { top: 10.5%; }
+    .font-address { top: 28.5%; }
+    .font-room { top: 45.5%; }
+    .font-sample { top: 58.8%; }
+    .font-date { top: 86.2%; }
 
 
 
@@ -1780,6 +1788,7 @@
 
     #boardEditHost .board-input,
     #boardEditHost .date-text {
+      transform: translateY(2px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1796,12 +1805,13 @@
     }
 
     #boardEditHost .textarea-center-wrap textarea.board-editable {
-      height: auto;
+      height: 100%;
       min-height: 0;
       max-height: 100%;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
-      line-height: 1.08;
+      line-height: 1.12;
+      transform: translateY(3px);
     }
 
     #boardEditHost .date-text {
@@ -2107,7 +2117,7 @@
 
   <div id="previewOverlay">
     <div class="preview-topbar">
-      <button class="settings-button" type="button" onclick="openSettings()" aria-label="設定">⚙</button>
+      <button class="settings-button" type="button" onclick="toggleSettings()" aria-label="設定">⚙</button>
     </div>
 
     <div class="preview-casebar">
@@ -2152,7 +2162,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v52.1</strong>
+        現在：<strong id="settingsVersionText">v52.2</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2178,32 +2188,34 @@
 
   <div id="boardEditOverlay">
     <div class="board-edit-left">
+      <div id="boardHistoryControls" class="board-history-controls">
+        <button class="board-history-button" type="button" onclick="undoBoardEdit()" aria-label="戻る">↶</button>
+        <button class="board-history-button" type="button" onclick="redoBoardEdit()" aria-label="進む">↷</button>
+      </div>
+      <button id="boardEditResetButton" class="board-edit-reset" type="button" onclick="resetBoardEdit()">最初から</button>
       <div class="board-edit-title">看板編集モード</div>
     </div>
     <div id="boardEditHost">
       <div id="boardEditPhotoStage">
         <img id="boardEditPhotoBackdrop" alt="看板修正対象写真" />
-        <div id="boardHistoryControls" class="board-history-controls">
-          <button class="board-history-button" type="button" onclick="undoBoardEdit()" aria-label="戻る">↶</button>
-          <button class="board-history-button" type="button" onclick="redoBoardEdit()" aria-label="進む">↷</button>
-        </div>
         <div id="fontControlOverlay" class="font-control-overlay">
           <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
           <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
           <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
+          <div class="font-control-row font-sample"><button type="button" onclick="adjustBoardFieldTextSize('sample', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('sample', 1)">＋</button></div>
+          <div class="font-control-row font-date"><button type="button" onclick="adjustBoardFieldTextSize('date', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('date', 1)">＋</button></div>
         </div>
       </div>
     </div>
     <div class="board-edit-right">
       <button id="boardEditDoneButton" class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
-      <button id="boardEditResetButton" class="board-edit-reset" type="button" onclick="resetBoardEdit()">最初から</button>
       <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardMode()">調査</button>
     </div>
     <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.・日付を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
   </div>
 
   <script>
-    const APP_VERSION = "v52.1-edit-fix";
+    const APP_VERSION = "v52.2-edit-controls-fix";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2858,9 +2870,16 @@
         const scrollHeight = textarea.scrollHeight;
 
         if (document.body.classList.contains("board-editing")) {
-          textarea.style.height = `${Math.min(scrollHeight, Math.max(1, boxHeight))}px`;
+          const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
+          const manualLines = String(textarea.value || "").split(/\n/).length;
+          const estimatedLines = Math.max(1, Math.min(2, manualLines, Math.ceil(scrollHeight / Math.max(1, lineHeight))));
+          const contentHeight = Math.min(boxHeight, Math.ceil(lineHeight * estimatedLines + 4));
+          textarea.style.height = `${contentHeight}px`;
+          textarea.style.transform = "translateY(3px)";
           return;
         }
+
+        textarea.style.transform = "";
 
         textarea.style.height = "100%";
         const top = Math.max(0, (boxHeight - scrollHeight) / 2);
@@ -2909,6 +2928,8 @@
         boardFieldTextSize.subject = clamp(Number(snapshot.fieldTextSize.subject) || boardFieldTextSize.subject, 12, 32);
         boardFieldTextSize.address = clamp(Number(snapshot.fieldTextSize.address) || boardFieldTextSize.address, 12, 32);
         boardFieldTextSize.room = clamp(Number(snapshot.fieldTextSize.room) || boardFieldTextSize.room, 12, 36);
+        boardFieldTextSize.sample = clamp(Number(snapshot.fieldTextSize.sample) || boardFieldTextSize.sample || 24, 12, 36);
+        boardFieldTextSize.date = clamp(Number(snapshot.fieldTextSize.date) || boardFieldTextSize.date || 24, 14, 34);
         saveBoardFieldTextSizes();
       }
       boardMode = snapshot.boardMode === "sampling" ? "sampling" : "survey";
@@ -4778,13 +4799,16 @@
       const subjectMultiplier = (boardFieldTextSize.subject || 18) / 18;
       const addressMultiplier = (boardFieldTextSize.address || 17) / 17;
       const roomMultiplier = (boardFieldTextSize.room || 24) / 24;
+      const sampleMultiplier = (boardFieldTextSize.sample || 24) / 24;
+      const dateMultiplier = (boardFieldTextSize.date || 24) / 24;
       const labelFont = Math.max(10, w * 0.046);
       const titleFont = Math.max(10, w * 0.047 * textMultiplier * subjectMultiplier);
       const addressFont = Math.max(10, w * 0.044 * textMultiplier * addressMultiplier);
       const innerLabelFont = Math.max(9, w * 0.043);
       const innerValueFont = Math.max(11, w * 0.055 * textMultiplier * roomMultiplier);
+      const sampleValueFont = Math.max(11, w * 0.055 * textMultiplier * sampleMultiplier);
       const statusFont = Math.max(10, w * 0.043);
-      const dateFont = Math.max(12, w * 0.055);
+      const dateFont = Math.max(12, w * 0.055 * dateMultiplier);
 
       drawCenteredText(ctx, "件名", x, y, leftColW, row1H, labelFont);
       drawCenteredText(ctx, "採取場所", x, y + row1H, leftColW, row2H, labelFont);
@@ -4802,7 +4826,7 @@
       }
 
       drawLeftMiddleText(ctx, "　試料No.", x + leftColW + 8, contentY + roomRowH, innerLabelW - 8, sampleRowH, innerLabelFont);
-      drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, innerValueFont);
+      drawLeftMiddleText(ctx, data.sampleNo, x + leftColW + innerLabelW, contentY + roomRowH, rightW - innerLabelW, sampleRowH, sampleValueFont);
 
       const statusStartX = x + leftColW + 3;
       const statusWidth = rightW - 6;
@@ -4878,7 +4902,7 @@
       const lines = getWrappedLines(ctx, text || "", w).slice(0, maxLines);
       const lineHeight = fontSize * lineRate;
       const totalHeight = lines.length * lineHeight;
-      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2;
+      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2 + Math.max(1, fontSize * 0.05);
 
       lines.forEach((line) => {
         ctx.fillText(line, x, currentY);
@@ -4898,7 +4922,7 @@
       const lines = getWrappedLines(ctx, text || "", w).slice(0, maxLines);
       const lineHeight = fontSize * lineRate;
       const totalHeight = lines.length * lineHeight;
-      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2;
+      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2 + Math.max(1, fontSize * 0.05);
 
       lines.forEach((line) => {
         ctx.fillText(line, x + w / 2, currentY);
@@ -4995,7 +5019,7 @@
     }
 
     function loadBoardFieldTextSizes() {
-      const defaults = { subject: 18, address: 17, room: 24 };
+      const defaults = { subject: 18, address: 17, room: 24, sample: 24, date: 24 };
       try {
         const raw = localStorage.getItem(BOARD_FIELD_TEXT_SIZE_STORAGE_KEY);
         const saved = raw ? JSON.parse(raw) : null;
@@ -5003,7 +5027,9 @@
           return {
             subject: clamp(Number(saved.subject) || defaults.subject, 12, 32),
             address: clamp(Number(saved.address) || defaults.address, 12, 32),
-            room: clamp(Number(saved.room) || defaults.room, 12, 36)
+            room: clamp(Number(saved.room) || defaults.room, 12, 36),
+            sample: clamp(Number(saved.sample) || defaults.sample, 12, 36),
+            date: clamp(Number(saved.date) || defaults.date, 14, 34)
           };
         }
       } catch (error) {}
@@ -5018,7 +5044,9 @@
 
     function adjustBoardFieldTextSize(field, delta) {
       if (!boardFieldTextSize[field]) return;
-      boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, 12, field === "room" ? 36 : 32);
+      const max = (field === "room" || field === "sample") ? 36 : (field === "date" ? 34 : 32);
+      const min = field === "date" ? 14 : 12;
+      boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, min, max);
       saveBoardFieldTextSizes();
       applyBoardFieldTextSizes();
       syncBoardTextAreaVerticalCenter();
@@ -5030,6 +5058,8 @@
       if (subjectText) subjectText.style.fontSize = `${boardFieldTextSize.subject}px`;
       if (addressText) addressText.style.fontSize = `${boardFieldTextSize.address}px`;
       if (roomNoInput) roomNoInput.style.fontSize = `${boardFieldTextSize.room}px`;
+      if (sampleNoInput) sampleNoInput.style.fontSize = `${boardFieldTextSize.sample}px`;
+      if (dateText) dateText.style.fontSize = `${boardFieldTextSize.date}px`;
       syncBoardTextAreaVerticalCenter();
       scheduleBoardPreviewRender();
     }
@@ -5066,6 +5096,14 @@
       if (textSizeNormalButton) textSizeNormalButton.classList.toggle("active", boardTextSize === "normal");
       if (textSizeLargeButton) textSizeLargeButton.classList.toggle("active", boardTextSize === "large");
       scheduleBoardPreviewRender();
+    }
+
+    function toggleSettings() {
+      if (settingsOverlay.classList.contains("show")) {
+        closeSettings();
+      } else {
+        openSettings();
+      }
     }
 
     function openSettings() {

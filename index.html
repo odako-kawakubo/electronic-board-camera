@@ -1899,6 +1899,155 @@
       }
     }
 
+  
+
+    /* v52.3: 看板編集は通常フォーム + Canvasプレビュー */
+    #boardEditOverlay {
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr) 84px;
+      gap: 14px;
+      padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+      align-items: stretch;
+    }
+
+    .board-edit-form-panel {
+      min-width: 0;
+      overflow: auto;
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,0.97);
+      color: #111;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.42);
+    }
+
+    .board-edit-form-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .board-edit-form-title { font-size: 18px; font-weight: 900; }
+    .board-edit-history-inline { display: flex; gap: 6px; }
+    .board-edit-history-inline button,
+    .board-edit-reset-inline {
+      min-width: 42px;
+      min-height: 38px;
+      border: 0;
+      border-radius: 10px;
+      font-weight: 900;
+      font-family: inherit;
+      background: #e9eef6;
+      color: #111;
+    }
+    .board-edit-reset-inline { background: #eb5757; color: #fff; padding: 0 12px; }
+
+    .board-form-grid { display: grid; gap: 9px; }
+    .board-form-field { display: grid; gap: 4px; }
+    .board-form-field label { font-size: 12px; font-weight: 900; color: #4a5568; }
+    .board-form-field textarea,
+    .board-form-field input,
+    .board-form-field select {
+      width: 100%;
+      box-sizing: border-box;
+      border: 2px solid #d8dee8;
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      color: #111;
+      font: 800 16px/1.35 "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    }
+    .board-form-field textarea { resize: vertical; min-height: 60px; white-space: pre-wrap; }
+    .board-form-field.active textarea,
+    .board-form-field.active input { border-color: #2f80ed; box-shadow: 0 0 0 3px rgba(47,128,237,.14); }
+    .board-form-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    #boardEditHost {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      overflow: hidden;
+    }
+    #boardEditPhotoStage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-width: 0;
+    }
+    #boardEditCanvasWrap {
+      position: relative;
+      width: min(100%, 860px);
+      aspect-ratio: 390 / 242;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+    }
+    #boardEditCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+    }
+    #boardEditPhotoBackdrop {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+      z-index: -1;
+    }
+    #boardEditOverlay.photo-board-correction #boardEditCanvasWrap {
+      background: #111;
+    }
+    .board-preview-size-controls {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fff;
+      font-weight: 900;
+      flex-wrap: wrap;
+    }
+    .board-preview-size-controls button {
+      min-width: 58px;
+      min-height: 42px;
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 12px;
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font: 900 17px/1 inherit;
+    }
+    #boardEditSelectedFieldLabel { min-width: 90px; text-align: center; font-size: 13px; }
+
+    .board-edit-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    @media (max-width: 850px) {
+      #boardEditOverlay {
+        grid-template-columns: minmax(240px, 42vw) minmax(0, 1fr) 66px;
+        gap: 8px;
+        padding-left: 6px;
+        padding-right: 6px;
+      }
+      .board-edit-form-panel { padding: 10px; border-radius: 12px; }
+      .board-form-field textarea, .board-form-field input, .board-form-field select { font-size: 14px; padding: 7px 8px; }
+      .board-edit-done { width: 58px; min-height: 120px; font-size: 17px; }
+      .edit-mode-toggle { width: 58px; }
+    }
+
   </style>
 </head>
 
@@ -2162,7 +2311,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v52.2</strong>
+        現在：<strong id="settingsVersionText">v52.3</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2187,35 +2336,74 @@
   </div>
 
   <div id="boardEditOverlay">
-    <div class="board-edit-left">
-      <div id="boardHistoryControls" class="board-history-controls">
-        <button class="board-history-button" type="button" onclick="undoBoardEdit()" aria-label="戻る">↶</button>
-        <button class="board-history-button" type="button" onclick="redoBoardEdit()" aria-label="進む">↷</button>
+    <div class="board-edit-form-panel">
+      <div class="board-edit-form-header">
+        <div class="board-edit-form-title">看板編集</div>
+        <div class="board-edit-history-inline">
+          <button type="button" onclick="undoBoardEdit()" aria-label="戻る">↶</button>
+          <button type="button" onclick="redoBoardEdit()" aria-label="進む">↷</button>
+          <button class="board-edit-reset-inline" type="button" onclick="resetBoardEdit()">最初から</button>
+        </div>
       </div>
-      <button id="boardEditResetButton" class="board-edit-reset" type="button" onclick="resetBoardEdit()">最初から</button>
-      <div class="board-edit-title">看板編集モード</div>
-    </div>
-    <div id="boardEditHost">
-      <div id="boardEditPhotoStage">
-        <img id="boardEditPhotoBackdrop" alt="看板修正対象写真" />
-        <div id="fontControlOverlay" class="font-control-overlay">
-          <div class="font-control-row font-subject"><button type="button" onclick="adjustBoardFieldTextSize('subject', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('subject', 1)">＋</button></div>
-          <div class="font-control-row font-address"><button type="button" onclick="adjustBoardFieldTextSize('address', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('address', 1)">＋</button></div>
-          <div class="font-control-row font-room"><button type="button" onclick="adjustBoardFieldTextSize('room', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('room', 1)">＋</button></div>
-          <div class="font-control-row font-sample"><button type="button" onclick="adjustBoardFieldTextSize('sample', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('sample', 1)">＋</button></div>
-          <div class="font-control-row font-date"><button type="button" onclick="adjustBoardFieldTextSize('date', -1)">－</button><button type="button" onclick="adjustBoardFieldTextSize('date', 1)">＋</button></div>
+      <div class="board-form-grid">
+        <div class="board-form-field" data-board-field="subject">
+          <label for="boardEditSubject">件名（改行可）</label>
+          <textarea id="boardEditSubject" rows="2"></textarea>
+        </div>
+        <div class="board-form-field" data-board-field="address">
+          <label for="boardEditAddress">住所（改行可）</label>
+          <textarea id="boardEditAddress" rows="2"></textarea>
+        </div>
+        <div class="board-form-field" data-board-field="room">
+          <label id="boardEditRoomLabel" for="boardEditRoom">部屋No.／採取箇所名（改行可）</label>
+          <textarea id="boardEditRoom" rows="2"></textarea>
+        </div>
+        <div class="board-form-two">
+          <div class="board-form-field" data-board-field="sample">
+            <label for="boardEditSample">試料No.</label>
+            <input id="boardEditSample" type="text" />
+          </div>
+          <div class="board-form-field" data-board-field="date">
+            <label for="boardEditDate">日付</label>
+            <input id="boardEditDate" type="text" />
+          </div>
+        </div>
+        <div class="board-form-two">
+          <div class="board-form-field">
+            <label for="boardEditStatus">写真区分</label>
+            <select id="boardEditStatus"></select>
+          </div>
+          <div class="board-form-field">
+            <label for="boardEditModeSelect">看板種類</label>
+            <select id="boardEditModeSelect">
+              <option value="survey">調査</option>
+              <option value="sampling">サンプリング</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
+
+    <div id="boardEditHost">
+      <div id="boardEditPhotoStage">
+        <img id="boardEditPhotoBackdrop" alt="看板修正対象写真" />
+        <div id="boardEditCanvasWrap"><canvas id="boardEditCanvas"></canvas></div>
+      </div>
+      <div class="board-preview-size-controls">
+        <span id="boardEditSelectedFieldLabel">件名</span>
+        <button type="button" onclick="adjustSelectedBoardEditTextSize(-1)">A-</button>
+        <button type="button" onclick="adjustSelectedBoardEditTextSize(1)">A+</button>
+      </div>
+    </div>
+
     <div class="board-edit-right">
       <button id="boardEditDoneButton" class="board-edit-done" type="button" onclick="closeBoardEditMode()">完了</button>
-      <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardMode()">調査</button>
+      <button id="editBoardModeButton" class="edit-mode-toggle" type="button" onclick="toggleBoardEditModeFromForm()">調査</button>
     </div>
-    <div class="board-edit-hint">件名・採取場所・部屋No.・試料No.・日付を編集できます。<br>写真区分もこの画面で切り替えできます。</div>
   </div>
 
   <script>
-    const APP_VERSION = "v52.2-edit-controls-fix";
+    const APP_VERSION = "v52.3-form-canvas-editor";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2269,6 +2457,16 @@
     const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
     const boardEditDoneButton = document.getElementById("boardEditDoneButton");
     const boardEditHost = document.getElementById("boardEditHost");
+    const boardEditCanvas = document.getElementById("boardEditCanvas");
+    const boardEditSubject = document.getElementById("boardEditSubject");
+    const boardEditAddress = document.getElementById("boardEditAddress");
+    const boardEditRoom = document.getElementById("boardEditRoom");
+    const boardEditSample = document.getElementById("boardEditSample");
+    const boardEditDate = document.getElementById("boardEditDate");
+    const boardEditStatus = document.getElementById("boardEditStatus");
+    const boardEditModeSelect = document.getElementById("boardEditModeSelect");
+    const boardEditRoomLabel = document.getElementById("boardEditRoomLabel");
+    const boardEditSelectedFieldLabel = document.getElementById("boardEditSelectedFieldLabel");
 
     const subjectText = document.getElementById("subjectText");
     const addressText = document.getElementById("addressText");
@@ -2371,6 +2569,9 @@
     let boardEditHistoryIndex = -1;
     let isApplyingBoardHistory = false;
     let boardEditHistoryTimer = null;
+    let boardEditDraft = null;
+    let boardEditSelectedField = "subject";
+    let boardEditRenderQueued = false;
 
     document.addEventListener("DOMContentLoaded", async () => {
       renderAppVersion();
@@ -2388,6 +2589,7 @@
       setupPhotoCountHiddenShoot();
       setupBoardTextareaAutoCenter();
       setupBoardEditHistoryTracking();
+    setupBoardEditForm();
       renderPhotoQualitySettings();
       renderBoardTextSize();
       applyBoardFieldTextSizes();
@@ -2805,32 +3007,166 @@
       boardWrap.classList.toggle("board-readonly", !enabled);
     }
 
+    function getCurrentBoardData() {
+      return {
+        subject: subjectText ? subjectText.value || "" : "",
+        address: addressText ? addressText.value || "" : "",
+        roomNo: roomNoInput ? roomNoInput.value || "" : "",
+        sampleNo: sampleNoInput ? sampleNoInput.value || "" : "",
+        date: dateText ? dateText.textContent || "" : "",
+        status: selectedStatus,
+        boardMode,
+        fieldTextSize: { ...boardFieldTextSize }
+      };
+    }
+
+    function populateBoardEditForm(data) {
+      if (!data) return;
+      boardEditSubject.value = data.subject || "";
+      boardEditAddress.value = data.address || "";
+      boardEditRoom.value = data.roomNo || "";
+      boardEditSample.value = data.sampleNo || "";
+      boardEditDate.value = data.date || "";
+      boardEditModeSelect.value = data.boardMode === "sampling" ? "sampling" : "survey";
+      renderBoardEditStatusOptions(data.status);
+      updateBoardEditModeLabels();
+    }
+
+    function readBoardEditForm() {
+      if (!boardEditDraft) boardEditDraft = getCurrentBoardData();
+      boardEditDraft.subject = boardEditSubject.value || "";
+      boardEditDraft.address = boardEditAddress.value || "";
+      boardEditDraft.roomNo = boardEditRoom.value || "";
+      boardEditDraft.sampleNo = boardEditSample.value || "";
+      boardEditDraft.date = boardEditDate.value || "";
+      boardEditDraft.status = boardEditStatus.value || "visual";
+      boardEditDraft.boardMode = boardEditModeSelect.value === "sampling" ? "sampling" : "survey";
+      return boardEditDraft;
+    }
+
+    function applyBoardEditDraft() {
+      const data = readBoardEditForm();
+      subjectText.value = data.subject;
+      addressText.value = data.address;
+      roomNoInput.value = data.roomNo;
+      sampleNoInput.value = data.sampleNo;
+      dateText.textContent = data.date;
+      boardFieldTextSize = { ...data.fieldTextSize };
+      boardMode = data.boardMode;
+      selectedStatus = data.status;
+      saveBoardFieldTextSizes();
+      applyBoardMode();
+      setStatus(selectedStatus);
+      applyBoardFieldTextSizes();
+      syncBoardTextareas();
+    }
+
+    function renderBoardEditStatusOptions(value) {
+      const mode = boardEditModeSelect && boardEditModeSelect.value === "sampling" ? "sampling" : "survey";
+      const list = mode === "sampling" ? [STATUS_LIST[1], STATUS_LIST[2], STATUS_LIST[3]] : STATUS_LIST;
+      boardEditStatus.innerHTML = list.map(item => `<option value="${item.value}">${item.label}</option>`).join("");
+      const next = list.some(item => item.value === value) ? value : list[0].value;
+      boardEditStatus.value = next;
+      if (boardEditDraft) boardEditDraft.status = next;
+    }
+
+    function updateBoardEditModeLabels() {
+      const sampling = boardEditModeSelect.value === "sampling";
+      boardEditRoomLabel.textContent = sampling ? "採取箇所名（改行可）" : "部屋No.（改行可）";
+      if (editBoardModeButton) editBoardModeButton.textContent = sampling ? "採取" : "調査";
+    }
+
+    function selectBoardEditField(field) {
+      const labels = { subject: "件名", address: "住所", room: boardEditModeSelect.value === "sampling" ? "採取箇所" : "部屋No.", sample: "試料No.", date: "日付" };
+      boardEditSelectedField = field;
+      document.querySelectorAll(".board-form-field[data-board-field]").forEach(el => el.classList.toggle("active", el.dataset.boardField === field));
+      if (boardEditSelectedFieldLabel) boardEditSelectedFieldLabel.textContent = labels[field] || field;
+    }
+
+    function scheduleBoardEditCanvasRender() {
+      if (!isBoardEditMode || boardEditRenderQueued) return;
+      boardEditRenderQueued = true;
+      requestAnimationFrame(() => {
+        boardEditRenderQueued = false;
+        renderBoardEditCanvas();
+      });
+    }
+
+    function renderBoardEditCanvas() {
+      if (!boardEditCanvas || !boardEditDraft) return;
+      const wrap = boardEditCanvas.parentElement;
+      const cssWidth = Math.max(1, Math.round(wrap.clientWidth || 780));
+      const cssHeight = Math.max(1, Math.round(wrap.clientHeight || cssWidth * 242 / 390));
+      const ratio = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      boardEditCanvas.width = Math.round(cssWidth * ratio);
+      boardEditCanvas.height = Math.round(cssHeight * ratio);
+      boardEditCanvas.style.width = `${cssWidth}px`;
+      boardEditCanvas.style.height = `${cssHeight}px`;
+      const ctx = boardEditCanvas.getContext("2d");
+      ctx.clearRect(0, 0, boardEditCanvas.width, boardEditCanvas.height);
+      drawBoardOnCanvas(ctx, 0, 0, boardEditCanvas.width, boardEditCanvas.height, readBoardEditForm());
+    }
+
+    function setupBoardEditForm() {
+      const controls = [boardEditSubject, boardEditAddress, boardEditRoom, boardEditSample, boardEditDate, boardEditStatus, boardEditModeSelect].filter(Boolean);
+      controls.forEach(control => {
+        control.addEventListener("input", () => {
+          readBoardEditForm();
+          if (control === boardEditModeSelect) {
+            renderBoardEditStatusOptions(boardEditDraft.status);
+            updateBoardEditModeLabels();
+            selectBoardEditField(boardEditSelectedField);
+          }
+          scheduleBoardEditCanvasRender();
+          pushBoardEditHistoryDebounced();
+        });
+        control.addEventListener("focus", () => {
+          const holder = control.closest("[data-board-field]");
+          if (holder) selectBoardEditField(holder.dataset.boardField);
+        });
+      });
+      window.addEventListener("resize", scheduleBoardEditCanvasRender);
+    }
+
+    function adjustSelectedBoardEditTextSize(delta) {
+      if (!boardEditDraft || !boardEditDraft.fieldTextSize) return;
+      const field = boardEditSelectedField;
+      const max = (field === "room" || field === "sample") ? 36 : (field === "date" ? 34 : 32);
+      const min = field === "date" ? 14 : 12;
+      boardEditDraft.fieldTextSize[field] = clamp((Number(boardEditDraft.fieldTextSize[field]) || 18) + delta, min, max);
+      scheduleBoardEditCanvasRender();
+      pushBoardEditHistoryDebounced();
+    }
+
+    function toggleBoardEditModeFromForm() {
+      boardEditModeSelect.value = boardEditModeSelect.value === "sampling" ? "survey" : "sampling";
+      boardEditModeSelect.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
     function openBoardEditMode(options = {}) {
       if (isBoardEditMode) return;
       if (isSectionMode) {
         showToast("断面モード中は看板を編集できません");
         return;
       }
-
       isBoardEditMode = true;
       document.body.classList.add("board-editing");
+      boardEditDraft = getCurrentBoardData();
+      populateBoardEditForm(boardEditDraft);
       initBoardEditHistory();
-      (boardEditPhotoStage || boardEditHost).appendChild(boardWrap);
       boardEditOverlay.classList.add("show");
-      setBoardEditable(true);
-
+      selectBoardEditField("subject");
+      scheduleBoardEditCanvasRender();
       setTimeout(() => {
-        syncBoardTextareas();
-        if (options.focusFirstField !== false && subjectText && subjectText.focus) subjectText.focus();
-      }, 120);
+        scheduleBoardEditCanvasRender();
+        if (options.focusFirstField !== false) boardEditSubject.focus();
+      }, 80);
     }
 
     async function closeBoardEditMode() {
       if (!isBoardEditMode) return;
-
       const shouldFinishPhotoCorrection = Boolean(boardEditTargetPhotoId);
-
-      boardLayer.appendChild(boardWrap);
+      applyBoardEditDraft();
       boardEditOverlay.classList.remove("show");
       boardEditOverlay.classList.remove("photo-board-correction");
       if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
@@ -2838,22 +3174,19 @@
       document.body.classList.remove("board-editing");
       setBoardEditable(false);
       isBoardEditMode = false;
+      boardEditDraft = null;
       placeBoardByFixedPosition();
       saveBoardForm();
       scheduleBoardPreviewRender();
       if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
-
       if (shouldFinishPhotoCorrection) {
         await finishPhotoBoardCorrection();
         previewOverlay.classList.add("show");
         renderPreview();
         return;
       }
-
       showToast("看板編集を完了しました");
     }
-
-
 
     function syncBoardTextareas() {
       const targets = [subjectText, addressText, samplingLocationInput].filter(Boolean);
@@ -2904,41 +3237,34 @@
     }
 
     function getBoardEditSnapshot() {
+      const data = isBoardEditMode && boardEditDraft ? readBoardEditForm() : getCurrentBoardData();
       return {
-        subject: subjectText ? subjectText.value : "",
-        address: addressText ? addressText.value : "",
-        roomNo: roomNoInput ? roomNoInput.value : "",
-        sampleNo: sampleNoInput ? sampleNoInput.value : "",
-        date: dateText ? dateText.textContent : "",
-        selectedStatus,
-        boardMode,
-        fieldTextSize: { ...boardFieldTextSize }
+        subject: data.subject || "",
+        address: data.address || "",
+        roomNo: data.roomNo || "",
+        sampleNo: data.sampleNo || "",
+        date: data.date || "",
+        selectedStatus: data.status,
+        boardMode: data.boardMode,
+        fieldTextSize: { ...(data.fieldTextSize || boardFieldTextSize) }
       };
     }
 
     function applyBoardEditSnapshot(snapshot) {
       if (!snapshot) return;
       isApplyingBoardHistory = true;
-      if (subjectText) subjectText.value = snapshot.subject || "";
-      if (addressText) addressText.value = snapshot.address || "";
-      if (roomNoInput) roomNoInput.value = snapshot.roomNo || "";
-      if (sampleNoInput) sampleNoInput.value = snapshot.sampleNo || "";
-      if (dateText) dateText.textContent = snapshot.date || "";
-      if (snapshot.fieldTextSize) {
-        boardFieldTextSize.subject = clamp(Number(snapshot.fieldTextSize.subject) || boardFieldTextSize.subject, 12, 32);
-        boardFieldTextSize.address = clamp(Number(snapshot.fieldTextSize.address) || boardFieldTextSize.address, 12, 32);
-        boardFieldTextSize.room = clamp(Number(snapshot.fieldTextSize.room) || boardFieldTextSize.room, 12, 36);
-        boardFieldTextSize.sample = clamp(Number(snapshot.fieldTextSize.sample) || boardFieldTextSize.sample || 24, 12, 36);
-        boardFieldTextSize.date = clamp(Number(snapshot.fieldTextSize.date) || boardFieldTextSize.date || 24, 14, 34);
-        saveBoardFieldTextSizes();
-      }
-      boardMode = snapshot.boardMode === "sampling" ? "sampling" : "survey";
-      applyBoardMode();
-      setStatus(snapshot.selectedStatus || selectedStatus || "visual");
-      applyBoardFieldTextSizes();
-      syncBoardTextareas();
-      saveBoardForm();
-      scheduleBoardPreviewRender();
+      boardEditDraft = {
+        subject: snapshot.subject || "",
+        address: snapshot.address || "",
+        roomNo: snapshot.roomNo || "",
+        sampleNo: snapshot.sampleNo || "",
+        date: snapshot.date || "",
+        status: snapshot.selectedStatus || "visual",
+        boardMode: snapshot.boardMode === "sampling" ? "sampling" : "survey",
+        fieldTextSize: { ...(snapshot.fieldTextSize || boardFieldTextSize) }
+      };
+      populateBoardEditForm(boardEditDraft);
+      scheduleBoardEditCanvasRender();
       isApplyingBoardHistory = false;
     }
 
@@ -4723,15 +5049,18 @@
     }
 
     /* キャンバス上に看板を描画 */
-    function drawBoardOnCanvas(ctx, x, y, w, h) {
+    function drawBoardOnCanvas(ctx, x, y, w, h, sourceData = null) {
+      const source = sourceData || getCurrentBoardData();
+      const activeBoardMode = source.boardMode === "sampling" ? "sampling" : "survey";
+      const activeTextSizes = source.fieldTextSize || boardFieldTextSize;
       const data = {
-        subject: subjectText.value || "",
-        address: addressText.value || "",
-        roomNo: roomNoInput.value.trim(),
-        sampleNo: sampleNoInput.value.trim(),
-        date: dateText.textContent || "",
-        status: selectedStatus,
-        roomLabel: boardMode === "sampling" ? "" : "　部屋No."
+        subject: source.subject || "",
+        address: source.address || "",
+        roomNo: String(source.roomNo || "").trim(),
+        sampleNo: String(source.sampleNo || "").trim(),
+        date: source.date || "",
+        status: source.status || selectedStatus,
+        roomLabel: activeBoardMode === "sampling" ? "" : "　部屋No."
       };
 
       const outerLine = Math.max(1.2, h * 0.0085);
@@ -4796,11 +5125,11 @@
       // 部屋No. / 試料No. はラベルと値の間の縦線を描かない。
 
       const textMultiplier = BOARD_TEXT_SIZE_MULTIPLIERS[boardTextSize] || 1;
-      const subjectMultiplier = (boardFieldTextSize.subject || 18) / 18;
-      const addressMultiplier = (boardFieldTextSize.address || 17) / 17;
-      const roomMultiplier = (boardFieldTextSize.room || 24) / 24;
-      const sampleMultiplier = (boardFieldTextSize.sample || 24) / 24;
-      const dateMultiplier = (boardFieldTextSize.date || 24) / 24;
+      const subjectMultiplier = (activeTextSizes.subject || 18) / 18;
+      const addressMultiplier = (activeTextSizes.address || 17) / 17;
+      const roomMultiplier = (activeTextSizes.room || 24) / 24;
+      const sampleMultiplier = (activeTextSizes.sample || 24) / 24;
+      const dateMultiplier = (activeTextSizes.date || 24) / 24;
       const labelFont = Math.max(10, w * 0.046);
       const titleFont = Math.max(10, w * 0.047 * textMultiplier * subjectMultiplier);
       const addressFont = Math.max(10, w * 0.044 * textMultiplier * addressMultiplier);
@@ -4818,7 +5147,7 @@
       drawWrappedCenterText(ctx, data.subject, x + leftColW + 6, y, rightW - 12, row1H, titleFont, 1.25, 2);
       drawWrappedCenterText(ctx, data.address, x + leftColW + 6, y + row1H, rightW - 12, row2H, addressFont, 1.2, 2);
 
-      if (boardMode === "sampling") {
+      if (activeBoardMode === "sampling") {
         drawCenteredText(ctx, data.roomNo, x + leftColW + 10, contentY, rightW - 20, roomRowH, innerValueFont);
       } else {
         drawLeftMiddleText(ctx, data.roomLabel, x + leftColW + 8, contentY, innerLabelW - 8, roomRowH, innerLabelFont);

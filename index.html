@@ -2493,14 +2493,14 @@
     </div>
 
     <div class="board-edit-right">
-      <button id="boardEditDoneButton" class="board-edit-done" type="button">完了</button>
+      <button id="boardEditDoneButton" class="board-edit-done" type="button" onclick="return forceFinishBoardEdit(event)">完了</button>
       <button id="editBoardModeButton" class="edit-mode-toggle" type="button">調査</button>
     </div>
   </div>
   </div>
 
   <script>
-    const APP_VERSION = "v53.5-draft-commit-settings-toggle";
+    const APP_VERSION = "v53.6";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -3172,7 +3172,7 @@
       roomNoInput.value = data.roomNo;
       sampleNoInput.value = data.sampleNo;
       dateText.textContent = data.date;
-      boardFieldTextSize = { ...data.fieldTextSize };
+      Object.assign(boardFieldTextSize, data.fieldTextSize || {});
       boardMode = data.boardMode;
       selectedStatus = data.status;
       saveBoardFieldTextSizes();
@@ -3306,23 +3306,51 @@
       bindTap(document.getElementById("boardEditSizeUpButton"), () => adjustSelectedBoardEditTextSize(1));
       bindTap(document.getElementById("editBoardModeButton"), toggleBoardEditModeFromForm);
       const doneButton = document.getElementById("boardEditDoneButton");
-      if (doneButton && doneButton.dataset.doneBound !== "1") {
+      if (doneButton) {
         doneButton.dataset.doneBound = "1";
-        let lastDoneRequest = 0;
-        const request = (event) => {
-          const now = Date.now();
-          if (now - lastDoneRequest < 350) return;
-          lastDoneRequest = now;
-          requestBoardEditFinish(event);
-        };
-        doneButton.addEventListener("pointerup", request, { passive: false });
-        doneButton.addEventListener("touchend", request, { passive: false });
-        doneButton.addEventListener("click", request, false);
       }
     }
 
 
     let boardEditFinishRunning = false;
+
+    async function forceFinishBoardEdit(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      try {
+        const active = document.activeElement;
+        if (active && typeof active.blur === "function") active.blur();
+
+        boardEditIsComposing = false;
+        boardEditFinishRequested = false;
+        boardEditFinishRunning = false;
+
+        const latestData = {
+          subject: boardEditSubject ? boardEditSubject.value || "" : "",
+          address: boardEditAddress ? boardEditAddress.value || "" : "",
+          roomNo: boardEditRoom ? boardEditRoom.value || "" : "",
+          sampleNo: boardEditSample ? boardEditSample.value || "" : "",
+          date: boardEditDate ? boardEditDate.value || "" : "",
+          status: boardEditStatus ? boardEditStatus.value || "visual" : "visual",
+          boardMode: boardEditModeSelect && boardEditModeSelect.value === "sampling" ? "sampling" : "survey",
+          fieldTextSize: { ...boardFieldTextSize }
+        };
+
+        boardEditDraft = structuredCloneBoardData(latestData);
+
+        // 状態フラグに依存せず、編集画面が見えている場合は必ず完了処理を通す。
+        if (!isBoardEditMode) isBoardEditMode = true;
+        await closeBoardEditMode({ data: boardEditDraft });
+      } catch (error) {
+        console.error("強制完了処理に失敗しました", error);
+        window.alert(`完了処理エラー: ${error && error.message ? error.message : error}`);
+      }
+
+      return false;
+    }
 
     function requestBoardEditFinish(event) {
       if (event) {
@@ -3332,28 +3360,32 @@
       if (!isBoardEditMode || boardEditFinishRunning) return false;
 
       boardEditFinishRequested = true;
+
+      // 先にフォーカスを外し、日本語入力を確定させる。
       const active = document.activeElement;
       if (active && typeof active.blur === "function") active.blur();
 
-      // 日本語変換中はcompositionendで再実行する。
-      if (boardEditIsComposing) return false;
+      // compositionendの有無に依存せず、DOMの現在値を直接下書きへ取り込む。
+      window.setTimeout(() => {
+        if (!isBoardEditMode || boardEditFinishRunning) return;
+        boardEditIsComposing = false;
+        readBoardEditForm();
+        finishBoardEditFromDraft();
+      }, 80);
 
-      // input/change/blurが下書きへ入る次フレームまで待って確定する。
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => finishBoardEditFromDraft());
-      });
       return false;
     }
 
     async function finishBoardEditFromDraft() {
-      if (!isBoardEditMode || boardEditFinishRunning || boardEditIsComposing) return;
+      if (!isBoardEditMode || boardEditFinishRunning) return;
       boardEditFinishRunning = true;
       boardEditFinishRequested = false;
 
       try {
-        // DOMを完了時に読み直すのではなく、入力中から同期済みの下書きを確定する。
+        // 完了直前のフォーム値を必ず取り込み、その値を通常看板へ反映する。
+        const latestData = structuredCloneBoardData(readBoardEditForm());
         flushBoardEditHistory();
-        await closeBoardEditMode({ data: structuredCloneBoardData(boardEditDraft) });
+        await closeBoardEditMode({ data: latestData });
       } catch (error) {
         console.error("看板編集の完了処理に失敗しました", error);
         showToast("編集内容の反映に失敗しました");
@@ -3403,7 +3435,7 @@
       roomNoInput.value = data.roomNo || "";
       sampleNoInput.value = data.sampleNo || "";
       dateText.textContent = data.date || "";
-      boardFieldTextSize = { ...(data.fieldTextSize || boardFieldTextSize) };
+      Object.assign(boardFieldTextSize, data.fieldTextSize || {});
       boardMode = data.boardMode === "sampling" ? "sampling" : "survey";
       selectedStatus = data.status || "visual";
 

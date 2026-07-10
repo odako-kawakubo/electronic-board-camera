@@ -2141,6 +2141,67 @@
       user-select: none;
     }
 
+
+    /* v53.7: 表示写真のダブルタップ拡大 */
+    #photoZoomOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 36000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.90);
+      padding: 14px;
+      cursor: zoom-out;
+    }
+
+    #photoZoomOverlay.show { display: flex; }
+
+    #photoZoomImage {
+      width: min(var(--app-vw), calc((var(--app-vh) - 28px) * 4 / 3));
+      max-width: 100%;
+      max-height: calc(var(--app-vh) - 28px);
+      object-fit: contain;
+      border-radius: 10px;
+      background: #111;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* v53.7: 編集中の看板種類を明示 */
+    .board-edit-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .board-edit-mode-badge.mode-survey,
+    .edit-mode-toggle.mode-survey {
+      background: linear-gradient(180deg, #2f80ed, #1767c8);
+    }
+
+    .board-edit-mode-badge.mode-sampling,
+    .edit-mode-toggle.mode-sampling {
+      background: linear-gradient(180deg, #27ae60, #178346);
+    }
+
+    #boardEditHost .row-subject { height: 22.6087%; }
+    #boardEditHost .row-place { height: 17.3913%; }
+    #boardEditHost .row-content { height: 42.6087%; }
+    #boardEditHost .row-date { height: 17.3913%; }
+    #boardEditHost .inner-table tr:nth-child(1) { height: 34.6939%; }
+    #boardEditHost .inner-table tr:nth-child(2) { height: 34.6939%; }
+    #boardEditHost .inner-table tr:nth-child(3) { height: 30.6122%; }
+
   </style>
 </head>
 
@@ -2173,10 +2234,10 @@
             </div>
           </div>
 
-          <div class="panel-single sampling-only" aria-label="採取箇所入力">
-            <button class="panel-mini-button" type="button" onclick="promptRoomNo()">▲</button>
-            <button class="panel-center-button" type="button" onclick="promptRoomNo()">📍</button>
-            <button class="panel-mini-button" type="button" onclick="promptRoomNo()">▼</button>
+          <div class="panel-single sampling-only" aria-label="採取箇所操作">
+            <button class="panel-mini-button" type="button" onclick="changeSamplingLocation(1)">▲</button>
+            <button id="samplingLocationTargetButton" class="panel-center-button" type="button" onclick="cycleSamplingLocationTarget()">箇所</button>
+            <button class="panel-mini-button" type="button" onclick="changeSamplingLocation(-1)">▼</button>
           </div>
 
           <button class="panel-close-button" type="button" onclick="closeSidePanel()">閉じる</button>
@@ -2359,6 +2420,10 @@
     </div>
   </div>
 
+  <div id="photoZoomOverlay" aria-modal="true" role="dialog" aria-label="写真拡大表示">
+    <img id="photoZoomImage" alt="拡大写真" />
+  </div>
+
   <div id="previewOverlay">
     <div class="preview-topbar">
       <button id="settingsButton" class="settings-button" type="button" aria-label="設定">⚙</button>
@@ -2406,7 +2471,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v53.1</strong>
+        現在：<strong id="settingsVersionText">v54</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2434,7 +2499,7 @@
     <div class="board-edit-form-panel">
       <div class="board-edit-form-header">
         <div class="board-edit-form-title">看板編集</div>
-
+        <div id="boardEditModeBadge" class="board-edit-mode-badge mode-survey">調査</div>
       </div>
       <div class="board-form-grid">
         <div class="board-form-field" data-board-field="subject">
@@ -2500,7 +2565,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v53.6";
+    const APP_VERSION = "v54";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2581,6 +2646,9 @@
     const sectionModeBadge = document.getElementById("sectionModeBadge");
     const previewOverlay = document.getElementById("previewOverlay");
     const previewImage = document.getElementById("previewImage");
+    const photoZoomOverlay = document.getElementById("photoZoomOverlay");
+    const photoZoomImage = document.getElementById("photoZoomImage");
+    const boardEditModeBadge = document.getElementById("boardEditModeBadge");
     const previewCounter = document.getElementById("previewCounter");
     const caseSelectButton = document.getElementById("caseSelectButton");
     const casePickerOverlay = document.getElementById("casePickerOverlay");
@@ -2811,9 +2879,17 @@
     function applyBoardMode() {
       const isSampling = boardMode === "sampling";
       document.body.classList.toggle("sampling-mode", isSampling);
+      if (isSampling) updateSamplingLocationTargetButton();
 
       if (editBoardModeButton) {
         editBoardModeButton.textContent = isSampling ? "サンプリング" : "調査";
+        editBoardModeButton.classList.toggle("mode-survey", !isSampling);
+        editBoardModeButton.classList.toggle("mode-sampling", isSampling);
+      }
+      if (boardEditModeBadge && !isBoardEditMode) {
+        boardEditModeBadge.textContent = isSampling ? "サンプリング" : "調査";
+        boardEditModeBadge.classList.toggle("mode-survey", !isSampling);
+        boardEditModeBadge.classList.toggle("mode-sampling", isSampling);
       }
       updateCategoryToggleButton();
 
@@ -2871,14 +2947,190 @@
       panelMainButtons.forEach((button) => button.classList.remove("active"));
     }
 
+    let samplingLocationTargetIndex = 0;
+
     function promptRoomNo() {
       const label = boardMode === "sampling" ? "採取箇所" : "部屋No.";
       const next = window.prompt(`${label}を入力してください`, roomNoInput.value || "");
       if (next === null) return;
       roomNoInput.value = next.trim();
+      samplingLocationTargetIndex = 0;
+      updateSamplingLocationTargetButton();
       saveBoardForm();
       if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
       showToast(`${label}を変更しました`);
+    }
+
+    function getSamplingLocationTargets(value) {
+      const text = String(value || "");
+      const targets = [];
+      const occupied = [];
+
+      const overlaps = (start, end) => occupied.some((range) => start < range.end && end > range.start);
+      const reserve = (start, end) => occupied.push({ start, end });
+
+      // 連続範囲は1つの対象として扱う。例: 1-2階 => 2-3階 => 3-4階。
+      for (const match of text.matchAll(/(\d+)\s*[-ー－〜~]\s*(\d+)/g)) {
+        const raw = match[0];
+        const start = match.index;
+        const end = start + raw.length;
+        if (overlaps(start, end)) continue;
+        reserve(start, end);
+        targets.push({
+          kind: "range",
+          start,
+          end,
+          raw,
+          first: Number(match[1]),
+          second: Number(match[2]),
+          separator: raw.match(/[-ー－〜~]/)?.[0] || "-",
+          label: `範囲${match[1]}-${match[2]}`
+        });
+      }
+
+      // 3桁以上の部屋番号は「階 + 号室」に分ける。例: 101 => 1階 / 01号室。
+      for (const match of text.matchAll(/\d{3,}/g)) {
+        const raw = match[0];
+        const start = match.index;
+        const end = start + raw.length;
+        if (overlaps(start, end)) continue;
+        reserve(start, end);
+        targets.push({
+          kind: "room-floor",
+          start,
+          end,
+          raw,
+          label: `階${Number(raw.slice(0, -2))}`
+        });
+        targets.push({
+          kind: "room-number",
+          start,
+          end,
+          raw,
+          label: `部屋${raw.slice(-2)}`
+        });
+      }
+
+      // 通常の数値。複数ある場合は、それぞれ別の対象として扱う。
+      for (const match of text.matchAll(/\d+/g)) {
+        const raw = match[0];
+        const start = match.index;
+        const end = start + raw.length;
+        if (overlaps(start, end)) continue;
+        reserve(start, end);
+        const prefix = text.slice(Math.max(0, start - 1), start);
+        const suffix = text.slice(end, end + 2);
+        let label = raw;
+        if (prefix === "第") label = `第${raw}`;
+        else if (suffix.startsWith("階")) label = `${raw}階`;
+        targets.push({ kind: "number", start, end, raw, label });
+      }
+
+      // アルファベットは1文字ずつA→B→Cの順で動かす。
+      for (const match of text.matchAll(/[A-Za-z]/g)) {
+        const start = match.index;
+        const end = start + 1;
+        if (overlaps(start, end)) continue;
+        reserve(start, end);
+        targets.push({ kind: "letter", start, end, raw: match[0], label: match[0].toUpperCase() });
+      }
+
+      // 方角は 東→西→南→北→中央 の順で循環。
+      for (const match of text.matchAll(/中央|東|西|南|北/g)) {
+        const start = match.index;
+        const end = start + match[0].length;
+        if (overlaps(start, end)) continue;
+        reserve(start, end);
+        targets.push({ kind: "direction", start, end, raw: match[0], label: match[0] });
+      }
+
+      return targets.sort((a, b) => a.start - b.start || targetKindOrder(a.kind) - targetKindOrder(b.kind));
+    }
+
+    function targetKindOrder(kind) {
+      if (kind === "range") return 0;
+      if (kind === "room-floor") return 1;
+      if (kind === "room-number") return 2;
+      return 3;
+    }
+
+    function updateSamplingLocationTargetButton() {
+      const button = document.getElementById("samplingLocationTargetButton");
+      if (!button) return;
+      const targets = getSamplingLocationTargets(roomNoInput ? roomNoInput.value : "");
+      if (!targets.length) {
+        samplingLocationTargetIndex = 0;
+        button.textContent = "入力";
+        button.disabled = false;
+        return;
+      }
+      samplingLocationTargetIndex = ((samplingLocationTargetIndex % targets.length) + targets.length) % targets.length;
+      button.textContent = targets[samplingLocationTargetIndex].label || "箇所";
+      button.title = targets.length > 1 ? "タップして変更対象を切替" : "タップして採取箇所を入力";
+    }
+
+    function cycleSamplingLocationTarget() {
+      const targets = getSamplingLocationTargets(roomNoInput ? roomNoInput.value : "");
+      if (!targets.length) {
+        promptRoomNo();
+        return;
+      }
+      if (targets.length === 1) {
+        promptRoomNo();
+        return;
+      }
+      samplingLocationTargetIndex = (samplingLocationTargetIndex + 1) % targets.length;
+      updateSamplingLocationTargetButton();
+      showToast(`変更対象：${targets[samplingLocationTargetIndex].label}`);
+    }
+
+    function changeSamplingLocation(delta) {
+      const original = String(roomNoInput ? roomNoInput.value : "");
+      const targets = getSamplingLocationTargets(original);
+      if (!targets.length) {
+        promptRoomNo();
+        return;
+      }
+
+      samplingLocationTargetIndex = ((samplingLocationTargetIndex % targets.length) + targets.length) % targets.length;
+      const target = targets[samplingLocationTargetIndex];
+      let replacement = target.raw;
+
+      if (target.kind === "range") {
+        // 範囲は幅を保ったまま両端を同時に増減する。下限は先頭1。
+        const minDelta = 1 - target.first;
+        const appliedDelta = Math.max(delta, minDelta);
+        const first = target.first + appliedDelta;
+        const second = target.second + appliedDelta;
+        replacement = `${first}${target.separator}${second}`;
+      } else if (target.kind === "number") {
+        const width = target.raw.length;
+        const next = Math.max(0, Number(target.raw) + delta);
+        replacement = width > 1 && target.raw.startsWith("0") ? String(next).padStart(width, "0") : String(next);
+      } else if (target.kind === "room-floor" || target.kind === "room-number") {
+        const floorRaw = target.raw.slice(0, -2);
+        const roomRaw = target.raw.slice(-2);
+        const floor = Math.max(0, Number(floorRaw) + (target.kind === "room-floor" ? delta : 0));
+        const room = Math.max(0, Number(roomRaw) + (target.kind === "room-number" ? delta : 0));
+        replacement = `${floor}${String(room).padStart(2, "0")}`;
+      } else if (target.kind === "letter") {
+        const upper = target.raw === target.raw.toUpperCase();
+        const code = target.raw.toUpperCase().charCodeAt(0);
+        const nextCode = Math.min(90, Math.max(65, code + delta));
+        const letter = String.fromCharCode(nextCode);
+        replacement = upper ? letter : letter.toLowerCase();
+      } else if (target.kind === "direction") {
+        const directions = ["東", "西", "南", "北", "中央"];
+        const current = directions.indexOf(target.raw);
+        const index = current < 0 ? 0 : (current + delta + directions.length) % directions.length;
+        replacement = directions[index];
+      }
+
+      roomNoInput.value = original.slice(0, target.start) + replacement + original.slice(target.end);
+      saveBoardForm();
+      saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
+      updateSamplingLocationTargetButton();
+      showToast(`採取箇所：${roomNoInput.value || "未入力"}`);
     }
 
     function promptSampleNo() {
@@ -2918,29 +3170,47 @@
     function changeSampleNo(delta) {
       const parts = parseSampleDisplayValue(sampleNoInput.value);
       parts.sampleNo = Math.max(1, parts.sampleNo + delta);
-      sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo);
+      sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo, parts.hasPoint);
       saveBoardForm();
       showToast("検体No.を変更しました");
     }
 
     function changePointNo(delta) {
       const parts = parseSampleDisplayValue(sampleNoInput.value);
-      parts.pointNo = Math.max(1, parts.pointNo + delta);
-      sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo);
+
+      if (!parts.hasPoint) {
+        // 箇所なしの状態では、上で「-①」を付け、下はそのまま。
+        if (delta > 0) {
+          parts.hasPoint = true;
+          parts.pointNo = 1;
+        }
+      } else if (delta < 0 && parts.pointNo <= 1) {
+        // 「-①」から下げると箇所表記自体を消す。
+        parts.hasPoint = false;
+        parts.pointNo = 1;
+      } else {
+        parts.pointNo = Math.max(1, parts.pointNo + delta);
+      }
+
+      sampleNoInput.value = formatSampleDisplayValue(parts.sampleNo, parts.pointNo, parts.hasPoint);
       saveBoardForm();
-      showToast("箇所No.を変更しました");
+      showToast(parts.hasPoint ? "箇所No.を変更しました" : "箇所No.を外しました");
     }
 
     function parseSampleDisplayValue(value) {
-      const parsed = parseSampleAndPoint(value || POINT_DISPLAY_DEFAULT);
+      const raw = normalizeFullWidthText(String(value || "").trim())
+        .replace(/[−ー―‐]/g, "-")
+        .replace(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/g, (char) => String("①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".indexOf(char) + 1));
+      const match = raw.match(/^(\d+)(?:-(\d+))?$/);
       return {
-        sampleNo: Number(parsed.sampleNo) || 1,
-        pointNo: Number(parsed.pointNo) || 1
+        sampleNo: match ? Math.max(1, Number(match[1]) || 1) : 1,
+        pointNo: match && match[2] ? Math.max(1, Number(match[2]) || 1) : 1,
+        hasPoint: Boolean(match && match[2])
       };
     }
 
-    function formatSampleDisplayValue(sampleNo, pointNo) {
-      return `${sampleNo}-${toCircledNumber(pointNo)}`;
+    function formatSampleDisplayValue(sampleNo, pointNo, hasPoint = true) {
+      return hasPoint ? `${sampleNo}-${toCircledNumber(pointNo)}` : String(sampleNo);
     }
 
     function toCircledNumber(value) {
@@ -3193,8 +3463,20 @@
 
     function updateBoardEditModeLabels() {
       const sampling = boardEditModeSelect.value === "sampling";
+      const label = sampling ? "サンプリング" : "調査";
       boardEditRoomLabel.textContent = sampling ? "採取箇所名（改行可）" : "部屋No.（改行可）";
-      if (editBoardModeButton) editBoardModeButton.textContent = sampling ? "採取" : "調査";
+
+      if (editBoardModeButton) {
+        editBoardModeButton.textContent = label;
+        editBoardModeButton.classList.toggle("mode-survey", !sampling);
+        editBoardModeButton.classList.toggle("mode-sampling", sampling);
+      }
+
+      if (boardEditModeBadge) {
+        boardEditModeBadge.textContent = label;
+        boardEditModeBadge.classList.toggle("mode-survey", !sampling);
+        boardEditModeBadge.classList.toggle("mode-sampling", sampling);
+      }
     }
 
     function selectBoardEditField(field) {
@@ -4007,6 +4289,10 @@
           saveBoardForm();
           scheduleBoardPreviewRender();
           if (element === subjectText) updateSamplingNameHistoryList();
+          if (element === roomNoInput && boardMode === "sampling") {
+            samplingLocationTargetIndex = 0;
+            updateSamplingLocationTargetButton();
+          }
         });
         element.addEventListener("change", () => {
           saveBoardForm();
@@ -5173,11 +5459,67 @@
     }
 
     function setupPreviewImageTap() {
+      let lastTapAt = 0;
+      let singleTapTimer = null;
+      let suppressClickUntil = 0;
+
+      const openZoom = (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        if (isBoardCorrectionSelectMode || !previewImage.src) return;
+        if (singleTapTimer) {
+          clearTimeout(singleTapTimer);
+          singleTapTimer = null;
+        }
+        suppressClickUntil = Date.now() + 500;
+        photoZoomImage.src = previewImage.src;
+        photoZoomOverlay.classList.add("show");
+      };
+
+      previewImage.addEventListener("dblclick", openZoom);
+
+      previewImage.addEventListener("pointerup", (event) => {
+        if (event.pointerType === "mouse") return;
+        const now = Date.now();
+        if (now - lastTapAt <= 360) {
+          lastTapAt = 0;
+          openZoom(event);
+          return;
+        }
+        lastTapAt = now;
+      }, true);
+
       previewImage.addEventListener("click", async (event) => {
+        if (Date.now() < suppressClickUntil) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (isBoardCorrectionSelectMode) return;
         event.preventDefault();
         event.stopPropagation();
-        await toggleCurrentPhotoSelected();
+        if (singleTapTimer) clearTimeout(singleTapTimer);
+        singleTapTimer = setTimeout(async () => {
+          singleTapTimer = null;
+          await toggleCurrentPhotoSelected();
+        }, 370);
       });
+
+      const closeZoom = (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        photoZoomOverlay.classList.remove("show");
+        window.setTimeout(() => {
+          if (!photoZoomOverlay.classList.contains("show")) photoZoomImage.removeAttribute("src");
+        }, 120);
+      };
+
+      photoZoomOverlay.addEventListener("click", closeZoom);
+      photoZoomImage.addEventListener("click", closeZoom);
     }
 
     function updatePhotoCount() {
@@ -5386,8 +5728,11 @@
 
       const row1H = h * (52 / 230);
       const row2H = h * (40 / 230);
-      const row3H = h * (96 / 230);
-      const row4H = h - row1H - row2H - row3H;
+      const roomRowH = h * (34 / 230);
+      const sampleRowH = h * (34 / 230);
+      const statusRowH = h * (30 / 230);
+      const row3H = roomRowH + sampleRowH + statusRowH;
+      const row4H = h * (40 / 230);
 
       const contentY = y + row1H + row2H;
       const contentH = row3H;
@@ -5395,9 +5740,6 @@
       // 確定設定：No.セル「少し広」+ 値位置「右」。
       // テストHTMLの 120px + 48px を、右側幅416px基準の比率でCanvasへ反映する。
       const innerLabelW = rightW * 0.404;
-      const roomRowH = contentH * 0.31;
-      const sampleRowH = contentH * 0.31;
-      const statusRowH = contentH - roomRowH - sampleRowH;
 
       ctx.save();
 

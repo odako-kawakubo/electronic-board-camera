@@ -1287,7 +1287,7 @@
       position: absolute;
       top: calc(12px + env(safe-area-inset-top));
       right: 12px;
-      z-index: 20005;
+      z-index: 30010;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -2361,7 +2361,7 @@
 
   <div id="previewOverlay">
     <div class="preview-topbar">
-      <button class="settings-button" type="button" onclick="toggleSettings()" aria-label="設定">⚙</button>
+      <button id="settingsButton" class="settings-button" type="button" aria-label="設定">⚙</button>
     </div>
 
     <div class="preview-casebar">
@@ -2400,7 +2400,7 @@
   </div>
 
 
-  <div id="settingsOverlay">
+  <div id="settingsOverlay" onclick="if(event.target===this) closeSettings()">
     <div class="settings-panel">
       <h2 class="settings-title">設定</h2>
 
@@ -2500,7 +2500,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v53.4-edit-commit-fix";
+    const APP_VERSION = "v53.5-draft-commit-settings-toggle";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2669,6 +2669,8 @@
     let boardEditDraft = null;
     let boardEditSelectedField = "subject";
     let boardEditRenderQueued = false;
+    let boardEditIsComposing = false;
+    let boardEditFinishRequested = false;
 
     document.addEventListener("DOMContentLoaded", async () => {
       setupForcedLandscape();
@@ -2689,6 +2691,7 @@
       setupBoardEditHistoryTracking();
     setupBoardEditForm();
       setupReliableBoardEditControls();
+      setupSettingsToggleButton();
       renderPhotoQualitySettings();
       renderBoardTextSize();
       applyBoardFieldTextSizes();
@@ -3228,7 +3231,7 @@
     function setupBoardEditForm() {
       const controls = [boardEditSubject, boardEditAddress, boardEditRoom, boardEditSample, boardEditDate, boardEditStatus, boardEditModeSelect].filter(Boolean);
       controls.forEach(control => {
-        control.addEventListener("input", () => {
+        const syncDraftFromControl = () => {
           readBoardEditForm();
           if (control === boardEditModeSelect) {
             renderBoardEditStatusOptions(boardEditDraft.status);
@@ -3237,7 +3240,19 @@
           }
           scheduleBoardEditCanvasRender();
           pushBoardEditHistoryDebounced();
+        };
+
+        control.addEventListener("compositionstart", () => {
+          boardEditIsComposing = true;
         });
+        control.addEventListener("compositionend", () => {
+          boardEditIsComposing = false;
+          syncDraftFromControl();
+          if (boardEditFinishRequested) requestBoardEditFinish();
+        });
+        control.addEventListener("input", syncDraftFromControl);
+        control.addEventListener("change", syncDraftFromControl);
+        control.addEventListener("blur", syncDraftFromControl);
         control.addEventListener("focus", () => {
           const holder = control.closest("[data-board-field]");
           if (holder) selectBoardEditField(holder.dataset.boardField);
@@ -3293,43 +3308,66 @@
       const doneButton = document.getElementById("boardEditDoneButton");
       if (doneButton && doneButton.dataset.doneBound !== "1") {
         doneButton.dataset.doneBound = "1";
-        // iPhoneではtouchstart/pointerdown時点だと日本語入力が未確定のことがある。
-        // clickでキーボード確定後の値を取得する。
-        doneButton.addEventListener("click", finishBoardEditNow, false);
+        let lastDoneRequest = 0;
+        const request = (event) => {
+          const now = Date.now();
+          if (now - lastDoneRequest < 350) return;
+          lastDoneRequest = now;
+          requestBoardEditFinish(event);
+        };
+        doneButton.addEventListener("pointerup", request, { passive: false });
+        doneButton.addEventListener("touchend", request, { passive: false });
+        doneButton.addEventListener("click", request, false);
       }
     }
 
 
     let boardEditFinishRunning = false;
 
-    async function finishBoardEditNow(event) {
+    function requestBoardEditFinish(event) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
       if (!isBoardEditMode || boardEditFinishRunning) return false;
+
+      boardEditFinishRequested = true;
+      const active = document.activeElement;
+      if (active && typeof active.blur === "function") active.blur();
+
+      // 日本語変換中はcompositionendで再実行する。
+      if (boardEditIsComposing) return false;
+
+      // input/change/blurが下書きへ入る次フレームまで待って確定する。
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => finishBoardEditFromDraft());
+      });
+      return false;
+    }
+
+    async function finishBoardEditFromDraft() {
+      if (!isBoardEditMode || boardEditFinishRunning || boardEditIsComposing) return;
       boardEditFinishRunning = true;
+      boardEditFinishRequested = false;
 
       try {
-        const active = document.activeElement;
-        if (active && typeof active.blur === "function") active.blur();
-
-        // Safariがblur後にinput/changeを確定するのを待つ。
-        await new Promise(resolve => window.setTimeout(resolve, 80));
-
-        // DOMの最新値を明示的に下書きへ取り込む。
-        readBoardEditForm();
+        // DOMを完了時に読み直すのではなく、入力中から同期済みの下書きを確定する。
         flushBoardEditHistory();
-
-        // 本体へ反映してから編集画面を閉じる。
-        await closeBoardEditMode();
+        await closeBoardEditMode({ data: structuredCloneBoardData(boardEditDraft) });
       } catch (error) {
         console.error("看板編集の完了処理に失敗しました", error);
         showToast("編集内容の反映に失敗しました");
       } finally {
-        window.setTimeout(() => { boardEditFinishRunning = false; }, 300);
+        window.setTimeout(() => { boardEditFinishRunning = false; }, 250);
       }
-      return false;
+    }
+
+    function structuredCloneBoardData(data) {
+      if (!data) return getCurrentBoardData();
+      return {
+        ...data,
+        fieldTextSize: { ...(data.fieldTextSize || boardFieldTextSize) }
+      };
     }
 
     function openBoardEditMode(options = {}) {
@@ -3356,7 +3394,7 @@
       if (!isBoardEditMode) return;
 
       const shouldFinishPhotoCorrection = Boolean(boardEditTargetPhotoId);
-      const data = readBoardEditForm();
+      const data = options.data || structuredCloneBoardData(boardEditDraft);
 
       // まず編集値だけを確実に本体へ反映する。
       // 位置調整や再描画などの補助処理で例外が出ても、保存失敗にはしない。
@@ -5657,6 +5695,24 @@
       if (textSizeNormalButton) textSizeNormalButton.classList.toggle("active", boardTextSize === "normal");
       if (textSizeLargeButton) textSizeLargeButton.classList.toggle("active", boardTextSize === "large");
       scheduleBoardPreviewRender();
+    }
+
+    function setupSettingsToggleButton() {
+      const button = document.getElementById("settingsButton");
+      if (!button || button.dataset.toggleBound === "1") return;
+      button.dataset.toggleBound = "1";
+      let lastToggle = 0;
+      const toggle = (event) => {
+        const now = Date.now();
+        if (now - lastToggle < 350) return;
+        lastToggle = now;
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSettings();
+      };
+      button.addEventListener("pointerup", toggle, { passive: false });
+      button.addEventListener("touchend", toggle, { passive: false });
+      button.addEventListener("click", toggle, false);
     }
 
     function toggleSettings() {

@@ -2493,14 +2493,14 @@
     </div>
 
     <div class="board-edit-right">
-      <button id="boardEditDoneButton" class="board-edit-done" type="button" onclick="finishBoardEditNow(event)">完了</button>
+      <button id="boardEditDoneButton" class="board-edit-done" type="button">完了</button>
       <button id="editBoardModeButton" class="edit-mode-toggle" type="button">調査</button>
     </div>
   </div>
   </div>
 
   <script>
-    const APP_VERSION = "v53.2-done-fix";
+    const APP_VERSION = "v53.4-edit-commit-fix";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -3291,17 +3291,18 @@
       bindTap(document.getElementById("boardEditSizeUpButton"), () => adjustSelectedBoardEditTextSize(1));
       bindTap(document.getElementById("editBoardModeButton"), toggleBoardEditModeFromForm);
       const doneButton = document.getElementById("boardEditDoneButton");
-      if (doneButton && doneButton.dataset.doneTouchBound !== "1") {
-        doneButton.dataset.doneTouchBound = "1";
-        doneButton.addEventListener("touchstart", finishBoardEditNow, { passive: false, capture: true });
-        doneButton.addEventListener("pointerdown", finishBoardEditNow, { passive: false, capture: true });
+      if (doneButton && doneButton.dataset.doneBound !== "1") {
+        doneButton.dataset.doneBound = "1";
+        // iPhoneではtouchstart/pointerdown時点だと日本語入力が未確定のことがある。
+        // clickでキーボード確定後の値を取得する。
+        doneButton.addEventListener("click", finishBoardEditNow, false);
       }
     }
 
 
     let boardEditFinishRunning = false;
 
-    function finishBoardEditNow(event) {
+    async function finishBoardEditNow(event) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -3309,25 +3310,25 @@
       if (!isBoardEditMode || boardEditFinishRunning) return false;
       boardEditFinishRunning = true;
 
-      if (document.activeElement && typeof document.activeElement.blur === "function") {
-        document.activeElement.blur();
+      try {
+        const active = document.activeElement;
+        if (active && typeof active.blur === "function") active.blur();
+
+        // Safariがblur後にinput/changeを確定するのを待つ。
+        await new Promise(resolve => window.setTimeout(resolve, 80));
+
+        // DOMの最新値を明示的に下書きへ取り込む。
+        readBoardEditForm();
+        flushBoardEditHistory();
+
+        // 本体へ反映してから編集画面を閉じる。
+        await closeBoardEditMode();
+      } catch (error) {
+        console.error("看板編集の完了処理に失敗しました", error);
+        showToast("編集内容の反映に失敗しました");
+      } finally {
+        window.setTimeout(() => { boardEditFinishRunning = false; }, 300);
       }
-      flushBoardEditHistory();
-
-      // iPhone Safariで反映処理中に例外が出ても、編集画面だけは必ず閉じる。
-      boardEditOverlay.classList.remove("show");
-      document.body.classList.remove("board-editing");
-
-      Promise.resolve(closeBoardEditMode({ overlayAlreadyClosed: true }))
-        .catch((error) => {
-          console.error("看板編集の完了処理に失敗しました", error);
-          isBoardEditMode = false;
-          boardEditDraft = null;
-          showToast("編集内容の保存に失敗しました");
-        })
-        .finally(() => {
-          window.setTimeout(() => { boardEditFinishRunning = false; }, 400);
-        });
       return false;
     }
 
@@ -3353,26 +3354,58 @@
 
     async function closeBoardEditMode(options = {}) {
       if (!isBoardEditMode) return;
+
       const shouldFinishPhotoCorrection = Boolean(boardEditTargetPhotoId);
-      applyBoardEditDraft();
+      const data = readBoardEditForm();
+
+      // まず編集値だけを確実に本体へ反映する。
+      // 位置調整や再描画などの補助処理で例外が出ても、保存失敗にはしない。
+      subjectText.value = data.subject || "";
+      addressText.value = data.address || "";
+      roomNoInput.value = data.roomNo || "";
+      sampleNoInput.value = data.sampleNo || "";
+      dateText.textContent = data.date || "";
+      boardFieldTextSize = { ...(data.fieldTextSize || boardFieldTextSize) };
+      boardMode = data.boardMode === "sampling" ? "sampling" : "survey";
+      selectedStatus = data.status || "visual";
+
       if (!options.overlayAlreadyClosed) boardEditOverlay.classList.remove("show");
       boardEditOverlay.classList.remove("photo-board-correction");
       if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
       if (boardEditDoneButton) boardEditDoneButton.textContent = "完了";
       document.body.classList.remove("board-editing");
-      setBoardEditable(false);
       isBoardEditMode = false;
       boardEditDraft = null;
-      placeBoardByFixedPosition();
-      saveBoardForm();
-      scheduleBoardPreviewRender();
-      if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
+
+      const safely = (label, fn) => {
+        try {
+          fn();
+        } catch (error) {
+          console.warn(label, error);
+        }
+      };
+
+      safely("文字サイズ保存に失敗", saveBoardFieldTextSizes);
+      safely("看板モード反映に失敗", applyBoardMode);
+      safely("状態反映に失敗", () => setStatus(selectedStatus));
+      safely("文字サイズ反映に失敗", applyBoardFieldTextSizes);
+      safely("入力欄調整に失敗", syncBoardTextareas);
+      safely("編集解除に失敗", () => setBoardEditable(false));
+      safely("看板位置調整に失敗", placeBoardByFixedPosition);
+      safely("看板フォーム保存に失敗", saveBoardForm);
+      safely("看板再描画予約に失敗", scheduleBoardPreviewRender);
+
+      if (boardMode === "sampling") {
+        safely("採取箇所履歴保存に失敗", () => saveSamplingNameHistoryForCurrentCase(roomNoInput.value));
+      }
+
       if (shouldFinishPhotoCorrection) {
         await finishPhotoBoardCorrection();
         previewOverlay.classList.add("show");
         renderPreview();
         return;
       }
+
       showToast("看板編集を完了しました");
     }
 

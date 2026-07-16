@@ -891,9 +891,10 @@
     }
 
     #previewImage {
-      width: min(100%, calc((var(--app-vh) - 168px) * 4 / 3));
       max-width: 100%;
-      max-height: calc(var(--app-vh) - 168px);
+      max-height: 100%;
+      width: auto;
+      height: auto;
       object-fit: contain;
       object-position: center;
       background: #111;
@@ -2135,7 +2136,8 @@
     #boardEditDoneButton,
     #editBoardModeButton,
     #boardEditSizeDownButton,
-    #boardEditSizeUpButton {
+    #boardEditSizeUpButton,
+    #boardEditSizeResetButton {
       touch-action: manipulation;
       pointer-events: auto !important;
       -webkit-user-select: none;
@@ -2472,7 +2474,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v58</strong>
+        現在：<strong id="settingsVersionText">v59</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2555,6 +2557,7 @@
         <button id="boardEditSizeDownButton" type="button">A-</button>
         <span id="boardEditSelectedFieldLabel">件名</span>
         <button id="boardEditSizeUpButton" type="button">A+</button>
+        <button id="boardEditSizeResetButton" type="button">リセット</button>
       </div>
     </div>
 
@@ -2566,7 +2569,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v58";
+    const APP_VERSION = "v59";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -3554,6 +3557,17 @@
       pushBoardEditHistoryDebounced();
     }
 
+    function resetSelectedBoardEditTextSize() {
+      if (!boardEditDraft || !boardEditDraft.fieldTextSize) return;
+      const defaults = { subject: 18, address: 17, room: 24, sample: 24, date: 24 };
+      const field = boardEditSelectedField;
+      if (!(field in defaults)) return;
+      boardEditDraft.fieldTextSize[field] = defaults[field];
+      scheduleBoardEditCanvasRender();
+      pushBoardEditHistoryDebounced();
+      showToast(`${document.getElementById("boardEditSelectedFieldLabel")?.textContent || "選択項目"}の文字サイズを初期値に戻しました`);
+    }
+
     function toggleBoardEditModeFromForm() {
       boardEditModeSelect.value = boardEditModeSelect.value === "sampling" ? "survey" : "sampling";
       boardEditModeSelect.dispatchEvent(new Event("input", { bubbles: true }));
@@ -3587,6 +3601,7 @@
       bindTap(document.getElementById("boardEditResetButton"), resetBoardEdit);
       bindTap(document.getElementById("boardEditSizeDownButton"), () => adjustSelectedBoardEditTextSize(-1));
       bindTap(document.getElementById("boardEditSizeUpButton"), () => adjustSelectedBoardEditTextSize(1));
+      bindTap(document.getElementById("boardEditSizeResetButton"), resetSelectedBoardEditTextSize);
       bindTap(document.getElementById("editBoardModeButton"), toggleBoardEditModeFromForm);
       const doneButton = document.getElementById("boardEditDoneButton");
       if (doneButton) {

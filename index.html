@@ -863,11 +863,9 @@
       display: none;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      overflow-y: auto;
+      justify-content: center;
       padding: calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom));
       touch-action: pan-y;
-      -webkit-overflow-scrolling: touch;
     }
 
     #previewOverlay.show {
@@ -885,21 +883,19 @@
     #previewImageWrap {
       position: relative;
       width: 100%;
-      flex: 0 0 auto;
+      flex: 1 1 auto;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      overflow: visible;
+      overflow: hidden;
     }
 
     #previewImage {
-      display: block;
-      width: 100%;
-      height: auto;
+      width: min(100%, calc((var(--app-vh) - 168px) * 4 / 3));
       max-width: 100%;
-      max-height: none;
+      max-height: calc(var(--app-vh) - 168px);
       object-fit: contain;
-      object-position: center top;
+      object-position: center;
       background: #111;
       border: 1px solid #333;
       user-select: none;
@@ -2476,7 +2472,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v57</strong>
+        現在：<strong id="settingsVersionText">v58</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2549,7 +2545,7 @@
       <div class="board-edit-history-preview" aria-label="編集履歴操作">
         <button id="boardEditUndoButton" type="button" aria-label="戻る">↶</button>
         <button id="boardEditRedoButton" type="button" aria-label="進む">↷</button>
-        <button id="boardEditResetButton" class="board-edit-reset-inline" type="button">最初から</button>
+        <button id="boardEditResetButton" class="board-edit-reset-inline" type="button">元に戻す</button>
       </div>
       <div id="boardEditPhotoStage">
         <img id="boardEditPhotoBackdrop" alt="看板修正対象写真" />
@@ -2570,7 +2566,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v57";
+    const APP_VERSION = "v58";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",

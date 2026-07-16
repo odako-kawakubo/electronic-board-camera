@@ -863,9 +863,11 @@
       display: none;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      overflow-y: auto;
       padding: calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom));
       touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
     }
 
     #previewOverlay.show {
@@ -874,27 +876,30 @@
 
     #previewCounter {
       color: #fff;
-      font-size: 13px;
-      font-weight: 800;
-      margin-bottom: 4px;
-      min-height: 18px;
+      font-size: 17px;
+      font-weight: 900;
+      margin-bottom: 10px;
+      min-height: 24px;
     }
 
     #previewImageWrap {
       position: relative;
       width: 100%;
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      overflow: hidden;
+      overflow: visible;
     }
 
     #previewImage {
-      width: min(100%, calc((var(--app-vh) - 168px) * 4 / 3));
+      display: block;
+      width: 100%;
+      height: auto;
       max-width: 100%;
-      max-height: calc(var(--app-vh) - 132px);
+      max-height: none;
       object-fit: contain;
+      object-position: center top;
       background: #111;
       border: 1px solid #333;
       user-select: none;
@@ -918,11 +923,8 @@
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding: 6px 4px 2px;
+      padding: 10px 4px 2px;
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-x;
-      overscroll-behavior-x: contain;
-      scroll-behavior: auto;
     }
 
     #previewOverlay.list-mode #previewImageWrap,
@@ -997,7 +999,7 @@
       height: auto;
       flex: 1 1 auto;
       min-height: 0;
-      object-fit: contain;
+      object-fit: cover;
       display: block;
       background: #000;
     }
@@ -1037,7 +1039,7 @@
     .thumb-item img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       display: block;
     }
 
@@ -1159,7 +1161,7 @@
       width: 100%;
       max-width: 760px;
       display: flex;
-      justify-content: flex-start;
+      justify-content: center;
       align-items: center;
       gap: 8px;
       margin-bottom: 8px;
@@ -1170,7 +1172,7 @@
       max-width: min(92vw, 620px);
       border: 1px solid rgba(255,255,255,0.28);
       border-radius: 999px;
-      padding: 7px 12px;
+      padding: 9px 14px;
       background: rgba(255,255,255,0.12);
       color: #fff;
       font-size: 13px;
@@ -2474,7 +2476,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v54</strong>
+        現在：<strong id="settingsVersionText">v57</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2568,7 +2570,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v54";
+    const APP_VERSION = "v57";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -3621,7 +3623,7 @@
           date: boardEditDate ? boardEditDate.value || "" : "",
           status: boardEditStatus ? boardEditStatus.value || "visual" : "visual",
           boardMode: boardEditModeSelect && boardEditModeSelect.value === "sampling" ? "sampling" : "survey",
-          fieldTextSize: { ...((boardEditDraft && boardEditDraft.fieldTextSize) || boardFieldTextSize) }
+          fieldTextSize: { ...boardFieldTextSize }
         };
 
         boardEditDraft = structuredCloneBoardData(latestData);
@@ -4184,8 +4186,6 @@
 
       isTakingPhoto = true;
       shootButton.disabled = true;
-      // v56: 撮影開始時の区分を固定し、レビュー中の状態変化を受けない。
-      const lockedPhotoType = { ...getCurrentPhotoType() };
 
       try {
         if (!isDateManuallyEdited) {
@@ -4239,7 +4239,7 @@
         if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
 
         const createdAt = new Date();
-        const photoType = lockedPhotoType;
+        const photoType = getCurrentPhotoType();
         const sampleParts = parseSampleAndPoint(sampleNoInput.value);
         const sampleNo = sampleParts.sampleNo;
         const pointNo = sampleParts.pointNo;
@@ -4917,8 +4917,7 @@
 
     /* 写真ビューア */
     async function openPreview() {
-      // v56: セッション内に写真があれば再読込を省略し、表示ボタンの待ち時間を短縮する。
-      if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
+      await loadPhotosFromIndexedDB();
 
       selectedCaseSubject = getLatestCaseSubject();
       const photos = getPreviewPhotos();
@@ -5012,32 +5011,14 @@
         item.className = "thumb-item";
         item.classList.toggle("current", index === previewIndex);
         item.classList.toggle("selected", Boolean(photo.selected));
-        let thumbPointerStartX = 0;
-        let thumbPointerStartY = 0;
-        let thumbPointerMoved = false;
-        item.addEventListener("pointerdown", (event) => {
-          thumbPointerStartX = event.clientX;
-          thumbPointerStartY = event.clientY;
-          thumbPointerMoved = false;
-        });
-        item.addEventListener("pointermove", (event) => {
-          if (Math.abs(event.clientX - thumbPointerStartX) > 8 || Math.abs(event.clientY - thumbPointerStartY) > 8) {
-            thumbPointerMoved = true;
-          }
-        });
-        item.addEventListener("click", (event) => {
-          if (thumbPointerMoved) {
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-          }
+        item.onclick = () => {
           if (isBoardCorrectionSelectMode) {
             selectPhotoForBoardCorrection(index);
             return;
           }
           previewIndex = index;
           renderPreview();
-        });
+        };
 
         const img = document.createElement("img");
         img.src = photo.dataUrl;
@@ -5063,8 +5044,10 @@
         previewThumbnails.appendChild(item);
       });
 
-      // v56: 手動スワイプ後に選択位置へ強制的に戻さない。
-      // サムネ一覧はユーザーが動かした位置を維持する。
+      const currentThumb = previewThumbnails.querySelector(".thumb-item.current");
+      if (currentThumb) {
+        currentThumb.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
     }
 
     function renderPhotoList() {
@@ -5284,16 +5267,8 @@
         photo.dataUrl = newDataUrl;
         photo.subjectName = getCurrentSubjectName();
         photo.roomNo = roomNoInput.value.trim();
-        const correctedType = getCurrentPhotoType();
-        const correctedParts = parseSampleAndPoint(sampleNoInput.value);
-        photo.status = correctedType.value;
-        photo.statusLabel = correctedType.label;
-        photo.statusCode = correctedType.code;
-        photo.sampleNo = correctedParts.sampleNo;
-        photo.pointNo = correctedParts.pointNo;
-        photo.isSection = correctedType.value === SECTION_PHOTO_TYPE.value;
-        // v56: 編集後の新しい基本名に対して、対象写真自身を除外して再採番する。
-        photo.fileName = generatePhotoFileName(photo.sampleNo, photo.pointNo, photo.statusCode, photo.id);
+        photo.status = selectedStatus;
+        photo.statusLabel = getStatusLabel(selectedStatus);
         photo.updatedAt = new Date().toISOString();
 
         await savePhotoToIndexedDB(photo);
@@ -5444,11 +5419,6 @@
     function setupPreviewSwipe() {
       previewOverlay.addEventListener("touchstart", (event) => {
         if (!event.touches || event.touches.length !== 1) return;
-        if (event.target && event.target.closest && event.target.closest("#previewThumbnails")) {
-          previewTouchStartX = NaN;
-          previewTouchStartY = NaN;
-          return;
-        }
 
         previewTouchStartX = event.touches[0].clientX;
         previewTouchStartY = event.touches[0].clientY;
@@ -5456,7 +5426,7 @@
 
       previewOverlay.addEventListener("touchend", (event) => {
         if (!event.changedTouches || event.changedTouches.length !== 1) return;
-        if (isPreviewListMode || !Number.isFinite(previewTouchStartX)) return;
+        if (isPreviewListMode) return;
 
         const endX = event.changedTouches[0].clientX;
         const endY = event.changedTouches[0].clientY;
@@ -5608,21 +5578,19 @@
       }).replace(/　/g, " ");
     }
 
-    function generatePhotoFileName(sampleNo, pointNo, statusCode, excludePhotoId = "") {
+    function generatePhotoFileName(sampleNo, pointNo, statusCode) {
       const baseName = `${sampleNo}-${pointNo}-${statusCode}`;
-      const used = new Set();
-      capturedPhotos.forEach((photo) => {
-        if (!photo || photo.id === excludePhotoId) return;
-        if (String(photo.sampleNo) !== String(sampleNo) || String(photo.pointNo) !== String(pointNo) || String(photo.statusCode) !== String(statusCode)) return;
-        const file = String(photo.fileName || "");
-        if (file === `${baseName}.jpg`) used.add(1);
-        const match = file.match(new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d{2,})\\.jpg$`));
-        if (match) used.add(Math.max(2, Number(match[1]) || 0));
-      });
-      if (!used.has(1)) return `${baseName}.jpg`;
-      let next = 2;
-      while (used.has(next)) next += 1;
-      return `${baseName}_${String(next).padStart(2, "0")}.jpg`;
+      const sameCount = capturedPhotos.filter((photo) => {
+        return photo.sampleNo === sampleNo &&
+          photo.pointNo === pointNo &&
+          photo.statusCode === statusCode;
+      }).length;
+
+      if (sameCount === 0) {
+        return `${baseName}.jpg`;
+      }
+
+      return `${baseName}_${String(sameCount + 1).padStart(2, "0")}.jpg`;
     }
 
     function openPhotoDB() {

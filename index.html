@@ -874,10 +874,10 @@
 
     #previewCounter {
       color: #fff;
-      font-size: 17px;
-      font-weight: 900;
-      margin-bottom: 10px;
-      min-height: 24px;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 4px;
+      min-height: 18px;
     }
 
     #previewImageWrap {
@@ -893,7 +893,7 @@
     #previewImage {
       width: min(100%, calc((var(--app-vh) - 168px) * 4 / 3));
       max-width: 100%;
-      max-height: calc(var(--app-vh) - 168px);
+      max-height: calc(var(--app-vh) - 132px);
       object-fit: contain;
       background: #111;
       border: 1px solid #333;
@@ -918,8 +918,11 @@
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding: 10px 4px 2px;
+      padding: 6px 4px 2px;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      overscroll-behavior-x: contain;
+      scroll-behavior: auto;
     }
 
     #previewOverlay.list-mode #previewImageWrap,
@@ -994,7 +997,7 @@
       height: auto;
       flex: 1 1 auto;
       min-height: 0;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
       background: #000;
     }
@@ -1034,7 +1037,7 @@
     .thumb-item img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
     }
 
@@ -1156,7 +1159,7 @@
       width: 100%;
       max-width: 760px;
       display: flex;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
       gap: 8px;
       margin-bottom: 8px;
@@ -1167,7 +1170,7 @@
       max-width: min(92vw, 620px);
       border: 1px solid rgba(255,255,255,0.28);
       border-radius: 999px;
-      padding: 9px 14px;
+      padding: 7px 12px;
       background: rgba(255,255,255,0.12);
       color: #fff;
       font-size: 13px;
@@ -2202,42 +2205,6 @@
     #boardEditHost .inner-table tr:nth-child(2) { height: 34.6939%; }
     #boardEditHost .inner-table tr:nth-child(3) { height: 30.6122%; }
 
-  
-
-    /* v55: preview fit / smooth swipe / keyboard-safe board editing */
-    #previewThumbnails {
-      touch-action: pan-x !important;
-      overscroll-behavior-x: contain;
-      scroll-snap-type: none;
-      cursor: grab;
-    }
-    #previewThumbnails:active { cursor: grabbing; }
-    .thumb-item { touch-action: pan-x !important; }
-    .thumb-item img,
-    .photo-list-item img {
-      object-fit: contain !important;
-      background: #000;
-      pointer-events: none;
-    }
-    .board-edit-form-panel {
-      scroll-padding-top: 12px;
-      scroll-padding-bottom: max(180px, env(safe-area-inset-bottom));
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-    }
-    body.keyboard-open #boardEditOverlay {
-      padding-top: 4px !important;
-      padding-bottom: 4px !important;
-      gap: 8px !important;
-    }
-    body.keyboard-open .board-edit-form-panel {
-      padding: 8px !important;
-      border-radius: 10px !important;
-    }
-    body.keyboard-open #boardEditHost {
-      align-items: flex-start;
-    }
-
   </style>
 </head>
 
@@ -2507,7 +2474,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v55</strong>
+        現在：<strong id="settingsVersionText">v54</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2601,7 +2568,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v55";
+    const APP_VERSION = "v54";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2775,8 +2742,6 @@
     let boardEditRenderQueued = false;
     let boardEditIsComposing = false;
     let boardEditFinishRequested = false;
-    let previewThumbDidSwipe = false;
-    let previewThumbPointerStartX = 0;
 
     document.addEventListener("DOMContentLoaded", async () => {
       setupForcedLandscape();
@@ -2791,8 +2756,6 @@
       setupBoardEditGesture();
       setBoardEditable(false);
       setupPreviewSwipe();
-      setupPreviewThumbnailSwipe();
-      setupVisualViewportKeyboardGuard();
       setupPreviewImageTap();
       setupPhotoCountHiddenShoot();
       setupBoardTextareaAutoCenter();
@@ -2837,56 +2800,6 @@
         resumeCameraAfterPreview();
       }
     });
-
-    function updateVisualViewportMetrics() {
-      const vv = window.visualViewport;
-      const viewportHeight = Math.max(240, Math.round(vv ? vv.height : window.innerHeight));
-      const viewportWidth = Math.max(320, Math.round(vv ? vv.width : window.innerWidth));
-      document.documentElement.style.setProperty("--app-vh", `${viewportHeight}px`);
-      document.documentElement.style.setProperty("--app-vw", `${viewportWidth}px`);
-      const keyboardOpen = Boolean(vv && (window.innerHeight - vv.height > 120));
-      document.body.classList.toggle("keyboard-open", keyboardOpen);
-      if (keyboardOpen && isBoardEditMode) {
-        window.setTimeout(() => {
-          const active = document.activeElement;
-          if (active && boardEditOverlay && boardEditOverlay.contains(active)) {
-            active.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
-          }
-        }, 80);
-      }
-    }
-
-    function setupVisualViewportKeyboardGuard() {
-      updateVisualViewportMetrics();
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", updateVisualViewportMetrics);
-        window.visualViewport.addEventListener("scroll", updateVisualViewportMetrics);
-      }
-      document.addEventListener("focusin", (event) => {
-        if (!isBoardEditMode || !boardEditOverlay.contains(event.target)) return;
-        window.setTimeout(() => {
-          updateVisualViewportMetrics();
-          event.target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
-        }, 180);
-      });
-      document.addEventListener("focusout", () => {
-        window.setTimeout(updateVisualViewportMetrics, 180);
-      });
-    }
-
-    function setupPreviewThumbnailSwipe() {
-      if (!previewThumbnails) return;
-      previewThumbnails.addEventListener("pointerdown", (event) => {
-        previewThumbPointerStartX = event.clientX;
-        previewThumbDidSwipe = false;
-      }, { passive: true });
-      previewThumbnails.addEventListener("pointermove", (event) => {
-        if (Math.abs(event.clientX - previewThumbPointerStartX) > 8) previewThumbDidSwipe = true;
-      }, { passive: true });
-      previewThumbnails.addEventListener("pointerup", () => {
-        window.setTimeout(() => { previewThumbDidSwipe = false; }, 0);
-      }, { passive: true });
-    }
 
     function setupForcedLandscape() {
       const savedFlip = localStorage.getItem("electronicBoardLandscapeFlip") === "1";
@@ -3373,7 +3286,6 @@
     }
 
     function handleWindowResize() {
-      updateVisualViewportMetrics();
       placeBoardByFixedPosition();
       hasInitializedBoard = true;
     }
@@ -3709,7 +3621,7 @@
           date: boardEditDate ? boardEditDate.value || "" : "",
           status: boardEditStatus ? boardEditStatus.value || "visual" : "visual",
           boardMode: boardEditModeSelect && boardEditModeSelect.value === "sampling" ? "sampling" : "survey",
-          fieldTextSize: { ...boardFieldTextSize }
+          fieldTextSize: { ...((boardEditDraft && boardEditDraft.fieldTextSize) || boardFieldTextSize) }
         };
 
         boardEditDraft = structuredCloneBoardData(latestData);
@@ -3787,7 +3699,6 @@
       populateBoardEditForm(boardEditDraft);
       initBoardEditHistory();
       boardEditOverlay.classList.add("show");
-      updateVisualViewportMetrics();
       selectBoardEditField("subject");
       scheduleBoardEditCanvasRender();
       setTimeout(() => {
@@ -3818,7 +3729,6 @@
       if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
       if (boardEditDoneButton) boardEditDoneButton.textContent = "完了";
       document.body.classList.remove("board-editing");
-      document.body.classList.remove("keyboard-open");
       isBoardEditMode = false;
       boardEditDraft = null;
 
@@ -4274,17 +4184,13 @@
 
       isTakingPhoto = true;
       shootButton.disabled = true;
+      // v56: 撮影開始時の区分を固定し、レビュー中の状態変化を受けない。
+      const lockedPhotoType = { ...getCurrentPhotoType() };
 
       try {
         if (!isDateManuallyEdited) {
           updateCurrentDate();
         }
-
-        // v55: 撮影ボタンを押した瞬間の区分・看板・文字サイズを固定する。
-        // 非同期処理中に区分を切り替えても、直前の区分へ戻らないようにする。
-        const capturePhotoType = { ...getCurrentPhotoType() };
-        const captureBoardData = structuredCloneBoardData(getCurrentBoardData());
-        const captureIsSection = capturePhotoType.value === SECTION_PHOTO_TYPE.value;
 
         // Canvasに文字を焼き込む前に、フォント読み込み完了を待つ
         // iPhone/iPadで日本語フォントの描画が不安定になるのを軽減する
@@ -4295,7 +4201,7 @@
         const baseCanvas = await captureBaseImage();
         const baseDataUrl = baseCanvas.toDataURL("image/jpeg", 0.82);
 
-        let canvas = await captureCompositedImage({ boardData: captureBoardData, isSectionMode: captureIsSection });
+        let canvas = await captureCompositedImage();
 
         // 白フラッシュで撮影感を出す
         runCameraFlash();
@@ -4315,7 +4221,7 @@
           dataUrl = canvas.toDataURL("image/jpeg", 0.82);
         } catch (error) {
           console.warn("HTML看板合成後の画像化に失敗したため、旧Canvas看板描画で再撮影します", error);
-          canvas = await captureCompositedImage({ forceLegacyBoard: true, boardData: captureBoardData, isSectionMode: captureIsSection });
+          canvas = await captureCompositedImage({ forceLegacyBoard: true });
           dataUrl = canvas.toDataURL("image/jpeg", 0.82);
         }
 
@@ -4333,7 +4239,7 @@
         if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
 
         const createdAt = new Date();
-        const photoType = capturePhotoType;
+        const photoType = lockedPhotoType;
         const sampleParts = parseSampleAndPoint(sampleNoInput.value);
         const sampleNo = sampleParts.sampleNo;
         const pointNo = sampleParts.pointNo;
@@ -4354,9 +4260,7 @@
           selected: false,
           createdAt: createdAt.toISOString(),
           savedLocal: false,
-          savedAt: "",
-          boardData: structuredCloneBoardData(captureBoardData),
-          fieldTextSize: { ...(captureBoardData.fieldTextSize || boardFieldTextSize) }
+          savedAt: ""
         };
 
         // 保存成功を確認してから、撮影済み配列と表示枚数へ反映する
@@ -4775,11 +4679,10 @@
     }
 
     async function drawCurrentBoardToCanvas(ctx, canvas, options = {}) {
-      const sectionMode = options.isSectionMode === undefined ? isSectionMode : Boolean(options.isSectionMode);
-      if (sectionMode && !options.forceBoard) return;
+      if (isSectionMode && !options.forceBoard) return;
 
       const rect = getBoardDrawRectForCanvas(canvas);
-      drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h, options.boardData || null);
+      drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
     }
 
     async function composeBoardOnBaseImage(baseDataUrl, options = {}) {
@@ -4789,7 +4692,7 @@
       canvas.height = img.naturalHeight || img.height;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      await drawCurrentBoardToCanvas(ctx, canvas, { forceBoard: true, forceLegacyBoard: options.forceLegacyBoard, boardData: options.boardData || null, isSectionMode: false });
+      await drawCurrentBoardToCanvas(ctx, canvas, { forceBoard: true, forceLegacyBoard: options.forceLegacyBoard });
       return canvas;
     }
 
@@ -4841,8 +4744,7 @@
         drawVideoH
       );
 
-      const sectionMode = options.isSectionMode === undefined ? isSectionMode : Boolean(options.isSectionMode);
-      if (!sectionMode) {
+      if (!isSectionMode) {
         await drawCurrentBoardToCanvas(ctx, canvas, options);
       }
 
@@ -5015,7 +4917,8 @@
 
     /* 写真ビューア */
     async function openPreview() {
-      await loadPhotosFromIndexedDB();
+      // v56: セッション内に写真があれば再読込を省略し、表示ボタンの待ち時間を短縮する。
+      if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
 
       selectedCaseSubject = getLatestCaseSubject();
       const photos = getPreviewPhotos();
@@ -5109,15 +5012,32 @@
         item.className = "thumb-item";
         item.classList.toggle("current", index === previewIndex);
         item.classList.toggle("selected", Boolean(photo.selected));
-        item.onclick = () => {
-          if (previewThumbDidSwipe) return;
+        let thumbPointerStartX = 0;
+        let thumbPointerStartY = 0;
+        let thumbPointerMoved = false;
+        item.addEventListener("pointerdown", (event) => {
+          thumbPointerStartX = event.clientX;
+          thumbPointerStartY = event.clientY;
+          thumbPointerMoved = false;
+        });
+        item.addEventListener("pointermove", (event) => {
+          if (Math.abs(event.clientX - thumbPointerStartX) > 8 || Math.abs(event.clientY - thumbPointerStartY) > 8) {
+            thumbPointerMoved = true;
+          }
+        });
+        item.addEventListener("click", (event) => {
+          if (thumbPointerMoved) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           if (isBoardCorrectionSelectMode) {
             selectPhotoForBoardCorrection(index);
             return;
           }
           previewIndex = index;
           renderPreview();
-        };
+        });
 
         const img = document.createElement("img");
         img.src = photo.dataUrl;
@@ -5143,10 +5063,8 @@
         previewThumbnails.appendChild(item);
       });
 
-      const currentThumb = previewThumbnails.querySelector(".thumb-item.current");
-      if (currentThumb) {
-        currentThumb.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-      }
+      // v56: 手動スワイプ後に選択位置へ強制的に戻さない。
+      // サムネ一覧はユーザーが動かした位置を維持する。
     }
 
     function renderPhotoList() {
@@ -5320,10 +5238,6 @@
       if (photo.roomNo) roomNoInput.value = photo.roomNo;
       if (photo.sampleNo) sampleNoInput.value = formatSamplePointLabel(`${photo.sampleNo}-${photo.pointNo || 1}`);
       if (photo.status) setStatus(photo.status);
-      if (photo.fieldTextSize || (photo.boardData && photo.boardData.fieldTextSize)) {
-        Object.assign(boardFieldTextSize, photo.fieldTextSize || photo.boardData.fieldTextSize);
-        applyBoardFieldTextSizes();
-      }
       syncBoardTextareas();
 
       if (boardEditPhotoBackdrop) {
@@ -5359,32 +5273,27 @@
         let canvas;
         let newDataUrl;
         try {
-          const correctedBoardData = structuredCloneBoardData(getCurrentBoardData());
-          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { boardData: correctedBoardData });
+          canvas = await composeBoardOnBaseImage(photo.baseDataUrl);
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         } catch (error) {
           console.warn("HTML看板での再合成に失敗したため、旧Canvas描画で再合成します", error);
-          const correctedBoardData = structuredCloneBoardData(getCurrentBoardData());
-          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { forceLegacyBoard: true, boardData: correctedBoardData });
+          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { forceLegacyBoard: true });
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         }
-
-        const correctedPhotoType = { ...getCurrentPhotoType() };
-        const correctedSampleParts = parseSampleAndPoint(sampleNoInput.value);
-        const correctedBoardSnapshot = structuredCloneBoardData(getCurrentBoardData());
 
         photo.dataUrl = newDataUrl;
         photo.subjectName = getCurrentSubjectName();
         photo.roomNo = roomNoInput.value.trim();
-        photo.status = correctedPhotoType.value;
-        photo.statusLabel = correctedPhotoType.label;
-        photo.statusCode = correctedPhotoType.code;
-        photo.sampleNo = correctedSampleParts.sampleNo;
-        photo.pointNo = correctedSampleParts.pointNo;
-        photo.isSection = correctedPhotoType.value === SECTION_PHOTO_TYPE.value;
+        const correctedType = getCurrentPhotoType();
+        const correctedParts = parseSampleAndPoint(sampleNoInput.value);
+        photo.status = correctedType.value;
+        photo.statusLabel = correctedType.label;
+        photo.statusCode = correctedType.code;
+        photo.sampleNo = correctedParts.sampleNo;
+        photo.pointNo = correctedParts.pointNo;
+        photo.isSection = correctedType.value === SECTION_PHOTO_TYPE.value;
+        // v56: 編集後の新しい基本名に対して、対象写真自身を除外して再採番する。
         photo.fileName = generatePhotoFileName(photo.sampleNo, photo.pointNo, photo.statusCode, photo.id);
-        photo.boardData = correctedBoardSnapshot;
-        photo.fieldTextSize = { ...(correctedBoardSnapshot.fieldTextSize || boardFieldTextSize) };
         photo.updatedAt = new Date().toISOString();
 
         await savePhotoToIndexedDB(photo);
@@ -5535,6 +5444,11 @@
     function setupPreviewSwipe() {
       previewOverlay.addEventListener("touchstart", (event) => {
         if (!event.touches || event.touches.length !== 1) return;
+        if (event.target && event.target.closest && event.target.closest("#previewThumbnails")) {
+          previewTouchStartX = NaN;
+          previewTouchStartY = NaN;
+          return;
+        }
 
         previewTouchStartX = event.touches[0].clientX;
         previewTouchStartY = event.touches[0].clientY;
@@ -5542,7 +5456,7 @@
 
       previewOverlay.addEventListener("touchend", (event) => {
         if (!event.changedTouches || event.changedTouches.length !== 1) return;
-        if (isPreviewListMode) return;
+        if (isPreviewListMode || !Number.isFinite(previewTouchStartX)) return;
 
         const endX = event.changedTouches[0].clientX;
         const endY = event.changedTouches[0].clientY;
@@ -5696,21 +5610,18 @@
 
     function generatePhotoFileName(sampleNo, pointNo, statusCode, excludePhotoId = "") {
       const baseName = `${sampleNo}-${pointNo}-${statusCode}`;
-      const escapedBase = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const pattern = new RegExp(`^${escapedBase}(?:_(\\d{2,}))?\\.jpg$`, "i");
-      const usedNumbers = new Set();
-
+      const used = new Set();
       capturedPhotos.forEach((photo) => {
         if (!photo || photo.id === excludePhotoId) return;
-        const match = String(photo.fileName || "").match(pattern);
-        if (!match) return;
-        usedNumbers.add(match[1] ? Number(match[1]) : 1);
+        if (String(photo.sampleNo) !== String(sampleNo) || String(photo.pointNo) !== String(pointNo) || String(photo.statusCode) !== String(statusCode)) return;
+        const file = String(photo.fileName || "");
+        if (file === `${baseName}.jpg`) used.add(1);
+        const match = file.match(new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d{2,})\\.jpg$`));
+        if (match) used.add(Math.max(2, Number(match[1]) || 0));
       });
-
-      // 1枚目には _01 を付けない。2枚目以降だけ _02、_03...。
-      if (!usedNumbers.has(1)) return `${baseName}.jpg`;
+      if (!used.has(1)) return `${baseName}.jpg`;
       let next = 2;
-      while (usedNumbers.has(next)) next += 1;
+      while (used.has(next)) next += 1;
       return `${baseName}_${String(next).padStart(2, "0")}.jpg`;
     }
 

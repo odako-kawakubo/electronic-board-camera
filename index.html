@@ -891,10 +891,9 @@
     }
 
     #previewImage {
+      width: min(100%, calc((var(--app-vh) - 168px) * 4 / 3));
       max-width: 100%;
-      max-height: 100%;
-      width: auto;
-      height: auto;
+      max-height: calc(var(--app-vh) - 168px);
       object-fit: contain;
       object-position: center;
       background: #111;
@@ -2136,8 +2135,7 @@
     #boardEditDoneButton,
     #editBoardModeButton,
     #boardEditSizeDownButton,
-    #boardEditSizeUpButton,
-    #boardEditSizeResetButton {
+    #boardEditSizeUpButton {
       touch-action: manipulation;
       pointer-events: auto !important;
       -webkit-user-select: none;
@@ -2204,6 +2202,85 @@
     #boardEditHost .inner-table tr:nth-child(1) { height: 34.6939%; }
     #boardEditHost .inner-table tr:nth-child(2) { height: 34.6939%; }
     #boardEditHost .inner-table tr:nth-child(3) { height: 30.6122%; }
+
+  
+    /* v60 preview layout: upper alignment and horizontal-only thumbnail scrolling */
+    #previewOverlay:not(.list-mode) {
+      justify-content: flex-start;
+      padding-top: calc(6px + env(safe-area-inset-top));
+      overflow: hidden;
+    }
+
+    #previewOverlay:not(.list-mode) .preview-casebar {
+      justify-content: flex-start;
+      align-self: stretch;
+      max-width: none;
+      margin: 0 52px 2px 0;
+      padding: 0 4px;
+      min-height: 30px;
+    }
+
+    #previewOverlay:not(.list-mode) .case-select-button {
+      max-width: min(72vw, 520px);
+      padding: 6px 11px;
+      font-size: 12px;
+    }
+
+    #previewOverlay:not(.list-mode) #previewCounter {
+      margin: 0 0 2px;
+      min-height: 16px;
+      font-size: 12px;
+      line-height: 16px;
+    }
+
+    #previewOverlay:not(.list-mode) #previewImageWrap {
+      flex: 1 1 0;
+      min-height: 0;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #previewOverlay:not(.list-mode) #previewImage {
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    #previewOverlay:not(.list-mode) #previewMeta {
+      flex: 0 0 auto;
+      margin-top: 3px;
+      min-height: 14px;
+      font-size: 11px;
+      line-height: 14px;
+    }
+
+    #previewOverlay:not(.list-mode) #previewThumbnails {
+      flex: 0 0 68px;
+      height: 68px;
+      max-height: 68px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 6px 4px 2px;
+      touch-action: pan-x;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: none;
+      scroll-snap-type: none;
+    }
+
+    #previewOverlay:not(.list-mode) .preview-controls {
+      flex: 0 0 auto;
+      padding-top: 6px;
+      gap: 6px;
+    }
+
+    .board-preview-size-controls #boardEditSizeResetButton {
+      min-width: 66px;
+      padding-inline: 10px;
+      font-size: 12px;
+    }
 
   </style>
 </head>
@@ -2474,7 +2551,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v59</strong>
+        現在：<strong id="settingsVersionText">v60</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -2569,7 +2646,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v59";
+    const APP_VERSION = "v60";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -3558,14 +3635,15 @@
     }
 
     function resetSelectedBoardEditTextSize() {
-      if (!boardEditDraft || !boardEditDraft.fieldTextSize) return;
+      if (!boardEditDraft) boardEditDraft = getCurrentBoardData();
+      if (!boardEditDraft.fieldTextSize) boardEditDraft.fieldTextSize = { ...boardFieldTextSize };
       const defaults = { subject: 18, address: 17, room: 24, sample: 24, date: 24 };
       const field = boardEditSelectedField;
       if (!(field in defaults)) return;
       boardEditDraft.fieldTextSize[field] = defaults[field];
       scheduleBoardEditCanvasRender();
       pushBoardEditHistoryDebounced();
-      showToast(`${document.getElementById("boardEditSelectedFieldLabel")?.textContent || "選択項目"}の文字サイズを初期値に戻しました`);
+      showToast("文字サイズを初期値に戻しました");
     }
 
     function toggleBoardEditModeFromForm() {
@@ -3634,7 +3712,7 @@
           date: boardEditDate ? boardEditDate.value || "" : "",
           status: boardEditStatus ? boardEditStatus.value || "visual" : "visual",
           boardMode: boardEditModeSelect && boardEditModeSelect.value === "sampling" ? "sampling" : "survey",
-          fieldTextSize: { ...boardFieldTextSize }
+          fieldTextSize: { ...((boardEditDraft && boardEditDraft.fieldTextSize) || boardFieldTextSize) }
         };
 
         boardEditDraft = structuredCloneBoardData(latestData);

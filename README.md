@@ -1,4 +1,4 @@
-# 電子看板カメラ v59
+# 電子看板カメラ v60
 
 ## 主な変更
 - 通常表示写真をダブルタップ／ダブルクリックで拡大表示
@@ -20,19 +20,21 @@
 - 編集完了ボタン、設定ボタン再押下で閉じる動作を維持
 
 
-## v59
+## v60
 - 選択中写真を現在の横幅いっぱいに表示し、画像本来の縦横比で高さを自動調整
 - 高さが画面を超える場合はプレビュー画面を縦スクロール可能に変更
 - 部屋No.の初期文字サイズは試料No.と同じ24pxを維持
-- 画面上のバージョン表示をv59に統一
+- 画面上のバージョン表示をv60に統一
 
-## v59
+## v60
 - 看板編集内の「最初から」ボタン表記を「元に戻す」に変更
 - 「戻る」「進む」のナビゲーションはそのまま維持
 - v57で大きくなりすぎた選択中写真表示を、固定領域内の全体表示へ戻した
 
 
-## v59
-- 選択中画像を現在の表示枠内で縦横比を維持して全体表示
-- 看板編集の文字サイズ調整に「リセット」を追加
-- 選択中の項目だけ初期文字サイズへ戻す
+## v60 changes
+- Moved case selector to the upper-left and reduced the photo counter size.
+- Kept the selected image inside the available preview area without vertical overlap.
+- Limited thumbnail scrolling to horizontal movement only.
+- Added a per-field text-size reset button.
+- Fixed board-edit completion so edited text and field text sizes are applied to the board and saved photo.

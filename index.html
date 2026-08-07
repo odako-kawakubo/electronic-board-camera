@@ -2073,8 +2073,17 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      display: none;
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
       z-index: -1;
+      pointer-events: none;
+    }
+    #boardEditOverlay.photo-board-correction #boardEditPhotoBackdrop,
+    #boardEditOverlay.import-board-edit #boardEditPhotoBackdrop {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
     }
     #boardEditOverlay.photo-board-correction #boardEditCanvasWrap {
       background: #111;
@@ -2234,10 +2243,121 @@
     #boardEditHost .inner-table tr:nth-child(2) { height: 34.6939%; }
     #boardEditHost .inner-table tr:nth-child(3) { height: 30.6122%; }
 
+  
+
+    /* v62: 起動モード選択 / 既存写真への看板追加 */
+    #launchModeOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      background: radial-gradient(circle at 50% 30%, #26364f 0%, #111823 48%, #080b10 100%);
+      color: #fff;
+    }
+    #launchModeOverlay.hidden { display: none; }
+    .launch-mode-card {
+      width: min(680px, 92vw);
+      padding: 28px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 22px;
+      background: rgba(19, 28, 42, .94);
+      box-shadow: 0 24px 70px rgba(0,0,0,.48);
+      text-align: center;
+    }
+    .launch-mode-title { font-size: clamp(24px, 4vw, 38px); font-weight: 900; letter-spacing: .04em; }
+    .launch-mode-subtitle { margin-top: 8px; color: #b9c5d5; font-size: 14px; font-weight: 700; }
+    .launch-mode-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 26px; }
+    .launch-mode-button {
+      min-height: 92px;
+      border: 0;
+      border-radius: 18px;
+      color: #fff;
+      font: 900 20px/1.25 inherit;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+    }
+    .launch-camera-button { background: linear-gradient(135deg, #2f80ed, #1b5fc7); }
+    .launch-import-button { background: linear-gradient(135deg, #27ae60, #168846); }
+    .launch-resume-panel {
+      display: none;
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid rgba(242,201,76,.55);
+      border-radius: 16px;
+      background: rgba(242,201,76,.09);
+      text-align: left;
+    }
+    .launch-resume-panel.show { display: block; }
+    .launch-resume-title { color: #f2c94c; font-weight: 900; font-size: 17px; }
+    .launch-resume-meta { margin-top: 5px; color: #e6e9ee; font-size: 14px; }
+    .launch-resume-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .launch-resume-actions button { flex: 1; min-height: 48px; border: 0; border-radius: 12px; font-weight: 900; cursor: pointer; }
+    .resume-import-button { background: #f2c94c; color: #171717; }
+    .discard-import-button { background: #3b4655; color: #fff; }
+    #importProgressBadge {
+      display: none;
+      margin-left: 8px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #27ae60;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    #importProgressBadge.show { display: inline-flex; }
+    #importBoardControls {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    #boardEditOverlay.import-board-edit #importBoardControls { display: flex; }
+    #importBoardControls button {
+      min-width: 64px;
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 10px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-weight: 900;
+    }
+    #importBoardPositionLabel { min-width: 78px; color: #fff; font-weight: 900; font-size: 13px; text-align: center; }
+    @media (max-width: 680px) {
+      .launch-mode-actions { grid-template-columns: 1fr; }
+      .launch-mode-card { padding: 22px 18px; }
+      .launch-mode-button { min-height: 76px; }
+    }
+
   </style>
 </head>
 
 <body>
+
+  <div id="launchModeOverlay" aria-label="起動方法を選択">
+    <div class="launch-mode-card">
+      <div class="launch-mode-title">電子看板カメラ</div>
+      <div class="launch-mode-subtitle">撮影するか、既存写真へ看板を追加するか選択してください</div>
+      <div class="launch-mode-actions">
+        <button class="launch-mode-button launch-camera-button" type="button" onclick="chooseCameraMode()">📷 カメラを起動</button>
+        <button class="launch-mode-button launch-import-button" type="button" onclick="chooseImportMode()">🖼 写真から看板を付ける</button>
+      </div>
+      <div id="launchResumePanel" class="launch-resume-panel">
+        <div class="launch-resume-title">編集中の写真があります</div>
+        <div id="launchResumeMeta" class="launch-resume-meta"></div>
+        <div class="launch-resume-actions">
+          <button class="resume-import-button" type="button" onclick="resumeImportSession()">編集を続ける</button>
+          <button class="discard-import-button" type="button" onclick="discardImportSession()">破棄する</button>
+        </div>
+      </div>
+      <input id="importPhotoInput" type="file" accept="image/*" multiple hidden />
+    </div>
+  </div>
   <div id="appOrientationShell">
   <div id="cameraScreen">
     <div class="left-panel">
@@ -2532,6 +2652,7 @@
       <div class="board-edit-form-header">
         <div class="board-edit-form-title">看板編集</div>
         <div id="boardEditModeBadge" class="board-edit-mode-badge mode-survey">調査</div>
+        <div id="importProgressBadge"></div>
       </div>
       <div class="board-form-grid">
         <div class="board-form-field" data-board-field="subject">
@@ -2588,6 +2709,12 @@
         <button id="boardEditSizeUpButton" type="button">A+</button>
         <button id="boardEditSizeResetButton" type="button">リセット</button>
       </div>
+      <div id="importBoardControls">
+        <button type="button" onclick="decreaseImportBoardSize()">看板−</button>
+        <button type="button" onclick="cycleImportBoardPosition()">位置</button>
+        <span id="importBoardPositionLabel">左下</span>
+        <button type="button" onclick="increaseImportBoardSize()">看板＋</button>
+      </div>
     </div>
 
     <div class="board-edit-right">
@@ -2598,7 +2725,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "v61";
+    const APP_VERSION = "v64";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -2614,8 +2741,10 @@
 
     const SECTION_PHOTO_TYPE = { value: "section", label: "断面", code: "4" };
     const DB_NAME = "electronic-board-camera-prototype";
-    const DB_VERSION = 1;
+    const DB_VERSION = 2;
     const DB_STORE_NAME = "photos";
+    const IMPORT_SESSION_STORE_NAME = "importSessions";
+    const ACTIVE_IMPORT_SESSION_ID = "active";
     const DEFAULT_POINT_NO = "1";
     const POINT_DISPLAY_DEFAULT = "1-①";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
@@ -2642,6 +2771,12 @@
     const captureReviewImage = document.getElementById("captureReviewImage");
     const samplingNameHistoryList = document.getElementById("samplingNameHistoryList");
     const cameraGuide = document.getElementById("cameraGuide");
+    const launchModeOverlay = document.getElementById("launchModeOverlay");
+    const launchResumePanel = document.getElementById("launchResumePanel");
+    const launchResumeMeta = document.getElementById("launchResumeMeta");
+    const importPhotoInput = document.getElementById("importPhotoInput");
+    const importProgressBadge = document.getElementById("importProgressBadge");
+    const importBoardPositionLabel = document.getElementById("importBoardPositionLabel");
 
     const boardLayer = document.querySelector(".board-layer");
     const boardWrap = document.getElementById("boardWrap");
@@ -2738,6 +2873,11 @@
     let activeSidePanel = null;
     let isDateManuallyEdited = false;
 
+    // v62: 既存写真読み込み編集セッション。元画像はセッション中だけIndexedDBへ一時保存する。
+    let activeImportSession = null;
+    let activeImportBaseDataUrl = "";
+    let isImportBoardEdit = false;
+
     const BOARD_POSITIONS = ["bottom-left", "bottom-right", "top-right", "top-left"];
     const BOARD_POSITION_LABELS = {
       "bottom-left": "左下",
@@ -2770,6 +2910,7 @@
     let boardEditDraft = null;
     let boardEditSelectedField = "subject";
     let boardEditRenderQueued = false;
+    let boardEditRenderToken = 0;
     let boardEditIsComposing = false;
     let boardEditFinishRequested = false;
 
@@ -2798,6 +2939,8 @@
       applyBoardFieldTextSizes();
 
       await loadPhotosFromIndexedDB();
+      setupImportPhotoInput();
+      await refreshImportResumePanel();
 
       requestAnimationFrame(() => {
         setInitialBoardLayout();
@@ -3528,8 +3671,11 @@
       });
     }
 
-    function renderBoardEditCanvas() {
+    // v63: 写真編集時は「看板だけ」ではなく、実写真 + 看板を同じCanvasに描画する。
+    // 読み込み写真・撮影済み写真の看板修正どちらでも、保存結果に近い状態を常時確認できる。
+    async function renderBoardEditCanvas() {
       if (!boardEditCanvas || !boardEditDraft) return;
+      const renderToken = ++boardEditRenderToken;
       const wrap = boardEditCanvas.parentElement;
       const cssWidth = Math.max(1, Math.round(wrap.clientWidth || 780));
       const cssHeight = Math.max(1, Math.round(wrap.clientHeight || cssWidth * 242 / 390));
@@ -3540,7 +3686,84 @@
       boardEditCanvas.style.height = `${cssHeight}px`;
       const ctx = boardEditCanvas.getContext("2d");
       ctx.clearRect(0, 0, boardEditCanvas.width, boardEditCanvas.height);
-      drawBoardOnCanvas(ctx, 0, 0, boardEditCanvas.width, boardEditCanvas.height, readBoardEditForm());
+
+      const data = structuredCloneBoardData(readBoardEditForm());
+      const isPhotoPreview = boardEditOverlay.classList.contains("photo-board-correction") ||
+        boardEditOverlay.classList.contains("import-board-edit");
+      const photoSrc = boardEditPhotoBackdrop && boardEditPhotoBackdrop.getAttribute("src");
+
+      if (isPhotoPreview && photoSrc) {
+        try {
+          const img = await loadImage(photoSrc);
+          if (renderToken !== boardEditRenderToken || !isBoardEditMode) return;
+
+          // 編集Canvas内には写真全体をcontain表示する。縦横写真のどちらでも欠けない。
+          const imageRect = getContainedImageRect(
+            img.naturalWidth || img.width,
+            img.naturalHeight || img.height,
+            boardEditCanvas.width,
+            boardEditCanvas.height
+          );
+          ctx.fillStyle = "#111";
+          ctx.fillRect(0, 0, boardEditCanvas.width, boardEditCanvas.height);
+          ctx.drawImage(img, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+
+          // 保存時と同じ4隅・同じサイズ比率で看板を描く。
+          const boardRect = getFixedBoardRectForImageRect(imageRect);
+          drawBoardOnCanvas(ctx, boardRect.x, boardRect.y, boardRect.w, boardRect.h, data);
+          return;
+        } catch (error) {
+          console.warn("写真付き看板プレビューの描画に失敗しました", error);
+        }
+      }
+
+      // 通常の看板編集は従来どおり看板単体を表示する。
+      drawBoardOnCanvas(ctx, 0, 0, boardEditCanvas.width, boardEditCanvas.height, data);
+    }
+
+    function getContainedImageRect(srcW, srcH, dstW, dstH) {
+      const safeSrcW = Math.max(1, Number(srcW) || 1);
+      const safeSrcH = Math.max(1, Number(srcH) || 1);
+      const scale = Math.min(dstW / safeSrcW, dstH / safeSrcH);
+      const w = safeSrcW * scale;
+      const h = safeSrcH * scale;
+      return {
+        x: (dstW - w) / 2,
+        y: (dstH - h) / 2,
+        w,
+        h
+      };
+    }
+
+    // 写真の実寸に依存せず、看板の大きさを「写真幅に対する比率」で統一する。
+    // boardState.sizeRatio と4か所固定位置を、編集プレビューと保存処理で共用する。
+    function getFixedBoardRectForImageRect(imageRect) {
+      const margin = Math.max(2, imageRect.w * 0.012);
+      let w = imageRect.w * clamp(boardState.sizeRatio, boardState.minSizeRatio, boardState.maxSizeRatio);
+      let h = w * (242 / 390);
+      const maxW = Math.max(1, imageRect.w - margin * 2);
+      const maxH = Math.max(1, imageRect.h - margin * 2);
+      if (w > maxW) {
+        const scale = maxW / w;
+        w *= scale;
+        h *= scale;
+      }
+      if (h > maxH) {
+        const scale = maxH / h;
+        w *= scale;
+        h *= scale;
+      }
+
+      const left = imageRect.x + margin;
+      const right = imageRect.x + imageRect.w - margin - w;
+      const top = imageRect.y + margin;
+      const bottom = imageRect.y + imageRect.h - margin - h;
+      let x = left;
+      let y = bottom;
+      if (boardState.position === "bottom-right") { x = right; y = bottom; }
+      if (boardState.position === "top-right") { x = right; y = top; }
+      if (boardState.position === "top-left") { x = left; y = top; }
+      return { x, y, w, h };
     }
 
     function setupBoardEditForm() {
@@ -3549,6 +3772,8 @@
         const syncDraftFromControl = () => {
           readBoardEditForm();
           if (control === boardEditModeSelect) {
+            // v63: 調査 / サンプリング切替を下書きへ即反映してから再描画する。
+            boardEditDraft.boardMode = boardEditModeSelect.value === "sampling" ? "sampling" : "survey";
             renderBoardEditStatusOptions(boardEditDraft.status);
             updateBoardEditModeLabels();
             selectBoardEditField(boardEditSelectedField);
@@ -3795,6 +4020,11 @@
 
       if (boardMode === "sampling") {
         safely("採取箇所履歴保存に失敗", () => saveSamplingNameHistoryForCurrentCase(roomNoInput.value));
+      }
+
+      if (isImportBoardEdit) {
+        await finishImportedPhotoBoardEdit();
+        return;
       }
 
       if (shouldFinishPhotoCorrection) {
@@ -4735,7 +4965,14 @@
       canvas.height = img.naturalHeight || img.height;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      await drawCurrentBoardToCanvas(ctx, canvas, { forceBoard: true, forceLegacyBoard: options.forceLegacyBoard });
+
+      if (options.useImageRelativeBoardLayout) {
+        // v63: ファイル読み込み写真は編集プレビューと完全に同じ4隅・サイズ比率で保存する。
+        const rect = getFixedBoardRectForImageRect({ x: 0, y: 0, w: canvas.width, h: canvas.height });
+        drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h, options.sourceData || getCurrentBoardData());
+      } else {
+        await drawCurrentBoardToCanvas(ctx, canvas, { forceBoard: true, forceLegacyBoard: options.forceLegacyBoard });
+      }
       return canvas;
     }
 
@@ -5285,6 +5522,7 @@
 
       if (boardEditPhotoBackdrop) {
         boardEditPhotoBackdrop.src = photo.baseDataUrl || photo.dataUrl;
+        boardEditPhotoBackdrop.onload = () => scheduleBoardEditCanvasRender();
       }
       if (boardEditDoneButton) {
         boardEditDoneButton.textContent = "修正\n完了";
@@ -5316,11 +5554,11 @@
         let canvas;
         let newDataUrl;
         try {
-          canvas = await composeBoardOnBaseImage(photo.baseDataUrl);
+          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData() });
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         } catch (error) {
           console.warn("HTML看板での再合成に失敗したため、旧Canvas描画で再合成します", error);
-          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { forceLegacyBoard: true });
+          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData(), forceLegacyBoard: true });
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         }
 
@@ -5687,6 +5925,9 @@
           if (!db.objectStoreNames.contains(DB_STORE_NAME)) {
             db.createObjectStore(DB_STORE_NAME, { keyPath: "id" });
           }
+          if (!db.objectStoreNames.contains(IMPORT_SESSION_STORE_NAME)) {
+            db.createObjectStore(IMPORT_SESSION_STORE_NAME, { keyPath: "id" });
+          }
         };
 
         request.onsuccess = () => {
@@ -5770,6 +6011,319 @@
         console.error(error);
         showToast("端末内写真の削除に失敗しました");
       }
+    }
+
+
+    /* =========================================================
+     * v62: 既存写真へ看板を付ける機能
+     * - 初期画面でカメラ / 写真読み込みを選択
+     * - 複数写真を選択し、1枚ずつ既存の看板編集UIで編集
+     * - 前の写真の看板内容を次の写真へ引き継ぐ
+     * - 元画像は編集中のみIndexedDBへ一時保存し、全件完了後に破棄
+     * ========================================================= */
+
+    function chooseCameraMode() {
+      if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
+      startCamera();
+    }
+
+    function chooseImportMode() {
+      if (!importPhotoInput) return;
+      if (launchResumePanel && launchResumePanel.classList.contains("show")) {
+        window.alert("編集中の写真があります。\n\n先に「編集を続ける」または「破棄する」を選択してください。");
+        return;
+      }
+      importPhotoInput.value = "";
+      importPhotoInput.click();
+    }
+
+    function setupImportPhotoInput() {
+      if (!importPhotoInput || importPhotoInput.dataset.bound === "1") return;
+      importPhotoInput.dataset.bound = "1";
+      importPhotoInput.addEventListener("change", async (event) => {
+        const files = Array.from(event.target.files || []).filter(file => file && String(file.type || "").startsWith("image/"));
+        if (!files.length) return;
+        try {
+          await startImportSession(files);
+        } catch (error) {
+          console.error("写真読み込み開始に失敗しました", error);
+          showErrorToast("写真の読み込みに失敗しました");
+        }
+      });
+    }
+
+    async function startImportSession(files) {
+      const now = new Date().toISOString();
+      activeImportSession = {
+        id: ACTIVE_IMPORT_SESSION_ID,
+        currentIndex: 0,
+        createdAt: now,
+        updatedAt: now,
+        items: files.map((file, index) => ({
+          id: `import_${Date.now()}_${index}_${Math.random().toString(36).slice(2)}`,
+          blob: file,
+          originalName: file.name || `image_${index + 1}`,
+          type: file.type || "image/jpeg"
+        }))
+      };
+      await saveImportSession(activeImportSession);
+      if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
+      await openCurrentImportedPhoto();
+    }
+
+    async function resumeImportSession() {
+      const session = await loadImportSession();
+      if (!session || !session.items || session.currentIndex >= session.items.length) {
+        await discardImportSession();
+        return;
+      }
+      activeImportSession = session;
+      if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
+      await openCurrentImportedPhoto();
+    }
+
+    async function discardImportSession() {
+      await deleteImportSession();
+      activeImportSession = null;
+      activeImportBaseDataUrl = "";
+      isImportBoardEdit = false;
+      if (launchResumePanel) launchResumePanel.classList.remove("show");
+      if (importProgressBadge) importProgressBadge.classList.remove("show");
+      showToast("編集中データを破棄しました");
+    }
+
+    async function refreshImportResumePanel() {
+      const session = await loadImportSession();
+      const valid = Boolean(session && Array.isArray(session.items) && session.items.length && session.currentIndex < session.items.length);
+      if (!launchResumePanel || !launchResumeMeta) return;
+      launchResumePanel.classList.toggle("show", valid);
+      if (valid) {
+        const done = Math.max(0, Number(session.currentIndex) || 0);
+        launchResumeMeta.textContent = `${done} / ${session.items.length} 枚まで完了。次の写真から再開できます。`;
+      } else {
+        launchResumeMeta.textContent = "";
+      }
+    }
+
+    async function openCurrentImportedPhoto() {
+      if (!activeImportSession) activeImportSession = await loadImportSession();
+      const session = activeImportSession;
+      if (!session || !session.items || session.currentIndex >= session.items.length) {
+        await completeImportSession();
+        return;
+      }
+
+      const item = session.items[session.currentIndex];
+      activeImportBaseDataUrl = await normalizeImportedImageToDataUrl(item.blob);
+      isImportBoardEdit = true;
+      boardEditTargetPhotoId = null;
+
+      // 初回だけ「今日」を初期値にする。2枚目以降は前の編集内容をそのまま引き継ぐ。
+      if (session.currentIndex === 0 && !isDateManuallyEdited) {
+        updateCurrentDate();
+      }
+
+      if (boardEditPhotoBackdrop) {
+        boardEditPhotoBackdrop.src = activeImportBaseDataUrl;
+        boardEditPhotoBackdrop.onload = () => scheduleBoardEditCanvasRender();
+      }
+      if (boardEditDoneButton) boardEditDoneButton.textContent = session.currentIndex + 1 < session.items.length ? "保存\n次へ" : "保存\n完了";
+      if (importProgressBadge) {
+        importProgressBadge.textContent = `${session.currentIndex + 1} / ${session.items.length}`;
+        importProgressBadge.classList.add("show");
+      }
+      updateImportBoardPositionLabel();
+      boardEditOverlay.classList.add("photo-board-correction", "import-board-edit");
+      openBoardEditMode({ focusFirstField: false });
+      showToast(`${session.currentIndex + 1} / ${session.items.length} 枚目を編集中`);
+    }
+
+    async function finishImportedPhotoBoardEdit() {
+      const session = activeImportSession;
+      if (!session || !activeImportBaseDataUrl) {
+        isImportBoardEdit = false;
+        return;
+      }
+
+      try {
+        saveBoardForm();
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+        let canvas;
+        let dataUrl;
+        try {
+          canvas = await composeBoardOnBaseImage(activeImportBaseDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData() });
+          dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        } catch (error) {
+          console.warn("読み込み写真への看板合成を旧Canvas描画で再試行します", error);
+          canvas = await composeBoardOnBaseImage(activeImportBaseDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData(), forceLegacyBoard: true });
+          dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        }
+
+        const photoType = getCurrentPhotoType();
+        const sampleParts = parseSampleAndPoint(sampleNoInput.value);
+        const createdAt = new Date();
+        const photo = {
+          id: `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          dataUrl,
+          // 読み込み元はカメラロールに残るため、完成後の元画像は保持しない。
+          baseDataUrl: "",
+          fileName: generatePhotoFileName(sampleParts.sampleNo, sampleParts.pointNo, photoType.code),
+          status: photoType.value,
+          statusLabel: photoType.label,
+          statusCode: photoType.code,
+          sampleNo: sampleParts.sampleNo,
+          pointNo: sampleParts.pointNo,
+          roomNo: roomNoInput.value.trim(),
+          subjectName: getCurrentSubjectName(),
+          isSection: photoType.value === SECTION_PHOTO_TYPE.value,
+          selected: false,
+          createdAt: createdAt.toISOString(),
+          savedLocal: false,
+          savedAt: "",
+          source: "import"
+        };
+
+        await savePhotoToIndexedDB(photo);
+        capturedPhotos.push(photo);
+        previewIndex = capturedPhotos.length - 1;
+        updatePhotoCount();
+
+        session.currentIndex += 1;
+        session.updatedAt = new Date().toISOString();
+        activeImportBaseDataUrl = "";
+
+        if (session.currentIndex >= session.items.length) {
+          await completeImportSession();
+          return;
+        }
+
+        await saveImportSession(session);
+        // closeBoardEditMode が一度編集モードを閉じているため、次の1枚を即座に開ける。
+        window.setTimeout(() => openCurrentImportedPhoto(), 40);
+      } catch (error) {
+        console.error("読み込み写真の保存に失敗しました", error);
+        showErrorToast("看板付き写真の保存に失敗しました");
+        // セッションは消さない。再起動後も同じ写真から再開できる。
+        await saveImportSession(session);
+      }
+    }
+
+    async function completeImportSession() {
+      await deleteImportSession();
+      activeImportSession = null;
+      activeImportBaseDataUrl = "";
+      isImportBoardEdit = false;
+      boardEditOverlay.classList.remove("import-board-edit", "photo-board-correction");
+      if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
+      if (importProgressBadge) importProgressBadge.classList.remove("show");
+      if (boardEditDoneButton) boardEditDoneButton.textContent = "完了";
+      showToast("選択した写真の看板追加が完了しました");
+      previewOverlay.classList.add("show");
+      renderPreview();
+    }
+
+    async function normalizeImportedImageToDataUrl(blob) {
+      if (!blob) throw new Error("画像データがありません");
+      let bitmap = null;
+      try {
+        if (typeof createImageBitmap === "function") {
+          try {
+            bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+          } catch (_) {
+            bitmap = await createImageBitmap(blob);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(bitmap, 0, 0);
+          if (bitmap.close) bitmap.close();
+          return canvas.toDataURL("image/jpeg", 0.92);
+        }
+      } catch (error) {
+        console.warn("createImageBitmapでの画像正規化に失敗しました", error);
+        if (bitmap && bitmap.close) bitmap.close();
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const img = await loadImage(objectUrl);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.92);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
+
+    async function saveImportSession(session) {
+      const db = await openPhotoDB();
+      if (!db) return;
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readwrite");
+        tx.objectStore(IMPORT_SESSION_STORE_NAME).put(session);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("一時保存を中断しました"));
+      });
+    }
+
+    async function loadImportSession() {
+      try {
+        const db = await openPhotoDB();
+        if (!db || !db.objectStoreNames.contains(IMPORT_SESSION_STORE_NAME)) return null;
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readonly");
+          const req = tx.objectStore(IMPORT_SESSION_STORE_NAME).get(ACTIVE_IMPORT_SESSION_ID);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(req.error);
+        });
+      } catch (error) {
+        console.error("編集中写真の読込に失敗しました", error);
+        return null;
+      }
+    }
+
+    async function deleteImportSession() {
+      try {
+        const db = await openPhotoDB();
+        if (!db || !db.objectStoreNames.contains(IMPORT_SESSION_STORE_NAME)) return;
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readwrite");
+          const req = tx.objectStore(IMPORT_SESSION_STORE_NAME).delete(ACTIVE_IMPORT_SESSION_ID);
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        });
+      } catch (error) {
+        console.error("編集中写真の削除に失敗しました", error);
+      }
+    }
+
+    function cycleImportBoardPosition() {
+      cycleBoardPosition();
+      updateImportBoardPositionLabel();
+      scheduleBoardEditCanvasRender();
+    }
+
+    function increaseImportBoardSize() {
+      increaseBoardSize();
+      updateImportBoardPositionLabel();
+      scheduleBoardEditCanvasRender();
+    }
+
+    function decreaseImportBoardSize() {
+      decreaseBoardSize();
+      updateImportBoardPositionLabel();
+      scheduleBoardEditCanvasRender();
+    }
+
+    function updateImportBoardPositionLabel() {
+      if (!importBoardPositionLabel) return;
+      const label = BOARD_POSITION_LABELS[boardState.position] || "左下";
+      importBoardPositionLabel.textContent = `${label} ${Math.round(boardState.sizeRatio * 100)}%`;
     }
 
     /* キャンバス上に看板を描画 */
@@ -5883,7 +6437,9 @@
 
       const statusStartX = x + leftColW + 3;
       const statusWidth = rightW - 6;
-      const activeStatusList = getActiveStatusList();
+      const activeStatusList = activeBoardMode === "sampling"
+        ? STATUS_LIST.filter((item) => item.value !== "visual")
+        : STATUS_LIST;
       const segmentW = statusWidth / activeStatusList.length;
       const statusCenterY = contentY + roomRowH + sampleRowH + statusRowH / 2;
 

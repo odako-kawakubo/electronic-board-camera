@@ -1,0 +1,2323 @@
+    :root {
+      --app-vw: 100vw;
+      --app-vh: 100dvh;
+    }
+
+    #appOrientationShell {
+      position: fixed;
+      inset: 0;
+      width: var(--app-vw);
+      height: var(--app-vh);
+      overflow: hidden;
+      background: #000;
+      transform-origin: center center;
+    }
+
+    #landscapeFlipButton {
+      display: none;
+    }
+
+    @media (orientation: portrait) {
+      :root {
+        --app-vw: 100dvh;
+        --app-vh: 100vw;
+      }
+
+      #appOrientationShell {
+        left: 50%;
+        top: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translate(-50%, -50%) rotate(90deg);
+      }
+
+      body.landscape-flipped #appOrientationShell {
+        transform: translate(-50%, -50%) rotate(-90deg);
+      }
+
+      #landscapeFlipButton {
+        display: block;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    }
+
+    body {
+      touch-action: manipulation;
+    }
+
+    #cameraScreen {
+      position: relative;
+      width: var(--app-vw);
+      height: var(--app-vh);
+      overflow: hidden;
+      background: #000;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 0;
+    }
+
+    /*
+     * 撮影エリア。
+     * ここに見えている範囲だけを写真として保存する。
+     * 横向きでは中央4:3、右側の黒帯に操作ボタンを置く。
+     */
+
+
+    /* 左黒帯：撮影枚数などの情報表示 */
+    .left-panel {
+      position: relative;
+      z-index: 4;
+      width: 92px;
+      height: var(--app-vh);
+      flex: 0 0 92px;
+      background: #000;
+      color: #fff;
+      padding: calc(12px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .left-panel::-webkit-scrollbar {
+      display: none;
+    }
+
+    #captureFrame {
+      position: relative;
+      /* 横向きは4:3撮影エリアを画面内に収める。
+       * 左右の黒帯（左92px + 右92px）を差し引き、
+       * iPhone/PWAの下見切れ対策として安全側に少し小さくする。
+       */
+      --capture-safe-h: calc(var(--app-vh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px);
+      --capture-safe-w: calc(var(--app-vw) - 184px);
+      width: min(var(--capture-safe-w), calc(var(--capture-safe-h) * 4 / 3));
+      height: min(var(--capture-safe-h), calc(var(--capture-safe-w) * 3 / 4));
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      background: #000;
+      flex: 0 0 auto;
+    }
+
+    #video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+      z-index: 1;
+    }
+
+    #captureFreezeImage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+      z-index: 4;
+      display: none;
+      pointer-events: none;
+    }
+
+    #captureFreezeImage.show {
+      display: block;
+    }
+
+    #cameraFlash {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.16s ease;
+    }
+
+    #cameraFlash.flash {
+      opacity: 0.92;
+      transition: opacity 0.04s ease;
+    }
+
+    .control-button:disabled {
+      opacity: 0.45;
+      cursor: wait;
+    }
+
+    #toast.error {
+      background: rgba(235, 87, 87, 0.92);
+    }
+
+    #cameraGuide {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+      pointer-events: none;
+    }
+
+    .hidden,
+    .hidden-control {
+      display: none !important;
+    }
+
+    /* 撮影枚数表示 */
+    #photoCount {
+      position: relative;
+      z-index: 9999;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      padding: 7px 6px;
+      border-radius: 9px;
+      font-size: 11px;
+      line-height: 1.25;
+      font-weight: 900;
+      text-align: center;
+      pointer-events: auto;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      white-space: pre-line;
+      width: 68px;
+    }
+
+    #photoCount:active {
+      opacity: 0.72;
+    }
+
+    .board-control-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding-bottom: 4px;
+      flex: 0 0 auto;
+    }
+
+    .mode-toggle-button,
+    .panel-main-button,
+    .panel-mini-button,
+    .panel-center-button {
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+      color: #fff;
+      font-family: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      touch-action: manipulation;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .mode-toggle-button:active,
+    .panel-main-button:active,
+    .panel-mini-button:active,
+    .panel-center-button:active {
+      opacity: 0.72;
+    }
+
+    .mode-toggle-button {
+      width: 72px;
+      min-height: 42px;
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1.15;
+      background: linear-gradient(180deg, rgba(47,128,237,0.9), rgba(47,128,237,0.55));
+    }
+
+    body.sampling-mode .mode-toggle-button {
+      background: linear-gradient(180deg, rgba(39,174,96,0.9), rgba(39,174,96,0.55));
+    }
+
+    .panel-main-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      align-items: center;
+    }
+
+    .panel-main-button {
+      width: 72px;
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.15;
+    }
+
+    .panel-main-button.active {
+      border-color: rgba(242, 201, 76, 0.95);
+      box-shadow: 0 0 0 2px rgba(242, 201, 76, 0.25) inset, 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .panel-expanded {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .panel-expanded.show {
+      display: flex;
+    }
+
+    .panel-pair {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .panel-vertical {
+      display: grid;
+      grid-template-rows: 30px 32px 30px;
+      width: 34px;
+      gap: 3px;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .panel-mini-button {
+      width: 34px;
+      height: 30px;
+      border-radius: 9px;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .panel-center-button {
+      width: 34px;
+      height: 32px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1;
+      padding: 0;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .panel-single {
+      width: 44px;
+      display: grid;
+      grid-template-rows: 32px 38px 32px;
+      gap: 5px;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .panel-single .panel-mini-button {
+      width: 44px;
+      height: 32px;
+      font-size: 17px;
+    }
+
+    .panel-single .panel-center-button {
+      width: 44px;
+      height: 38px;
+      font-size: 16px;
+    }
+
+    .panel-close-button {
+      width: 58px;
+      min-height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255,255,255,0.92);
+      font-size: 11px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    body.sampling-mode .survey-only {
+      display: none !important;
+    }
+
+    body:not(.sampling-mode) .sampling-only {
+      display: none !important;
+    }
+
+    body.sampling-mode #roomLabelCell {
+      display: none;
+    }
+
+    body.sampling-mode #roomValueCell {
+      padding-left: 0;
+      padding-right: 0;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    body.sampling-mode #roomNoInput {
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      text-align-last: center;
+      padding-left: 0;
+      padding-right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 看板レイヤー */
+    .board-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    #boardWrap {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 390px;
+      transform-origin: top left;
+      pointer-events: auto;
+      touch-action: none;
+      user-select: none;
+      cursor: default;
+      will-change: transform;
+    }
+
+
+    /* v50: 表示看板と保存看板を同一Canvas描画に統一する */
+    #boardCanvasPreview {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 242px;
+      z-index: 8;
+      pointer-events: auto;
+      display: block;
+      background: transparent;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    body:not(.board-editing) #photoBoard {
+      visibility: hidden;
+    }
+
+    body.board-editing #photoBoard {
+      visibility: visible;
+    }
+
+    body.board-editing #boardCanvasPreview {
+      display: none;
+    }
+
+
+    /* 電子看板：横長長方形 */
+    #photoBoard {
+      position: relative;
+      width: 100%;
+      height: 242px;
+      padding: 4px;
+      box-sizing: border-box;
+      background: #fff;
+      color: #000;
+      border: 2px solid #000;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+    }
+
+    /*
+     * 細線の二重枠。
+     * 外側は #photoBoard の border、内側は表全体の枠で作る。
+     */
+    #photoBoard::after {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      z-index: 5;
+      border: 1.5px solid #000;
+      pointer-events: none;
+    }
+
+    .board-table,
+    .inner-table {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: #fff;
+    }
+
+    .board-table {
+      border: none;
+    }
+
+    .board-table td,
+    .inner-table td {
+      border: 1.5px solid #000;
+      vertical-align: middle;
+      padding: 0;
+    }
+
+
+    /* v45: 入れ子表の外周罫線を消して、内容欄だけ太線に見えるのを防ぐ */
+    .inner-table tr:first-child td { border-top: none; }
+    .inner-table tr:last-child td { border-bottom: none; }
+    .inner-table td:first-child { border-left: none; }
+    .inner-table td:last-child { border-right: none; }
+
+    .row-subject {
+      height: 52px;
+    }
+
+    .row-place {
+      height: 40px;
+    }
+
+    .row-content {
+      height: 96px;
+    }
+
+    .row-date {
+      height: 42px;
+    }
+
+    .label-cell {
+      width: 78px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .content-label-cell {
+      width: 78px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .value-cell {
+      padding: 4px 5px;
+    }
+
+    .board-value-cell {
+      padding: 0 6px;
+    }
+
+    .textarea-center-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .subject-text {
+      font-size: 23px;
+      font-weight: 900;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .address-text {
+      font-size: 21px;
+      font-weight: 900;
+      line-height: 1.2;
+      word-break: break-all;
+    }
+
+    .board-editable {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      overflow: hidden;
+      background: transparent;
+      color: #000;
+      font-family: inherit;
+      padding: 0;
+      margin: 0;
+      text-align: center;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-break: strict;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    textarea.board-editable {
+      display: block;
+      text-align-last: center;
+      scrollbar-width: none;
+      box-sizing: border-box;
+    }
+
+    textarea.board-editable::-webkit-scrollbar {
+      display: none;
+    }
+
+
+    .textarea-center-wrap textarea.board-editable {
+      height: 100%;
+      line-height: 1.25;
+      padding-left: 0;
+      padding-right: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+    }
+
+    /* v45: 件名・採取場所のtextareaを同じ仕組みで上下中央に見せる */
+    .subject-textarea,
+    .address-textarea {
+      display: block;
+      text-align: center;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .subject-textarea {
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .address-textarea {
+      font-size: 17px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    #boardWrap.text-small .subject-textarea {
+      font-size: 16px;
+    }
+
+    #boardWrap.text-small .address-textarea {
+      font-size: 15px;
+    }
+
+    #boardWrap.text-small #roomNoInput {
+      font-size: 21px;
+    }
+
+    #boardWrap.text-large .subject-textarea {
+      font-size: 20px;
+    }
+
+    #boardWrap.text-large .address-textarea {
+      font-size: 19px;
+    }
+
+    #boardWrap.text-large #roomNoInput {
+      font-size: 27px;
+    }
+
+    .inner-label {
+      /* 確定設定：No.セル「少し広」 */
+      width: 120px;
+      padding: 4px 5px 4px 12px;
+      font-size: 17px;
+      font-weight: 900;
+      white-space: nowrap;
+      text-align: left;
+      border-right: none !important;
+    }
+
+    .inner-value {
+      border-left: none !important;
+      /* 確定設定：値位置「右」 */
+      padding: 0 6px 0 48px;
+    }
+
+    .board-input {
+      width: 100%;
+      height: 28px;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #000;
+      font-size: 24px;
+      font-weight: 900;
+      font-family: inherit;
+      text-align: left;
+      padding: 0;
+    }
+
+    .status-cell {
+      padding: 3px 4px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2px;
+      width: 100%;
+      height: 34px;
+      flex-wrap: nowrap;
+    }
+
+    .status-btn {
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: #000;
+      font-size: 15px;
+      font-weight: 900;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .status-box {
+      display: inline-block;
+      min-width: 1em;
+      text-align: center;
+      font-size: 1.05em;
+      line-height: 1;
+    }
+
+    .date-cell {
+      text-align: center;
+      padding: 0 6px;
+    }
+
+    .date-text {
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0.06em;
+    }
+
+    /* 操作パネル：横向きでは右黒帯に縦並び */
+    .controls {
+      position: relative !important;
+      z-index: 9999 !important;
+      width: 92px !important;
+      height: var(--app-vh) !important;
+      flex: 0 0 92px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 12px !important;
+      padding: calc(10px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom)) !important;
+      margin: 0 !important;
+      pointer-events: auto !important;
+      background: #000;
+    }
+
+    .control-button {
+      border: none;
+      border-radius: 999px;
+      width: 64px;
+      min-height: 82px;
+      padding: 12px 8px;
+      font-size: 18px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      touch-action: manipulation;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+    }
+
+    .btn-start {
+      background: #2f80ed;
+      color: #fff;
+    }
+
+    .btn-view {
+      background: #f2c94c;
+      color: #000;
+      min-width: 80px;
+    }
+
+    .btn-shoot {
+      background: #fff;
+      color: #000;
+      min-width: 92px;
+    }
+
+    .btn-section {
+      background: #eb5757;
+      color: #fff;
+      min-width: 80px;
+    }
+
+    .btn-section.active {
+      background: #fff;
+      color: #eb5757;
+      box-shadow: 0 0 0 3px #eb5757 inset, 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .btn-mode {
+      background: #27ae60;
+      color: #fff;
+      min-width: 80px;
+      font-size: 17px;
+    }
+
+    body:not(.sampling-mode) .btn-mode {
+      background: #2f80ed;
+    }
+
+
+    .controls .control-button {
+      min-width: 64px;
+    }
+
+    #sectionModeBadge {
+      position: absolute;
+      left: 50%;
+      bottom: calc(74px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: none;
+      background: rgba(235, 87, 87, 0.92);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 16px;
+      font-weight: 900;
+      pointer-events: none;
+    }
+
+    #sectionModeBadge.show {
+      display: block;
+    }
+
+    body.section-mode #boardWrap {
+      display: none;
+    }
+
+    /* プレビュー画面 */
+    #previewOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20000;
+      background: #000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow: hidden;
+      padding: calc(8px + env(safe-area-inset-top)) 10px calc(8px + env(safe-area-inset-bottom));
+      touch-action: pan-y;
+      overscroll-behavior: none;
+    }
+
+    #previewOverlay.show {
+      display: flex;
+    }
+
+    html:has(#previewOverlay.show),
+    body:has(#previewOverlay.show) {
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    #previewCounter {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      margin: 0 0 3px;
+      min-height: 12px;
+      flex: 0 0 auto;
+    }
+
+    #previewImageWrap {
+      position: relative;
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #previewImage {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      object-position: center top;
+      background: #111;
+      border: 1px solid #333;
+      user-select: none;
+      -webkit-user-drag: none;
+      touch-action: pan-y;
+    }
+
+    #previewMeta {
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.2;
+      margin-top: 3px;
+      min-height: 15px;
+      max-height: 30px;
+      overflow: hidden;
+      flex: 0 0 auto;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    #previewThumbnails {
+      width: 100%;
+      max-width: 720px;
+      height: 82px;
+      min-height: 82px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 4px 2px;
+      flex: 0 0 82px;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: none;
+      scroll-behavior: auto;
+      scrollbar-width: thin;
+    }
+
+    #previewOverlay.list-mode #previewImageWrap,
+    #previewOverlay.list-mode #previewMeta,
+    #previewOverlay.list-mode #previewThumbnails {
+      display: none;
+    }
+
+    #previewOverlay.list-mode {
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+
+    #previewOverlay.list-mode #previewCounter {
+      flex: 0 0 auto;
+      margin-bottom: 8px;
+    }
+
+    #previewOverlay.list-mode .preview-controls {
+      flex: 0 0 auto;
+    }
+
+    #previewOverlay.list-mode #previewList {
+      display: grid;
+    }
+
+    #previewList {
+      width: 100%;
+      max-width: 980px;
+      height: calc(var(--app-vh) - 118px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      flex: 0 0 auto;
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: calc(var(--app-vh) - 176px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      align-content: start;
+      gap: 12px;
+      overflow-y: auto;
+      padding: 6px 4px 18px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    .photo-list-item {
+      position: relative;
+      border: 2px solid #333;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
+      font-family: inherit;
+    }
+
+    .photo-list-item.current {
+      border-color: #f2c94c;
+    }
+
+    .photo-list-item.selected {
+      border-color: #27ae60;
+    }
+
+    .photo-list-item {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .photo-list-item img {
+      width: 100%;
+      height: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+
+    .photo-list-info {
+      flex: 0 0 auto;
+      padding: 5px 7px 7px;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1.2;
+      word-break: break-all;
+      max-height: 42px;
+      overflow: hidden;
+    }
+
+    .photo-list-status {
+      color: #f2c94c;
+      margin-bottom: 2px;
+    }
+
+    .thumb-item {
+      position: relative;
+      flex: 0 0 auto;
+      width: 74px;
+      height: 56px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #111;
+      cursor: pointer;
+    }
+
+    .thumb-item.current {
+      border-color: #f2c94c;
+    }
+
+    .thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .thumb-check,
+    .list-check {
+      position: absolute;
+      right: 4px;
+      top: 4px;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      background: rgba(0, 0, 0, 0.58);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 20px;
+      text-align: center;
+      z-index: 4;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .thumb-item.selected .thumb-check,
+    .photo-list-item.selected .list-check {
+      background: #27ae60;
+    }
+
+
+
+    /* 撮影直後確認：保存前にOK/撮り直しを選ぶ */
+    #captureReviewOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.88);
+      padding: 14px;
+    }
+
+    #captureReviewOverlay.show {
+      display: flex;
+    }
+
+    .capture-review-panel {
+      width: min(var(--app-vw), calc((var(--app-vh) - 74px) * 4 / 3));
+      max-height: var(--app-vh);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #captureReviewImage {
+      width: 100%;
+      max-width: 100%;
+      max-height: calc(var(--app-vh) - 74px);
+      object-fit: contain;
+      border-radius: 10px;
+      background: #111;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    .capture-review-controls {
+      display: flex;
+      gap: 12px;
+      width: min(100%, 520px);
+    }
+
+    .capture-review-button {
+      flex: 1;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 18px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.3);
+    }
+
+    .capture-review-ok {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    .capture-review-retake {
+      background: linear-gradient(135deg, #64748b, #475569);
+    }
+
+    .preview-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      color: #000;
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 44px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .preview-arrow.left {
+      left: 6px;
+    }
+
+    .preview-arrow.right {
+      right: 6px;
+    }
+
+
+    .preview-casebar {
+      position: absolute;
+      top: calc(8px + env(safe-area-inset-top));
+      left: 10px;
+      z-index: 30005;
+      width: min(62vw, 520px);
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .case-select-button {
+      max-width: min(92vw, 620px);
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      font-family: inherit;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    #casePickerOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 26000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.68);
+      padding: 18px;
+    }
+
+    #casePickerOverlay.show {
+      display: flex;
+    }
+
+    .case-picker-panel {
+      width: min(92vw, 520px);
+      max-height: min(80dvh, 560px);
+      overflow-y: auto;
+      border-radius: 18px;
+      background: #fff;
+      color: #000;
+      padding: 14px;
+      font-family: inherit;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+    }
+
+    .case-picker-title {
+      margin: 0 0 12px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .case-item {
+      width: 100%;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      color: #000;
+      padding: 10px 12px;
+      margin: 8px 0;
+      text-align: left;
+      font-family: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .case-item.active {
+      border-color: #27ae60;
+      box-shadow: 0 0 0 2px rgba(39,174,96,0.16) inset;
+    }
+
+    .case-name {
+      font-size: 14px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .case-count {
+      margin-top: 4px;
+      color: #555;
+      font-size: 12px;
+    }
+
+    .preview-controls {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding-top: 5px;
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+    }
+
+    .preview-button {
+      border: none;
+      border-radius: 999px;
+      padding: 9px 13px;
+      font-size: 14px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: #27ae60;
+      color: #fff;
+    }
+
+    .btn-delete {
+      background: #eb5757;
+      color: #fff;
+    }
+
+    .btn-list-toggle {
+      background: #f2c94c;
+      color: #000;
+    }
+
+    .btn-close {
+      background: #444;
+      color: #fff;
+    }
+
+    .preview-topbar {
+      position: absolute;
+      top: calc(8px + env(safe-area-inset-top));
+      right: 10px;
+      z-index: 30010;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-button {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #000;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 42px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .version-pill {
+      min-width: 64px;
+      height: 42px;
+      padding: 0 12px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.58);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 42px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      white-space: nowrap;
+    }
+
+    .update-button {
+      height: 42px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 122, 255, 0.92);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      white-space: nowrap;
+    }
+
+    .settings-version-box {
+      margin: 8px 0 8px;
+      padding: 8px 10px;
+      border: 1px solid #d9e2ef;
+      border-radius: 10px;
+      background: #f7faff;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #223;
+    }
+
+    .settings-update-button {
+      width: auto;
+      min-width: 160px;
+      border: none;
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: #007aff;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    #settingsOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 16px;
+    }
+
+    #settingsOverlay.show {
+      display: flex;
+    }
+
+    .settings-panel {
+      width: min(100%, 520px);
+      max-height: calc(var(--app-vh) - 40px);
+      overflow-y: auto;
+      background: #fff;
+      color: #000;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+      font-weight: 900;
+      font-family: inherit;
+    }
+
+    .settings-title {
+      text-align: center;
+      font-size: 20px;
+      margin: 0 0 16px;
+    }
+
+    .settings-section-title {
+      font-size: 16px;
+      margin: 14px 0 8px;
+    }
+
+    .quality-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      color: #000;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
+      font-weight: 900;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .quality-option.active {
+      border-color: #27ae60;
+      box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.18) inset;
+    }
+
+    .quality-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 2px solid #222;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .quality-option.active .quality-dot::after {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #27ae60;
+    }
+
+    .settings-note {
+      margin: 14px 0;
+      padding-top: 12px;
+      border-top: 1px solid #ddd;
+      color: #555;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .settings-close {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 13px 18px;
+      margin-top: 8px;
+      background: #444;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+
+
+
+
+    /* v50: 看板文字中央寄せ調整 */
+    #previewOverlay.board-correction-selecting #previewMeta {
+      color: #f2c94c;
+      font-weight: 900;
+    }
+
+    #previewOverlay.board-correction-selecting .thumb-item,
+    #previewOverlay.board-correction-selecting .photo-list-item,
+    #previewOverlay.board-correction-selecting #previewImage {
+      outline: 3px solid rgba(242, 201, 76, 0.95);
+      outline-offset: 2px;
+    }
+
+    #boardEditOverlay.photo-board-correction {
+      background: rgba(0, 0, 0, 0.92);
+    }
+
+    #boardEditPhotoStage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-height: calc(var(--app-vh) - 32px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+      border-radius: 12px;
+      background: #111;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+    }
+
+    #boardEditPhotoBackdrop {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      pointer-events: none;
+      background: #000;
+    }
+
+    #boardEditOverlay.photo-board-correction #boardEditPhotoBackdrop {
+      opacity: 1;
+    }
+
+    #boardEditOverlay.photo-board-correction #boardWrap {
+      z-index: 2;
+    }
+
+    #boardEditOverlay.photo-board-correction #photoBoard {
+      box-shadow: 0 8px 28px rgba(0,0,0,0.65);
+    }
+
+    #boardEditOverlay.photo-board-correction .board-edit-title::after {
+      content: "写真看板修正";
+      display: block;
+      margin-top: 10px;
+      color: #f2c94c;
+      font-size: 14px;
+    }
+
+    .board-history-controls {
+      position: relative;
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .board-history-button {
+      width: 54px;
+      height: 42px;
+      border: 1px solid rgba(255,255,255,0.55);
+      border-radius: 999px;
+      background: rgba(0,0,0,0.72);
+      color: #fff;
+      font-size: 24px;
+      font-weight: 900;
+      font-family: inherit;
+      line-height: 1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    }
+
+    .board-edit-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-width: 0;
+      justify-self: center;
+    }
+
+    .board-edit-reset {
+      border: none;
+      border-radius: 16px;
+      width: 60px;
+      min-height: 94px;
+      padding: 10px 6px;
+      background: #eb5757;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+    }
+
+    /* 看板編集モード */
+    #boardEditOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 35000;
+      display: none;
+      grid-template-columns: 92px minmax(0, 1fr) 92px;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: calc(12px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));
+      background: rgba(0, 0, 0, 0.78);
+    }
+
+    #boardEditOverlay.show {
+      display: grid;
+    }
+
+    .board-edit-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-width: 0;
+      justify-self: center;
+    }
+
+    .board-edit-title {
+      color: #fff;
+      font-size: 17px;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.35;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    .text-size-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .text-size-button {
+      width: 58px;
+      min-height: 34px;
+      border: 1px solid rgba(255,255,255,0.34);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .text-size-button.active {
+      background: #f2c94c;
+      color: #000;
+      border-color: #f2c94c;
+    }
+
+    #boardEditHost {
+      width: 100%;
+      height: 100%;
+      max-height: calc(var(--app-vh) - 32px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    }
+
+    #boardEditHost #boardWrap {
+      position: relative !important;
+      z-index: 40;
+      left: auto !important;
+      top: auto !important;
+      width: min(72vw, 760px) !important;
+      max-width: calc(var(--app-vw) - 230px) !important;
+      transform: none !important;
+      transform-origin: center center !important;
+      pointer-events: auto;
+    }
+
+    #boardEditHost #photoBoard {
+      height: auto !important;
+      aspect-ratio: 390 / 242;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+    }
+
+    #boardEditHost .row-subject { height: 22.6%; }
+    #boardEditHost .row-place { height: 17.4%; }
+    #boardEditHost .row-content { height: 41.7%; }
+    #boardEditHost .row-date { height: 18.3%; }
+
+    .board-edit-done {
+      border: none;
+      border-radius: 18px;
+      width: 68px;
+      min-height: 140px;
+      padding: 14px 10px;
+      background: #27ae60;
+      color: #fff;
+      font-size: 19px;
+      font-weight: 900;
+      font-family: inherit;
+      cursor: pointer;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      justify-self: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+    }
+
+    .board-edit-hint {
+      display: none;
+    }
+
+    #boardWrap.board-readonly .board-input,
+    #boardWrap.board-readonly .board-editable,
+    #boardWrap.board-readonly .date-text {
+      caret-color: transparent;
+    }
+
+    /* トースト */
+    #toast {
+      position: absolute;
+      left: 50%;
+      top: calc(14px + env(safe-area-inset-top));
+      transform: translateX(-50%);
+      z-index: 10000;
+      background: rgba(0, 0, 0, 0.72);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 900;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+
+
+
+    /* v44: 通常時は看板内を直接編集させない。編集は看板編集モードのみ */
+    body:not(.board-editing) #photoBoard textarea,
+    body:not(.board-editing) #photoBoard input,
+    body:not(.board-editing) #photoBoard .date-text,
+    body:not(.board-editing) #photoBoard .status-btn {
+      pointer-events: none;
+    }
+
+    .edit-mode-toggle {
+      width: 72px;
+      min-height: 58px;
+      border: 1px solid rgba(255,255,255,0.34);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(47,128,237,0.95), rgba(47,128,237,0.55));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      font-family: inherit;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    body.sampling-mode .edit-mode-toggle {
+      background: linear-gradient(180deg, rgba(39,174,96,0.95), rgba(39,174,96,0.55));
+    }
+
+    #boardEditHost {
+      position: relative;
+    }
+
+    .font-control-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 120;
+      pointer-events: none;
+    }
+
+    .font-control-row {
+      position: absolute;
+      left: 50%;
+      width: min(72vw, 760px);
+      max-width: calc(var(--app-vw) - 230px);
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      padding-left: 58px;
+      padding-right: 8px;
+      box-sizing: border-box;
+    }
+
+    .font-control-row button {
+      pointer-events: auto;
+      width: 31px;
+      height: 29px;
+      border-radius: 9px;
+      border: 1px solid rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.72);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 900;
+      font-family: inherit;
+      line-height: 1;
+    }
+
+    .font-subject { top: 10.5%; }
+    .font-address { top: 28.5%; }
+    .font-room { top: 45.5%; }
+    .font-sample { top: 58.8%; }
+    .font-date { top: 86.2%; }
+
+
+
+    /* v52.1: 編集時も看板文字を上下左右中央寄せに近づける */
+    #boardEditHost .value-cell,
+    #boardEditHost .board-value-cell,
+    #boardEditHost .inner-value,
+    #boardEditHost .date-cell {
+      vertical-align: middle;
+    }
+
+    #boardEditHost .textarea-center-wrap {
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #boardEditHost .board-input,
+    #boardEditHost .date-text {
+      transform: translateY(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      line-height: 1;
+      text-align: center;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    #boardEditHost .inner-value {
+      padding-left: 34px;
+      padding-right: 6px;
+    }
+
+    #boardEditHost .textarea-center-wrap textarea.board-editable {
+      height: 100%;
+      min-height: 0;
+      max-height: 100%;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      line-height: 1.12;
+      transform: translateY(3px);
+    }
+
+    #boardEditHost .date-text {
+      font-size: 22px;
+    }
+
+    #boardEditHost .status-btn {
+      font-size: 16px;
+    }
+
+    .saved-badge {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      z-index: 5;
+      padding: 3px 6px;
+      border-radius: 999px;
+      background: rgba(39, 174, 96, 0.92);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      pointer-events: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    }
+
+    #previewMeta .saved-meta {
+      color: #6ee7a8;
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    @media (orientation: portrait) and (max-width: 0px) {
+      #cameraScreen {
+        flex-direction: column;
+      }
+
+      .left-panel {
+        display: none;
+      }
+
+      #captureFrame {
+        width: var(--app-vw);
+        height: min(calc(var(--app-vw) * 3 / 4), calc(var(--app-vh) - 92px));
+      }
+
+      .controls {
+        width: var(--app-vw) !important;
+        height: 92px !important;
+        flex: 0 0 92px !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        padding: 8px calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)) !important;
+      }
+
+      .control-button {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        width: auto;
+        min-width: 76px;
+        min-height: auto;
+        padding: 13px 16px;
+      }
+
+      #boardEditOverlay {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .board-edit-title {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+      }
+
+      .board-edit-done {
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+        width: auto;
+        min-height: auto;
+        padding: 13px 34px;
+      }
+
+      #boardEditHost #boardWrap {
+        width: min(92vw, 620px) !important;
+      }
+    }
+
+  
+
+    /* v52.3: 看板編集は通常フォーム + Canvasプレビュー */
+    #boardEditOverlay {
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr) 84px;
+      gap: 14px;
+      padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+      align-items: stretch;
+    }
+
+    .board-edit-form-panel {
+      min-width: 0;
+      overflow: auto;
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,0.97);
+      color: #111;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.42);
+    }
+
+    .board-edit-form-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .board-edit-form-title { font-size: 18px; font-weight: 900; }
+    .board-edit-history-inline { display: flex; gap: 6px; }
+    .board-edit-history-inline button,
+    .board-edit-reset-inline {
+      min-width: 42px;
+      min-height: 38px;
+      border: 0;
+      border-radius: 10px;
+      font-weight: 900;
+      font-family: inherit;
+      background: #e9eef6;
+      color: #111;
+    }
+    .board-edit-reset-inline { background: #eb5757; color: #fff; padding: 0 12px; }
+
+    .board-form-grid { display: grid; gap: 9px; }
+    .board-form-field { display: grid; gap: 4px; }
+    .board-form-field label { font-size: 12px; font-weight: 900; color: #4a5568; }
+    .board-form-field textarea,
+    .board-form-field input,
+    .board-form-field select {
+      width: 100%;
+      box-sizing: border-box;
+      border: 2px solid #d8dee8;
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      color: #111;
+      font: 800 16px/1.35 "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    }
+    .board-form-field textarea { resize: vertical; min-height: 60px; white-space: pre-wrap; }
+    .board-form-field.active textarea,
+    .board-form-field.active input { border-color: #2f80ed; box-shadow: 0 0 0 3px rgba(47,128,237,.14); }
+    .board-form-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    #boardEditHost {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      overflow: hidden;
+    }
+    #boardEditPhotoStage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-width: 0;
+    }
+    #boardEditCanvasWrap {
+      position: relative;
+      width: min(100%, 860px);
+      aspect-ratio: 390 / 242;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+    }
+    #boardEditCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+    }
+    #boardEditPhotoBackdrop {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      z-index: -1;
+      pointer-events: none;
+    }
+    #boardEditOverlay.photo-board-correction #boardEditPhotoBackdrop,
+    #boardEditOverlay.import-board-edit #boardEditPhotoBackdrop {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+    #boardEditOverlay.photo-board-correction #boardEditCanvasWrap {
+      background: #111;
+    }
+    .board-preview-size-controls {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fff;
+      font-weight: 900;
+      flex-wrap: wrap;
+    }
+    .board-preview-size-controls button {
+      min-width: 58px;
+      min-height: 42px;
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 12px;
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font: 900 17px/1 inherit;
+    }
+    #boardEditSelectedFieldLabel { min-width: 90px; text-align: center; font-size: 13px; }
+
+    .board-edit-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    @media (max-width: 850px) {
+      #boardEditOverlay {
+        grid-template-columns: minmax(240px, 42vw) minmax(0, 1fr) 66px;
+        gap: 8px;
+        padding-left: 6px;
+        padding-right: 6px;
+      }
+      .board-edit-form-panel { padding: 10px; border-radius: 12px; }
+      .board-form-field textarea, .board-form-field input, .board-form-field select { font-size: 14px; padding: 7px 8px; }
+      .board-edit-done { width: 58px; min-height: 120px; font-size: 17px; }
+      .edit-mode-toggle { width: 58px; }
+    }
+
+
+    /* v53.1: 回転表示中でも編集操作を確実にタップ可能にする */
+    .board-edit-history-preview {
+      width: 100%;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 36010;
+      pointer-events: auto;
+    }
+    .board-edit-history-preview button {
+      min-width: 52px;
+      min-height: 42px;
+      border: 0;
+      border-radius: 11px;
+      padding: 0 13px;
+      background: #e9eef6;
+      color: #111;
+      font: 900 17px/1 inherit;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      pointer-events: auto;
+    }
+    .board-edit-history-preview .board-edit-reset-inline {
+      min-width: 92px;
+      background: #eb5757;
+      color: #fff;
+      font-size: 14px;
+    }
+    #boardEditHost,
+    .board-edit-right,
+    .board-preview-size-controls {
+      position: relative;
+      z-index: 36005;
+      pointer-events: auto;
+    }
+    #boardEditDoneButton,
+    #editBoardModeButton,
+    #boardEditSizeDownButton,
+    #boardEditSizeUpButton,
+    #boardEditSizeResetButton {
+      touch-action: manipulation;
+      pointer-events: auto !important;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+
+    /* v53.7: 表示写真のダブルタップ拡大 */
+    #photoZoomOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 36000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.90);
+      padding: 14px;
+      cursor: zoom-out;
+    }
+
+    #photoZoomOverlay.show { display: flex; }
+
+    #photoZoomImage {
+      width: min(var(--app-vw), calc((var(--app-vh) - 28px) * 4 / 3));
+      max-width: 100%;
+      max-height: calc(var(--app-vh) - 28px);
+      object-fit: contain;
+      border-radius: 10px;
+      background: #111;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* v53.7: 編集中の看板種類を明示 */
+    .board-edit-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .board-edit-mode-badge.mode-survey,
+    .edit-mode-toggle.mode-survey {
+      background: linear-gradient(180deg, #2f80ed, #1767c8);
+    }
+
+    .board-edit-mode-badge.mode-sampling,
+    .edit-mode-toggle.mode-sampling {
+      background: linear-gradient(180deg, #27ae60, #178346);
+    }
+
+    #boardEditHost .row-subject { height: 22.6087%; }
+    #boardEditHost .row-place { height: 17.3913%; }
+    #boardEditHost .row-content { height: 42.6087%; }
+    #boardEditHost .row-date { height: 17.3913%; }
+    #boardEditHost .inner-table tr:nth-child(1) { height: 34.6939%; }
+    #boardEditHost .inner-table tr:nth-child(2) { height: 34.6939%; }
+    #boardEditHost .inner-table tr:nth-child(3) { height: 30.6122%; }
+
+  
+
+    /* v62: 起動モード選択 / 既存写真への看板追加 */
+    #launchModeOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      background: radial-gradient(circle at 50% 30%, #26364f 0%, #111823 48%, #080b10 100%);
+      color: #fff;
+    }
+    #launchModeOverlay.hidden { display: none; }
+    .launch-mode-card {
+      width: min(680px, 92vw);
+      padding: 28px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 22px;
+      background: rgba(19, 28, 42, .94);
+      box-shadow: 0 24px 70px rgba(0,0,0,.48);
+      text-align: center;
+    }
+    .launch-mode-title { font-size: clamp(24px, 4vw, 38px); font-weight: 900; letter-spacing: .04em; }
+    .launch-mode-subtitle { margin-top: 8px; color: #b9c5d5; font-size: 14px; font-weight: 700; }
+    .launch-mode-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 26px; }
+    .launch-mode-button {
+      min-height: 92px;
+      border: 0;
+      border-radius: 18px;
+      color: #fff;
+      font: 900 20px/1.25 inherit;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+    }
+    .launch-camera-button { background: linear-gradient(135deg, #2f80ed, #1b5fc7); }
+    .launch-import-button { background: linear-gradient(135deg, #27ae60, #168846); }
+    .launch-resume-panel {
+      display: none;
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid rgba(242,201,76,.55);
+      border-radius: 16px;
+      background: rgba(242,201,76,.09);
+      text-align: left;
+    }
+    .launch-resume-panel.show { display: block; }
+    .launch-resume-title { color: #f2c94c; font-weight: 900; font-size: 17px; }
+    .launch-resume-meta { margin-top: 5px; color: #e6e9ee; font-size: 14px; }
+    .launch-resume-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .launch-resume-actions button { flex: 1; min-height: 48px; border: 0; border-radius: 12px; font-weight: 900; cursor: pointer; }
+    .resume-import-button { background: #f2c94c; color: #171717; }
+    .discard-import-button { background: #3b4655; color: #fff; }
+    #importProgressBadge {
+      display: none;
+      margin-left: 8px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #27ae60;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    #importProgressBadge.show { display: inline-flex; }
+    #importBoardControls {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    #boardEditOverlay.import-board-edit #importBoardControls { display: flex; }
+    #importBoardControls button {
+      min-width: 64px;
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 10px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-weight: 900;
+    }
+    #importBoardPositionLabel { min-width: 78px; color: #fff; font-weight: 900; font-size: 13px; text-align: center; }
+    @media (max-width: 680px) {
+      .launch-mode-actions { grid-template-columns: 1fr; }
+      .launch-mode-card { padding: 22px 18px; }
+      .launch-mode-button { min-height: 76px; }
+    }
+

@@ -5,7 +5,7 @@ on:
     branches: [ review/v65.1 ]
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -30,19 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: review/v65.1
-          fetch-depth: 0
           path: review-src
-
-      - name: Run v65.14 refactor
-        working-directory: review-src
-        shell: bash
-        run: |
-          python scripts/v65_14_refactor_pushable.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "v65.14 共有状態を分離 [v65.14-done]"
-          git push origin HEAD:review/v65.1
 
       - name: Build combined Pages artifact
         run: |

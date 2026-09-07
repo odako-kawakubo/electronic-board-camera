@@ -1,0 +1,151 @@
+name: v65.5 photo viewer extraction
+
+on:
+  push:
+    branches:
+      - review/v65.1
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: ${{ !contains(github.event.head_commit.message, '[v65.5-done]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: review/v65.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract photo viewer functions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path=Path('js/app.js')
+          s=app_path.read_text(encoding='utf-8')
+
+          names=[
+            'openPreview','closePreview','renderPreview','getPreviewPhotos',
+            'showPrevPhoto','showNextPhoto','togglePreviewSortMode',
+            'renderPhotoThumbnails','renderPhotoList','setPreviewListMode',
+            'toggleCurrentPhotoSelected','togglePhotoSelected','toggleSelectAllPhotos',
+            'updateSelectAllButton','saveCurrentPreviewPhoto','deleteSelectedPreviewPhotos',
+            'shareOrDownloadPhotos','markPhotosAsSaved','dataUrlToBlob',
+            'setupPreviewSwipe','setupPreviewImageTap'
+          ]
+
+          def function_range(text,name):
+              pat=re.compile(r'(^\s*(?:async\s+)?function\s+'+re.escape(name)+r'\s*\([^)]*\)\s*\{)',re.M)
+              ms=list(pat.finditer(text))
+              if len(ms)!=1:
+                  raise SystemExit(f'{name}: expected 1 definition, got {len(ms)}')
+              m=ms[0]
+              start=m.start(); brace=text.find('{',m.start(),m.end())
+              depth=0; i=brace; quote=None; esc=False; line=False; block=False
+              while i<len(text):
+                  ch=text[i]; nxt=text[i+1] if i+1<len(text) else ''
+                  if line:
+                      if ch=='\n': line=False
+                  elif block:
+                      if ch=='*' and nxt=='/': block=False; i+=1
+                  elif quote:
+                      if esc: esc=False
+                      elif ch=='\\': esc=True
+                      elif ch==quote: quote=None
+                  else:
+                      if ch=='/' and nxt=='/': line=True; i+=1
+                      elif ch=='/' and nxt=='*': block=True; i+=1
+                      elif ch in ('"',"'",'`'): quote=ch
+                      elif ch=='{': depth+=1
+                      elif ch=='}':
+                          depth-=1
+                          if depth==0:
+                              end=i+1
+                              while end<len(text) and text[end] in ' \t': end+=1
+                              if end<len(text) and text[end]=='\n': end+=1
+                              return start,end,text[start:end]
+                  i+=1
+              raise SystemExit(f'unclosed function: {name}')
+
+          found=[]
+          for name in names:
+              a,b,block=function_range(s,name)
+              found.append((a,b,name,block))
+
+          # Preserve original function order in the extracted file.
+          ordered=sorted(found,key=lambda x:x[0])
+          viewer='''/*\n * v65.5 Photo Viewer\n * 写真プレビュー・選択・並び順・削除・書き出しを担当。\n * 看板修正本体や撮影処理は app.js 側に残す。\n */\n\n'''+''.join(x[3] for x in ordered)
+          Path('js/photo-viewer.js').write_text(viewer,encoding='utf-8')
+
+          for a,b,name,block in sorted(found,reverse=True):
+              s=s[:a]+s[b:]
+
+          s=s.replace('const APP_VERSION = "v65.4";', 'const APP_VERSION = "v65.5";',1)
+          app_path.write_text(s,encoding='utf-8')
+
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8')
+          h=h.replace('id="settingsVersionText">v65.4<','id="settingsVersionText">v65.5<',1)
+          old='<script src="./js/app.js"></script>'
+          if old not in h: raise SystemExit('app.js script tag not found')
+          h=h.replace(old,'<script src="./js/app.js"></script>\n  <script src="./js/photo-viewer.js"></script>',1)
+          idx.write_text(h,encoding='utf-8')
+
+          sw=Path('service-worker.js')
+          w=sw.read_text(encoding='utf-8').replace('electronic-board-camera-v65.4','electronic-board-camera-v65.5')
+          if './js/photo-viewer.js' not in w:
+              w=w.replace('  "./js/app.js",','  "./js/app.js",\n  "./js/photo-viewer.js",',1)
+          sw.write_text(w,encoding='utf-8')
+
+          readme=Path('README.md')
+          r=readme.read_text(encoding='utf-8')
+          r=re.sub(r'^# 電子看板カメラ v65\.4$', '# 電子看板カメラ v65.5', r, count=1, flags=re.M)
+          if '## v65.5 写真ビュー分離' not in r:
+              r += '\n## v65.5 写真ビュー分離\n- 写真プレビュー・前後移動・並び順を `js/photo-viewer.js` へ分離\n- サムネイル/一覧描画、選択/全選択、削除、保存/共有を同モジュールへ集約\n- 看板修正の開始/編集本体は `app.js` に残し、責務境界を維持\n- UIと操作仕様は変更なし\n'
+          readme.write_text(r,encoding='utf-8')
+          PY
+      - name: Verify extraction
+        run: |
+          node --check js/app.js
+          node --check js/photo-viewer.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          app=Path('js/app.js').read_text(encoding='utf-8')
+          viewer=Path('js/photo-viewer.js').read_text(encoding='utf-8')
+          html=Path('index.html').read_text(encoding='utf-8')
+          sw=Path('service-worker.js').read_text(encoding='utf-8')
+          moved=['openPreview','closePreview','renderPreview','getPreviewPhotos','showPrevPhoto','showNextPhoto','togglePreviewSortMode','renderPhotoThumbnails','renderPhotoList','setPreviewListMode','toggleCurrentPhotoSelected','togglePhotoSelected','toggleSelectAllPhotos','updateSelectAllButton','saveCurrentPreviewPhoto','deleteSelectedPreviewPhotos','shareOrDownloadPhotos','markPhotosAsSaved','dataUrlToBlob','setupPreviewSwipe','setupPreviewImageTap']
+          for name in moved:
+              if re.search(r'^\s*(?:async\s+)?function\s+'+re.escape(name)+r'\s*\(',app,re.M):
+                  raise SystemExit('moved function remains in app.js: '+name)
+              if not re.search(r'^\s*(?:async\s+)?function\s+'+re.escape(name)+r'\s*\(',viewer,re.M):
+                  raise SystemExit('moved function missing in photo-viewer.js: '+name)
+          if html.find('./js/app.js') > html.find('./js/photo-viewer.js'):
+              raise SystemExit('photo-viewer must load after app.js')
+          if './js/photo-viewer.js' not in sw:
+              raise SystemExit('photo-viewer missing from service worker cache')
+          combined=app+'\n'+viewer
+          funcs=re.findall(r'^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',combined,re.M)
+          dup=sorted({f for f in funcs if funcs.count(f)>1})
+          if dup: raise SystemExit('Duplicate function definitions: '+', '.join(dup))
+          onclick=[]
+          for body in re.findall(r'onclick="([^"]+)"',html): onclick += re.findall(r'\b([A-Za-z_$][\w$]*)\s*\(',body)
+          missing=sorted({x for x in onclick if x not in funcs and x!='if'})
+          if missing: raise SystemExit('Missing onclick functions: '+', '.join(missing))
+          if 'v65.5' not in app or 'v65.5' not in html or 'v65.5' not in sw:
+              raise SystemExit('version marker mismatch')
+          print(f'v65.5 verification OK; app+viewer functions={len(funcs)}')
+          PY
+      - name: Commit v65.5
+        run: |
+          rm .github/workflows/v65-5-photo-viewer.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v65.5 写真ビュー処理を分離 [v65.5-done]"
+          git push origin HEAD:review/v65.1

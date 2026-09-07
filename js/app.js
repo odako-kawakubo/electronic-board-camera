@@ -1,4 +1,4 @@
-    const APP_VERSION = "v65.1";
+    const APP_VERSION = "v65.2";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -304,25 +304,8 @@
       return `${y}年${m}月${d}日`;
     }
 
-    function formatFileDate(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      const h = String(date.getHours()).padStart(2, "0");
-      const min = String(date.getMinutes()).padStart(2, "0");
-      const s = String(date.getSeconds()).padStart(2, "0");
-      return `${y}${m}${d}_${h}${min}${s}`;
-    }
-
     function setupBoardMode() {
       applyBoardMode();
-    }
-
-    function toggleBoardMode() {
-      boardMode = boardMode === "survey" ? "sampling" : "survey";
-      applyBoardMode();
-      pushBoardEditHistoryDebounced();
-      showToast(boardMode === "sampling" ? "サンプリング看板" : "調査看板");
     }
 
     function applyBoardMode() {
@@ -884,23 +867,6 @@
       return boardEditDraft;
     }
 
-    function applyBoardEditDraft() {
-      const data = readBoardEditForm();
-      subjectText.value = data.subject;
-      addressText.value = data.address;
-      roomNoInput.value = data.roomNo;
-      sampleNoInput.value = data.sampleNo;
-      dateText.textContent = data.date;
-      Object.assign(boardFieldTextSize, data.fieldTextSize || {});
-      boardMode = data.boardMode;
-      selectedStatus = data.status;
-      saveBoardFieldTextSizes();
-      applyBoardMode();
-      setStatus(selectedStatus);
-      applyBoardFieldTextSizes();
-      syncBoardTextareas();
-    }
-
     function renderBoardEditStatusOptions(value) {
       const mode = boardEditModeSelect && boardEditModeSelect.value === "sampling" ? "sampling" : "survey";
       const list = mode === "sampling" ? [STATUS_LIST[1], STATUS_LIST[2], STATUS_LIST[3]] : STATUS_LIST;
@@ -1456,14 +1422,6 @@
           pushBoardEditHistoryDebounced();
         });
       });
-    }
-
-    function setupBoardGesture() {
-      boardWrap.addEventListener("pointerdown", onBoardPointerDown);
-      boardWrap.addEventListener("pointermove", onBoardPointerMove);
-      boardWrap.addEventListener("pointerup", onBoardPointerEnd);
-      boardWrap.addEventListener("pointercancel", onBoardPointerEnd);
-      boardWrap.addEventListener("pointerleave", onBoardPointerEnd);
     }
 
     function onBoardPointerDown(event) {
@@ -2091,15 +2049,6 @@
       sourceChildren.forEach((child, index) => inlineComputedStyles(child, cloneChildren[index]));
     }
 
-    function loadImage(url) {
-      return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("看板画像の生成に失敗しました"));
-        image.src = url;
-      });
-    }
-
     let boardPreviewRenderQueued = false;
 
     function scheduleBoardPreviewRender() {
@@ -2161,19 +2110,6 @@
 
     function delay(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
-    function shouldUseLegacyBoardCapture() {
-      /*
-       * iPhone/iPad/SafariではSVG foreignObjectをCanvasに描画した後、
-       * toDataURLでSecurityErrorになることがあるため、保存安定性を優先して
-       * 旧Canvas看板描画を使う。
-       * PC Chrome等ではHTML看板キャプチャを使い、表示との差異を減らす。
-       */
-      const ua = navigator.userAgent || "";
-      const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-      return isIOS || isSafari;
     }
 
     async function captureBaseImage() {
@@ -2678,11 +2614,6 @@
         item.appendChild(info);
         previewList.appendChild(item);
       });
-    }
-
-    function togglePreviewListMode() {
-      setPreviewListMode(!isPreviewListMode);
-      renderPreview();
     }
 
     function setPreviewListMode(value) {
@@ -3788,26 +3719,6 @@
       ctx.restore();
     }
 
-    function drawWrappedLeftText(ctx, text, x, y, w, h, fontSize, lineRate, maxLines) {
-      ctx.save();
-      ctx.fillStyle = "#000";
-      ctx.font = `900 ${fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif`;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-
-      const lines = getWrappedLines(ctx, text || "", w).slice(0, maxLines);
-      const lineHeight = fontSize * lineRate;
-      const totalHeight = lines.length * lineHeight;
-      let currentY = y + h / 2 - totalHeight / 2 + lineHeight / 2 + Math.max(1, fontSize * 0.05);
-
-      lines.forEach((line) => {
-        ctx.fillText(line, x, currentY);
-        currentY += lineHeight;
-      });
-
-      ctx.restore();
-    }
-
     function drawWrappedCenterText(ctx, text, x, y, w, h, fontSize, lineRate, maxLines) {
       ctx.save();
       ctx.fillStyle = "#000";
@@ -3854,16 +3765,6 @@
       });
 
       return result.length ? result : [""];
-    }
-
-
-    function setupBoardTextAreaCentering() {
-      [subjectText, addressText].forEach((element) => {
-        if (!element) return;
-        element.addEventListener("input", syncBoardTextAreaVerticalCenter);
-        element.addEventListener("change", syncBoardTextAreaVerticalCenter);
-      });
-      syncBoardTextAreaVerticalCenter();
     }
 
     function syncBoardTextAreaVerticalCenter() {
@@ -3938,18 +3839,6 @@
       } catch (error) {}
     }
 
-    function adjustBoardFieldTextSize(field, delta) {
-      if (!boardFieldTextSize[field]) return;
-      const max = (field === "room" || field === "sample") ? 36 : (field === "date" ? 34 : 32);
-      const min = field === "date" ? 14 : 12;
-      boardFieldTextSize[field] = clamp(boardFieldTextSize[field] + delta, min, max);
-      saveBoardFieldTextSizes();
-      applyBoardFieldTextSizes();
-      syncBoardTextAreaVerticalCenter();
-      pushBoardEditHistoryDebounced();
-      showToast("文字サイズを変更しました");
-    }
-
     function applyBoardFieldTextSizes() {
       if (subjectText) subjectText.style.fontSize = `${boardFieldTextSize.subject}px`;
       if (addressText) addressText.style.fontSize = `${boardFieldTextSize.address}px`;
@@ -3967,19 +3856,6 @@
       } catch (error) {}
 
       return "normal";
-    }
-
-    function setBoardTextSize(value) {
-      if (!BOARD_TEXT_SIZE_MULTIPLIERS[value]) return;
-
-      boardTextSize = value;
-
-      try {
-        localStorage.setItem(BOARD_TEXT_SIZE_STORAGE_KEY, value);
-      } catch (error) {}
-
-      renderBoardTextSize();
-      showToast(value === "small" ? "文字サイズ：小" : value === "large" ? "文字サイズ：大" : "文字サイズ：標準");
     }
 
     function renderBoardTextSize() {

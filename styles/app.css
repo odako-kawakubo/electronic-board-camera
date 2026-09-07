@@ -1784,10 +1784,6 @@
       background: linear-gradient(180deg, rgba(39,174,96,0.95), rgba(39,174,96,0.55));
     }
 
-    #boardEditHost {
-      position: relative;
-    }
-
     .font-control-overlay {
       position: absolute;
       inset: 0;
@@ -1904,63 +1900,6 @@
       white-space: nowrap;
     }
 
-    @media (orientation: portrait) and (max-width: 0px) {
-      #cameraScreen {
-        flex-direction: column;
-      }
-
-      .left-panel {
-        display: none;
-      }
-
-      #captureFrame {
-        width: var(--app-vw);
-        height: min(calc(var(--app-vw) * 3 / 4), calc(var(--app-vh) - 92px));
-      }
-
-      .controls {
-        width: var(--app-vw) !important;
-        height: 92px !important;
-        flex: 0 0 92px !important;
-        flex-direction: row !important;
-        gap: 8px !important;
-        padding: 8px calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)) !important;
-      }
-
-      .control-button {
-        writing-mode: horizontal-tb;
-        text-orientation: mixed;
-        width: auto;
-        min-width: 76px;
-        min-height: auto;
-        padding: 13px 16px;
-      }
-
-      #boardEditOverlay {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-      }
-
-      .board-edit-title {
-        writing-mode: horizontal-tb;
-        text-orientation: mixed;
-      }
-
-      .board-edit-done {
-        writing-mode: horizontal-tb;
-        text-orientation: mixed;
-        width: auto;
-        min-height: auto;
-        padding: 13px 34px;
-      }
-
-      #boardEditHost #boardWrap {
-        width: min(92vw, 620px) !important;
-      }
-    }
-
-  
-
     /* v52.3: 看板編集は通常フォーム + Canvasプレビュー */
     #boardEditOverlay {
       grid-template-columns: minmax(280px, 420px) minmax(0, 1fr) 84px;
@@ -2023,6 +1962,7 @@
     .board-form-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     #boardEditHost {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;

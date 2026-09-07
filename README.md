@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.14
+# 電子看板カメラ v65.15
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -138,3 +138,11 @@
 - 既存の変数名とclassic scriptの参照方法は維持し、機能側の呼び出し変更を回避
 - `app.js` は初期化・全体イベント・app専用UIへ責務を縮小
 - IndexedDB、写真形式、命名規則、UI、OneDrive連携仕様は変更なし
+
+
+## v65.15 CSS監査・整理
+- 見た目を変えずにCSSの後勝ち・重複構造を監査
+- 成立しない `@media (orientation: portrait) and (max-width: 0px)` を削除
+- 分割されていた `#boardEditHost` の `position: relative` を現行ブロックへ統合
+- 看板編集のv52系以降の上書きは意図的な最終値が多いため、未確認の削除は行わない
+- UI、看板寸法、IndexedDB、保存形式、OneDrive仕様は変更なし

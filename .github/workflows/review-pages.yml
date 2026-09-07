@@ -39,23 +39,36 @@ jobs:
           rsync -a --exclude '.git' --exclude '.github' review-src/ site/review/
 
           # Review PWA must not share the production cache namespace.
+          # Source version is detected automatically so this workflow does not need edits every release.
           python - <<'PY'
           from pathlib import Path
           import json
+          import re
 
           sw = Path('site/review/service-worker.js')
           text = sw.read_text(encoding='utf-8')
-          text = text.replace('const CACHE_NAME = "electronic-board-camera-v65.12";',
-                              'const CACHE_NAME = "electronic-board-camera-review-v65.12";')
-          text = text.replace('.filter((key) => key !== CACHE_NAME)',
-                              '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)')
+          match = re.search(r'const CACHE_NAME = "electronic-board-camera-(v[^"]+)";', text)
+          if not match:
+              raise SystemExit('review cache version could not be detected')
+
+          version = match.group(1)
+          text = text.replace(
+              f'const CACHE_NAME = "electronic-board-camera-{version}";',
+              f'const CACHE_NAME = "electronic-board-camera-review-{version}";',
+              1,
+          )
+          text = text.replace(
+              '.filter((key) => key !== CACHE_NAME)',
+              '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)',
+              1,
+          )
           sw.write_text(text, encoding='utf-8')
 
           manifest = Path('site/review/manifest.json')
           data = json.loads(manifest.read_text(encoding='utf-8'))
           data['name'] = '電子看板カメラ REVIEW'
           data['short_name'] = '看板カメラR'
-          data['start_url'] = './?v=65.12-review'
+          data['start_url'] = f'./?v={version.removeprefix("v")}-review'
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
           index = Path('site/review/index.html')

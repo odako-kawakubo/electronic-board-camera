@@ -9,7 +9,11 @@
  * ============================================================
  */
 
-    const APP_VERSION = "v65.11";
+    // ============================================================
+    // アプリ共通定数
+    // 複数モジュールから参照されるため、現段階では app.js が正本。
+    // ============================================================
+    const APP_VERSION = "v65.12";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -41,6 +45,10 @@
       high: { label: "高画質", width: 3264, height: 2448 }
     };
 
+    // ============================================================
+    // 共有DOM参照
+    // classic script間で共有。所属移動は依存確認後に行う。
+    // ============================================================
     const cameraScreen = document.getElementById("cameraScreen");
     const captureFrame = document.getElementById("captureFrame");
     const video = document.getElementById("video");
@@ -125,6 +133,11 @@
     const toast = document.getElementById("toast");
     const settingsVersionText = document.getElementById("settingsVersionText");
 
+    // ============================================================
+    // 共有実行状態
+    // camera / board / import / viewer から直接参照されるものがある。
+    // v65.12では依存を可視化し、無理な移動はしない。
+    // ============================================================
     let currentStream = null;
     let isTakingPhoto = false;
     let selectedStatus = "visual";
@@ -188,6 +201,10 @@
     let boardEditIsComposing = false;
     let boardEditFinishRequested = false;
 
+    // ============================================================
+    // アプリ起動・全体イベント
+    // 初期化順序には依存があるため、順番変更時は実機確認必須。
+    // ============================================================
     document.addEventListener("DOMContentLoaded", async () => {
       setupForcedLandscape();
       renderAppVersion();
@@ -205,7 +222,7 @@
       setupPhotoCountHiddenShoot();
       setupBoardTextareaAutoCenter();
       setupBoardEditHistoryTracking();
-    setupBoardEditForm();
+      setupBoardEditForm();
       setupReliableBoardEditControls();
       setupSettingsToggleButton();
       renderPhotoQualitySettings();
@@ -249,9 +266,7 @@
     });
 
     /**
-
      * 横向き運用の表示状態と左右反転設定を復元する。
-
      */
 
     function setupForcedLandscape() {
@@ -261,9 +276,7 @@
     }
 
     /**
-
      * 端末の持ち方に合わせて画面全体を180度反転し、次回起動用に保存する。
-
      */
 
     function toggleLandscapeFlip() {
@@ -280,9 +293,7 @@
     }
 
     /**
-
      * 通常メッセージを短時間表示する共通トースト。
-
      */
 
     function showToast(message) {
@@ -297,9 +308,7 @@
     }
 
     /**
-
      * 保存失敗などのエラーを通常より長く表示する。
-
      */
 
     function showErrorToast(message) {

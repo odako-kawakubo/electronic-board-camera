@@ -10,7 +10,7 @@
  */
 
     // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
-    const APP_VERSION = "v65.13";
+    const APP_VERSION = "v65.14";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
     const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
     const BOARD_FIELD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-field-text-size-v1";

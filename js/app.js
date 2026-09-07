@@ -1,8 +1,8 @@
 /*
  * ============================================================
- * app.js - アプリ全体の起点 / 共有状態
+ * app.js - アプリ全体の起点 / 共通UI
  * ============================================================
- * 責務: 各機能モジュールをつなぐ中心。共有定数・DOM参照・共有状態・初期化順序・共通UIだけを担当する。
+ * 責務: 各機能モジュールをつなぐ起点。初期化順序、全体イベント、app専用UIだけを担当する。共有状態はshared-state.jsを正本とする。
  *
  * 保守上の注意:
  * - 新機能を安易にここへ追加しない。まず担当モジュールを決める。HTMLのinline onclickがあるためclassic scriptのグローバル関数を前提とする。
@@ -10,103 +10,15 @@
  */
 
     // ============================================================
-    // アプリ共通定数
-    // 複数モジュールから参照されるため、現段階では app.js が正本。
-    // ============================================================
-
-    const APP_DATA = {
-      subject: "テストビル解体に伴うアスベスト調査",
-      address: "神奈川県小田原市小八幡2-3-6"
-    };
-
-    const STATUS_LIST = [
-      { value: "visual", label: "目視", code: "5" },
-      { value: "before", label: "施工前", code: "1" },
-      { value: "during", label: "施工中", code: "2" },
-      { value: "after", label: "施工後", code: "3" }
-    ];
-
-    const SECTION_PHOTO_TYPE = { value: "section", label: "断面", code: "4" };
-    const POINT_DISPLAY_DEFAULT = "1-①";
-    const BOARD_TEXT_SIZE_MULTIPLIERS = {
-      small: 0.88,
-      normal: 1,
-      large: 1.12
-    };
-    const PHOTO_QUALITY_SETTINGS = {
-      standard: { label: "標準", width: 3024, height: 2268 },
-      high: { label: "高画質", width: 3264, height: 2448 }
-    };
-
-    // ============================================================
-    // 共有DOM参照
-    // classic script間で共有。所属移動は依存確認後に行う。
+    // app.js専用DOM・状態
+    // 他モジュールから参照しないものだけをここに残す。
     // ============================================================
     const cameraScreen = document.getElementById("cameraScreen");
-    const captureFrame = document.getElementById("captureFrame");
-
     const boardLayer = document.querySelector(".board-layer");
-    const boardWrap = document.getElementById("boardWrap");
-    const photoBoard = document.getElementById("photoBoard");
-    const boardEditOverlay = document.getElementById("boardEditOverlay");
-    const boardEditPhotoBackdrop = document.getElementById("boardEditPhotoBackdrop");
     const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
-    const boardEditDoneButton = document.getElementById("boardEditDoneButton");
     const boardEditHost = document.getElementById("boardEditHost");
-
-    const subjectText = document.getElementById("subjectText");
-    const addressText = document.getElementById("addressText");
-    const roomNoInput = document.getElementById("roomNoInput");
-    const sampleNoInput = document.getElementById("sampleNoInput");
-    const dateText = document.getElementById("dateText");
-
-
-    const photoCount = document.getElementById("photoCount");
-    const previewOverlay = document.getElementById("previewOverlay");
-    const categoryToggleButton = document.getElementById("categoryToggleButton");
     const toast = document.getElementById("toast");
-
-    // ============================================================
-    // 共有実行状態
-    // camera / board / import / viewer から直接参照されるものがある。
-    // v65.12では依存を可視化し、無理な移動はしない。
-    // ============================================================
-    let currentStream = null;
-    let selectedStatus = "visual";
-    let isSectionMode = false;
     let toastTimer = null;
-
-    const capturedPhotos = [];
-
-    let previewIndex = 0;
-    let boardEditTargetPhotoId = null;
-    let photoQuality = loadPhotoQuality();
-    let boardTextSize = loadBoardTextSize();
-    const boardFieldTextSize = loadBoardFieldTextSizes();
-    let boardMode = "survey";
-    let activeSidePanel = null;
-    let isDateManuallyEdited = false;
-
-    const BOARD_POSITIONS = ["bottom-left", "bottom-right", "top-right", "top-left"];
-    const BOARD_POSITION_LABELS = {
-      "bottom-left": "左下",
-      "bottom-right": "右下",
-      "top-right": "右上",
-      "top-left": "左上"
-    };
-
-    const boardState = {
-      x: 12,
-      y: 12,
-      scale: 1,
-      minScale: 0.35,
-      maxScale: 1.8,
-      sizeRatio: 0.45,
-      minSizeRatio: 0.35,
-      maxSizeRatio: 0.55,
-      position: "bottom-left"
-    };
-
 
     // ============================================================
     // アプリ起動・全体イベント

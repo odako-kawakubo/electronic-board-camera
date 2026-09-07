@@ -2208,6 +2208,12 @@
     }
     .launch-camera-button { background: linear-gradient(135deg, #2f80ed, #1b5fc7); }
     .launch-import-button { background: linear-gradient(135deg, #27ae60, #168846); }
+    .launch-settings-button {
+      grid-column: 1 / -1;
+      min-height: 58px;
+      background: linear-gradient(135deg, #4b5563, #2f3742);
+      font-size: 17px;
+    }
     .launch-resume-panel {
       display: none;
       margin-top: 18px;

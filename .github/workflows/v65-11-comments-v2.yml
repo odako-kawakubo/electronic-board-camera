@@ -1,0 +1,165 @@
+name: v65.11 handover comments v2
+
+on:
+  push:
+    branches:
+      - review/v65.1
+
+permissions:
+  contents: write
+
+jobs:
+  document:
+    if: ${{ !contains(github.event.head_commit.message, '[v65.11-done]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: review/v65.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Add maintainable comments and guide
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          files=['app.js','settings.js','photo-store.js','photo-utils.js','board.js','camera.js','photo-import.js','photo-viewer.js']
+          before={f:re.findall(r'^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',Path('js/'+f).read_text(encoding='utf-8'),re.M) for f in files}
+
+          headers={
+          'app.js':('アプリ全体の起点 / 共有状態','各機能モジュールをつなぐ中心。共有定数・DOM参照・共有状態・初期化順序・共通UIだけを担当する。','新機能を安易にここへ追加しない。まず担当モジュールを決める。HTMLのinline onclickがあるためclassic scriptのグローバル関数を前提とする。'),
+          'settings.js':('設定 / アプリ更新','画質、看板文字サイズ、設定画面、バージョン表示、PWA更新確認を担当する。app.jsの初期状態生成で使うためapp.jsより先に読む。','localStorageのキー名変更は既存利用者の設定消失につながる。Service Worker更新処理は片側だけ変更しない。'),
+          'photo-store.js':('IndexedDB 永続保存層','写真と既存写真取込セッションを端末内へ保存する唯一の層。UI判断は持たず保存・読込・削除だけを担当する。','DBは electronic-board-camera-prototype / version 2。storesはphotosとimportSessions。構造変更時はマイグレーション必須。'),
+          'photo-utils.js':('写真共通ルール','撮影区分、試料No.解析、ファイル名規則、保存写真の初回読込など複数機能で共有する写真ルールを担当する。','ファイル名規則は業務運用に直結する。capturedPhotosは画面側共有配列で、正本はIndexedDB。'),
+          'board.js':('電子看板の表示 / 編集 / Canvas描画','看板初期化、入力、調査/サンプリング切替、位置/サイズ、編集履歴、Canvas描画まで看板仕様を担当する。','画面上の看板と写真へ焼き込むCanvas看板は見た目を一致させる。iPhone/Safari対策を単純化して消さない。'),
+          'camera.js':('カメラ起動 / 撮影 / 撮影確認','背面カメラ起動、撮影、静止確認、看板合成、端末内保存を担当する。看板描画はboard.js、保存実体はphoto-store.js。','PWA復帰時のカメラ再開処理を維持する。保存失敗写真を撮影済み一覧へ追加しない。'),
+          'photo-import.js':('既存写真への看板付与','複数写真を読み込み1枚ずつ看板編集して保存する。途中状態をimportSessionsへ保存し再開できる。','前写真の看板値を次へ引き継ぐ。元画像は編集セッション中だけ保持し、完了後は一時セッションを削除する。'),
+          'photo-viewer.js':('保存写真の閲覧 / 選択 / 出力','写真プレビュー、並び替え、一覧、複数選択、削除、保存・共有、拡大表示を担当する。','削除はIndexedDBとcapturedPhotosの両方を同じ対象で更新する。共有はWeb Share非対応環境へのフォールバックを残す。')
+          }
+
+          for f,(title,role,note) in headers.items():
+              p=Path('js/'+f); text=p.read_text(encoding='utf-8')
+              text=re.sub(r'^/\*\n \* v65\.[0-9]+.*?\*/\n\n','',text,count=1,flags=re.S)
+              header=f'''/*\n * ============================================================\n * {f} - {title}\n * ============================================================\n * 責務: {role}\n *\n * 保守上の注意:\n * - {note}\n * ============================================================\n */\n\n'''
+              if not text.startswith('/*\n * ============================================================'):
+                  text=header+text
+              p.write_text(text,encoding='utf-8')
+
+          docs={
+          'app.js':{
+            'setupForcedLandscape':'横向き運用の表示状態と左右反転設定を復元する。',
+            'toggleLandscapeFlip':'端末の持ち方に合わせて画面全体を180度反転し、次回起動用に保存する。',
+            'showToast':'通常メッセージを短時間表示する共通トースト。',
+            'showErrorToast':'保存失敗などのエラーを通常より長く表示する。'},
+          'settings.js':{
+            'loadPhotoQuality':'保存済み画質設定を読み込み、不正値ならstandardへ戻す。',
+            'setPhotoQuality':'撮影画質を保存して設定UIへ即時反映する。',
+            'loadBoardFieldTextSizes':'看板各項目の個別文字サイズを復元し、安全な範囲へ制限する。',
+            'checkAppUpdate':'公開中HTMLのAPP_VERSIONを確認し、差分がある場合だけ更新を提案する。',
+            'reloadAppWithVersion':'Service WorkerとCache Storageを消して古いPWAキャッシュを外してから再読込する。'},
+          'photo-store.js':{
+            'openDB':'IndexedDB接続を1つだけ保持し、DB更新時は次回アクセスで開き直す。',
+            'getAllPhotos':'保存写真レコードを全件返す。UI反映や並び替えは呼び出し側の責務。',
+            'savePhoto':'写真1件を保存し、トランザクション完了後に成功=true / 失敗=falseを返す。',
+            'deletePhoto':'写真1件をID指定で削除する。',
+            'saveImportSession':'既存写真取込の途中状態を保存し、アプリ再起動後の再開を可能にする。',
+            'loadImportSession':'中断中の取込セッションを読み込み、存在しない場合はnullを返す。'},
+          'photo-utils.js':{
+            'getCurrentPhotoType':'現在の通常撮影区分または断面区分を返す。',
+            'parseSampleAndPoint':'看板表示の「1-①」等をファイル名用sampleNo / pointNoへ正規化する。',
+            'generatePhotoFileName':'同名写真を上書きしないよう_02、_03…を付けて業務用ファイル名を生成する。',
+            'loadPhotosFromIndexedDB':'起動時に保存写真を読み込み、撮影順へ整列してcapturedPhotosを復元する。'},
+          'board.js':{
+            'initializeBoard':'保存済み看板内容を復元し、日付・区分・履歴・写真枚数を初期同期する。',
+            'applyBoardMode':'調査/サンプリングの違いをUIと看板へ反映し、サンプリングでは目視を使わない。',
+            'saveBoardForm':'現在の看板入力をlocalStorageへ保存し、次回起動や次写真へ引き継ぐ。',
+            'scheduleBoardPreviewRender':'連続再描画をrequestAnimationFrameで1回へまとめ、入力中の負荷を抑える。',
+            'drawBoardOnCanvas':'写真へ焼き込む電子看板をCanvasで描く最重要関数。画面表示と同じ二重枠・文字配置を再現する。',
+            'openBoardEditMode':'保存済み写真のbaseDataUrlを使って看板修正画面を開き、確定前は元写真を壊さない。'},
+          'camera.js':{
+            'startCamera':'背面カメラを起動し、画質設定を理想解像度として指定する。',
+            'resumeCameraAfterPreview':'写真確認やPWA復帰後にカメラ映像を再開する。iOS対策として重要。',
+            'takePhoto':'元画像取得→看板合成→確認→IndexedDB保存→一覧反映の順で撮影全体を制御する。',
+            'captureBaseImage':'video映像から看板なし元画像を生成し、後から修正できるようbaseDataUrlとして保持する。',
+            'composeBoardOnBaseImage':'元画像へ現在の看板を合成して最終JPEGを作る。元画像自体は変更しない。'},
+          'photo-import.js':{
+            'setupImportPhotoInput':'既存写真選択inputを監視し、複数写真の取込セッション開始につなげる。',
+            'refreshImportResumePanel':'IndexedDBの中断セッション有無を確認し、起動画面へ再開UIを出す。',
+            'resumeImportSession':'保存済み取込セッションを復元し、中断した写真位置から編集を再開する。',
+            'saveCurrentImportedPhotoAndNext':'現在写真へ看板を焼き込み、保存成功後だけ次の写真へ進む。',
+            'finishImportSession':'全写真完了後に一時セッションを削除して通常画面へ戻す。'},
+          'photo-viewer.js':{
+            'openPreview':'保存写真の閲覧画面を開き、現在の案件と写真位置に合わせて表示を構築する。',
+            'renderPreview':'現在写真・メタ情報・一覧・選択状態をまとめて更新する。',
+            'deleteSelectedPreviewPhotos':'選択写真をIndexedDBとcapturedPhotosの両方から削除し、片方だけ残さない。',
+            'shareOrDownloadPhotos':'Web Share対応端末では共有し、非対応時はダウンロードへフォールバックする。'}
+          }
+
+          def insert_doc(text,name,desc):
+              pat=re.compile(r'(^\s*(?:async\s+)?function\s+'+re.escape(name)+r'\s*\()',re.M)
+              m=pat.search(text)
+              if not m:return text,False
+              if desc in text[max(0,m.start()-400):m.start()]:return text,True
+              indent=re.match(r'\s*',m.group(1)).group(0)
+              doc=indent+'/**\n'+indent+' * '+desc+'\n'+indent+' */\n'
+              return text[:m.start()]+doc+text[m.start():],True
+
+          inserted=0
+          for f,mapping in docs.items():
+              p=Path('js/'+f); text=p.read_text(encoding='utf-8')
+              for name,desc in mapping.items():
+                  text,ok=insert_doc(text,name,desc); inserted+=1 if ok else 0
+              p.write_text(text,encoding='utf-8')
+
+          p=Path('js/app.js'); text=p.read_text(encoding='utf-8')
+          text=text.replace('// v62: 既存写真読み込み編集セッション。元画像はセッション中だけIndexedDBへ一時保存する。','// 既存写真取込の編集中状態。元画像はセッション中だけ保持し、完了時に一時データを破棄する。')
+          text=text.replace('const APP_VERSION = "v65.10";','const APP_VERSION = "v65.11";',1)
+          p.write_text(text,encoding='utf-8')
+
+          Path('docs/maintenance-guide.md').write_text('''# 電子看板カメラ 保守・引継ぎガイド\n\n## 目的\n現場写真へ電子看板を焼き込むPWAです。撮影、保存写真閲覧、看板修正、既存写真への看板付与を行います。\n\n## モジュール構成\n- `js/app.js`: 起動・共有状態・共通UI\n- `js/settings.js`: 設定・アプリ更新\n- `js/photo-store.js`: IndexedDB保存\n- `js/photo-utils.js`: 写真共通ルール\n- `js/board.js`: 看板表示・編集・Canvas描画\n- `js/camera.js`: カメラ起動・撮影・合成\n- `js/photo-import.js`: 既存写真取込・途中再開\n- `js/photo-viewer.js`: 写真閲覧・選択・削除・共有\n\n## データで最重要の違い\n- `baseDataUrl`: 看板を焼く前の元写真。看板修正に必要。\n- `dataUrl`: 看板を焼き込んだ完成写真。閲覧・共有に使用。\n- 正本はIndexedDB。`capturedPhotos`は起動時に正本から復元する画面側配列。\n\n## 撮影フロー\n`startCamera()` → `takePhoto()` → 元画像取得 → 看板合成 → 撮影確認 → `PhotoStore.savePhoto()` → `capturedPhotos`へ反映。保存失敗時は一覧へ追加しません。\n\n## 看板仕様\n位置は左下/右下/右上/左上。サイズ比率0.35〜0.55、初期0.45。調査は目視/施工前/施工中/施工後、サンプリングは施工前/施工中/施工後。断面は別区分で看板非表示。\n\n## ファイル名\n施工前=1、施工中=2、施工後=3、断面=4、目視=5。基本は `試料No-箇所No-区分.jpg`。重複時は `_02`, `_03` を付けます。\n\n## IndexedDB\nDB名 `electronic-board-camera-prototype`、version 2。storesは `photos` / `importSessions`。構造変更時は既存データを消さないマイグレーション必須。\n\n## iPhone / PWA注意\nバックグラウンド復帰後にカメラが止まる場合があるため復帰処理があります。新しいJS追加時は `index.html` の読込順と `service-worker.js` キャッシュ対象を両方更新します。inline onclickがあるため、安易なES modules化はしません。\n\n## 修正方針\n継ぎ足しパッチではなく、担当モジュールを確認して既存処理を整理して書き換えます。不要になった関数・定数・イベント・CSS・旧処理は残しません。\n\n## 将来構想\nOneDrive / SharePoint案件フォルダ読込、案件選択、写真直接送信、案件データから看板自動入力、将来的な「しらべ」連携。現段階では未実装です。\n''',encoding='utf-8')
+
+          idx=Path('index.html'); idx.write_text(idx.read_text(encoding='utf-8').replace('id="settingsVersionText">v65.10<','id="settingsVersionText">v65.11<',1),encoding='utf-8')
+          sw=Path('service-worker.js'); sw.write_text(sw.read_text(encoding='utf-8').replace('electronic-board-camera-v65.10','electronic-board-camera-v65.11'),encoding='utf-8')
+          readme=Path('README.md'); r=readme.read_text(encoding='utf-8'); r=re.sub(r'^# 電子看板カメラ v65\.10$','# 電子看板カメラ v65.11',r,count=1,flags=re.M)
+          if '## v65.11 引継ぎコメント整備' not in r:r+='\n## v65.11 引継ぎコメント整備\n- 全JSモジュールへ責務と保守上の注意を日本語で追加\n- 主要関数へ目的・理由が分かるコメントを追加\n- `docs/maintenance-guide.md` を追加\n- 機能・UI・データ仕様は変更なし\n'
+          readme.write_text(r,encoding='utf-8')
+
+          for f in files:
+              after=re.findall(r'^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',Path('js/'+f).read_text(encoding='utf-8'),re.M)
+              if before[f]!=after:raise SystemExit('function list changed: '+f)
+          if inserted<35:raise SystemExit('too few comments: '+str(inserted))
+          print('comments inserted',inserted)
+          PY
+      - name: Verify
+        run: |
+          for f in js/photo-store.js js/settings.js js/app.js js/photo-utils.js js/board.js js/camera.js js/photo-import.js js/photo-viewer.js; do node --check "$f"; done
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          files=['app.js','settings.js','photo-store.js','photo-utils.js','board.js','camera.js','photo-import.js','photo-viewer.js']
+          combined='\n'.join(Path('js/'+f).read_text(encoding='utf-8') for f in files)
+          funcs=re.findall(r'^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',combined,re.M)
+          dup=sorted({f for f in funcs if funcs.count(f)>1})
+          if dup:raise SystemExit('duplicate functions: '+','.join(dup))
+          html=Path('index.html').read_text(encoding='utf-8')
+          onclick=[]
+          for body in re.findall(r'onclick="([^"]+)"',html):onclick+=re.findall(r'\b([A-Za-z_$][\w$]*)\s*\(',body)
+          missing=sorted({x for x in onclick if x not in funcs and x!='if'})
+          if missing:raise SystemExit('missing onclick: '+','.join(missing))
+          for f in files:
+              text=Path('js/'+f).read_text(encoding='utf-8')
+              if '保守上の注意' not in text:raise SystemExit('header missing: '+f)
+          if not Path('docs/maintenance-guide.md').exists():raise SystemExit('guide missing')
+          if 'v65.11' not in Path('js/app.js').read_text(encoding='utf-8') or 'v65.11' not in html or 'v65.11' not in Path('service-worker.js').read_text(encoding='utf-8'):raise SystemExit('version mismatch')
+          print('v65.11 verification OK')
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/v65-11-comments-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v65.11 引継ぎコメントを整備 [v65.11-done]"
+          git push origin HEAD:review/v65.1

@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.17
+# 電子看板カメラ v65.18
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -163,3 +163,12 @@
 - `photo-viewer.js` は1枚表示、前後移動、拡大、看板修正、共有/外部保存へ縮小
 - 写真本体の正本は引き続き `PhotoStore` / IndexedDB
 - DB構造、Base64保存形式、撮影処理、ファイル名規則は変更なし
+
+
+## v65.18 永続ストレージ・圏外起動強化
+- `storage-manager.js` を追加し、利用可能端末でpersistent storageを要求
+- 設定画面に永続化状態と推定ストレージ使用量を表示
+- Service Workerのapp shellキャッシュを必須ファイル全成功方式へ変更
+- 圏外navigation時はquery有無に依存せず `index.html` / `./` へフォールバック
+- app shell静的ファイルはcache-firstとして圏外起動を優先
+- 写真正本は引き続きPhotoStore / IndexedDB。DB schema・Base64形式は変更なし

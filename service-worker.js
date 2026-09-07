@@ -1,4 +1,4 @@
-const CACHE_NAME = "electronic-board-camera-v65.17";
+const CACHE_NAME = "electronic-board-camera-v65.18";
 
 const APP_FILES = [
   "./",
@@ -14,6 +14,7 @@ const APP_FILES = [
   "./js/photo-import.js",
   "./js/photo-album.js",
   "./js/photo-viewer.js",
+  "./js/storage-manager.js",
   "./js/pwa-controller.js",
   "./manifest.json",
   "./service-worker.js",
@@ -24,10 +25,10 @@ const APP_FILES = [
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 
+  // 必須ファイルが1つでも保存できなければinstallを成功扱いにしない。
+  // 中途半端なapp shellで圏外起動する状態を防ぐ。
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_FILES).catch(() => undefined);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_FILES))
   );
 });
 
@@ -46,15 +47,38 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(async () => {
+          return (
+            await caches.match(event.request, { ignoreSearch: true }) ||
+            await caches.match("./index.html") ||
+            await caches.match("./")
+          );
+        })
+    );
+    return;
+  }
+
+  // app shellはcache-first。SWの世代が変わればCACHE_NAMEも変わるため、
+  // 圏外時の確実性を優先しつつ更新世代は分離できる。
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, copy);
-        });
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
-      })
-      .catch(() => caches.match(event.request))
+      });
+    })
   );
 });

@@ -31,7 +31,7 @@ jobs:
           names=[
             'openPreview','closePreview','renderPreview','getPreviewPhotos',
             'showPrevPhoto','showNextPhoto','togglePreviewSortMode',
-            'renderPhotoThumbnails','renderPhotoList','setPreviewListMode',
+            'renderThumbnails','renderPhotoList','setPreviewListMode',
             'toggleCurrentPhotoSelected','togglePhotoSelected','toggleSelectAllPhotos',
             'updateSelectAllButton','saveCurrentPreviewPhoto','deleteSelectedPreviewPhotos',
             'shareOrDownloadPhotos','markPhotosAsSaved','dataUrlToBlob',
@@ -76,7 +76,6 @@ jobs:
               a,b,block=function_range(s,name)
               found.append((a,b,name,block))
 
-          # Preserve original function order in the extracted file.
           ordered=sorted(found,key=lambda x:x[0])
           viewer='''/*\n * v65.5 Photo Viewer\n * 写真プレビュー・選択・並び順・削除・書き出しを担当。\n * 看板修正本体や撮影処理は app.js 側に残す。\n */\n\n'''+''.join(x[3] for x in ordered)
           Path('js/photo-viewer.js').write_text(viewer,encoding='utf-8')
@@ -119,7 +118,7 @@ jobs:
           viewer=Path('js/photo-viewer.js').read_text(encoding='utf-8')
           html=Path('index.html').read_text(encoding='utf-8')
           sw=Path('service-worker.js').read_text(encoding='utf-8')
-          moved=['openPreview','closePreview','renderPreview','getPreviewPhotos','showPrevPhoto','showNextPhoto','togglePreviewSortMode','renderPhotoThumbnails','renderPhotoList','setPreviewListMode','toggleCurrentPhotoSelected','togglePhotoSelected','toggleSelectAllPhotos','updateSelectAllButton','saveCurrentPreviewPhoto','deleteSelectedPreviewPhotos','shareOrDownloadPhotos','markPhotosAsSaved','dataUrlToBlob','setupPreviewSwipe','setupPreviewImageTap']
+          moved=['openPreview','closePreview','renderPreview','getPreviewPhotos','showPrevPhoto','showNextPhoto','togglePreviewSortMode','renderThumbnails','renderPhotoList','setPreviewListMode','toggleCurrentPhotoSelected','togglePhotoSelected','toggleSelectAllPhotos','updateSelectAllButton','saveCurrentPreviewPhoto','deleteSelectedPreviewPhotos','shareOrDownloadPhotos','markPhotosAsSaved','dataUrlToBlob','setupPreviewSwipe','setupPreviewImageTap']
           for name in moved:
               if re.search(r'^\s*(?:async\s+)?function\s+'+re.escape(name)+r'\s*\(',app,re.M):
                   raise SystemExit('moved function remains in app.js: '+name)

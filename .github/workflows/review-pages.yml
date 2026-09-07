@@ -1,0 +1,77 @@
+name: Deploy review site to Pages
+
+on:
+  push:
+    branches: [ review/v65.1 ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}review/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-src
+
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+        with:
+          ref: review/v65.1
+          path: review-src
+
+      - name: Build combined Pages artifact
+        run: |
+          mkdir -p site/review
+          rsync -a --exclude '.git' --exclude '.github' main-src/ site/
+          rsync -a --exclude '.git' --exclude '.github' review-src/ site/review/
+
+          # Review PWA must not share the production cache namespace.
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          sw = Path('site/review/service-worker.js')
+          text = sw.read_text(encoding='utf-8')
+          text = text.replace('const CACHE_NAME = "electronic-board-camera-v65.12";',
+                              'const CACHE_NAME = "electronic-board-camera-review-v65.12";')
+          text = text.replace('.filter((key) => key !== CACHE_NAME)',
+                              '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)')
+          sw.write_text(text, encoding='utf-8')
+
+          manifest = Path('site/review/manifest.json')
+          data = json.loads(manifest.read_text(encoding='utf-8'))
+          data['name'] = '電子看板カメラ REVIEW'
+          data['short_name'] = '看板カメラR'
+          data['start_url'] = './?v=65.12-review'
+          manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          index = Path('site/review/index.html')
+          html = index.read_text(encoding='utf-8')
+          html = html.replace('<title>電子看板カメラ</title>', '<title>電子看板カメラ REVIEW</title>', 1)
+          index.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

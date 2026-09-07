@@ -1,8 +1,19 @@
 /*
- * v65.8 Board
- * 看板初期化・入力・調査/サンプリング切替・位置/サイズ・編集・描画・履歴を担当。
- * 共有状態は v65.8 では app.js に残し、挙動変更を避ける。
+ * ============================================================
+ * board.js - 電子看板の表示 / 編集 / Canvas描画
+ * ============================================================
+ * 責務: 看板初期化、入力、調査/サンプリング切替、位置/サイズ、編集履歴、Canvas描画まで看板仕様を担当する。
+ *
+ * 保守上の注意:
+ * - 画面上の看板と写真へ焼き込むCanvas看板は見た目を一致させる。iPhone/Safari対策を単純化して消さない。
+ * ============================================================
  */
+
+    /**
+
+     * 保存済み看板内容を復元し、日付・区分・履歴・写真枚数を初期同期する。
+
+     */
 
     function initializeBoard() {
       const savedBoard = loadSavedBoardForm();
@@ -45,6 +56,12 @@
     function setupBoardMode() {
       applyBoardMode();
     }
+
+    /**
+
+     * 調査/サンプリングの違いをUIと看板へ反映し、サンプリングでは目視を使わない。
+
+     */
 
     function applyBoardMode() {
       const isSampling = boardMode === "sampling";
@@ -932,6 +949,12 @@
       };
     }
 
+    /**
+
+     * 保存済み写真のbaseDataUrlを使って看板修正画面を開き、確定前は元写真を壊さない。
+
+     */
+
     function openBoardEditMode(options = {}) {
       if (isBoardEditMode) return;
       if (isSectionMode) {
@@ -1331,6 +1354,12 @@
       }
     }
 
+    /**
+
+     * 現在の看板入力をlocalStorageへ保存し、次回起動や次写真へ引き継ぐ。
+
+     */
+
     function saveBoardForm() {
       try {
         const data = {
@@ -1522,6 +1551,12 @@
 
     let boardPreviewRenderQueued = false;
 
+    /**
+
+     * 連続再描画をrequestAnimationFrameで1回へまとめ、入力中の負荷を抑える。
+
+     */
+
     function scheduleBoardPreviewRender() {
       if (boardPreviewRenderQueued) return;
       boardPreviewRenderQueued = true;
@@ -1553,6 +1588,9 @@
     }
 
     /* キャンバス上に看板を描画 */
+    /**
+     * 写真へ焼き込む電子看板をCanvasで描く最重要関数。画面表示と同じ二重枠・文字配置を再現する。
+     */
     function drawBoardOnCanvas(ctx, x, y, w, h, sourceData = null) {
       const source = sourceData || getCurrentBoardData();
       const activeBoardMode = source.boardMode === "sampling" ? "sampling" : "survey";

@@ -1,6 +1,12 @@
 /*
- * v65.5 Photo Viewer
- * 写真の案件別表示、プレビュー、選択、並び順、保存/共有、削除、看板修正導線を担当。
+ * ============================================================
+ * photo-viewer.js - 保存写真の閲覧 / 選択 / 出力
+ * ============================================================
+ * 責務: 写真プレビュー、並び替え、一覧、複数選択、削除、保存・共有、拡大表示を担当する。
+ *
+ * 保守上の注意:
+ * - 削除はIndexedDBとcapturedPhotosの両方を同じ対象で更新する。共有はWeb Share非対応環境へのフォールバックを残す。
+ * ============================================================
  */
 
     function getCurrentSubjectName() {
@@ -167,6 +173,9 @@
     }
 
     /* 写真ビューア */
+    /**
+     * 保存写真の閲覧画面を開き、現在の案件と写真位置に合わせて表示を構築する。
+     */
     async function openPreview() {
       // v61: セッション内に写真があれば再読込を省略し、表示ボタンの待ち時間を短縮する。
       if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
@@ -217,6 +226,12 @@
 
       renderPreview();
     }
+
+    /**
+
+     * 現在写真・メタ情報・一覧・選択状態をまとめて更新する。
+
+     */
 
     function renderPreview() {
       const photos = getPreviewPhotos();
@@ -575,6 +590,12 @@
       await shareOrDownloadPhotos(selectedPhotos);
     }
 
+    /**
+
+     * 選択写真をIndexedDBとcapturedPhotosの両方から削除し、片方だけ残さない。
+
+     */
+
     async function deleteSelectedPreviewPhotos() {
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");
@@ -616,6 +637,12 @@
       updatePhotoCount();
       showToast("削除しました");
     }
+
+    /**
+
+     * Web Share対応端末では共有し、非対応時はダウンロードへフォールバックする。
+
+     */
 
     async function shareOrDownloadPhotos(photos) {
       if (!photos.length) return;

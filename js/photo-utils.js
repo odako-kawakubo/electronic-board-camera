@@ -1,6 +1,12 @@
 /*
- * v65.10 Photo Utilities
- * 写真件数、撮影区分、試料No.解析、ファイル名生成、保存写真読込を担当。
+ * ============================================================
+ * photo-utils.js - 写真共通ルール
+ * ============================================================
+ * 責務: 撮影区分、試料No.解析、ファイル名規則、保存写真の初回読込など複数機能で共有する写真ルールを担当する。
+ *
+ * 保守上の注意:
+ * - ファイル名規則は業務運用に直結する。capturedPhotosは画面側共有配列で、正本はIndexedDB。
+ * ============================================================
  */
 
     function updatePhotoCount() {
@@ -13,6 +19,12 @@
       const found = STATUS_LIST.find(item => item.value === value);
       return found ? found.label : value;
     }
+
+    /**
+
+     * 現在の通常撮影区分または断面区分を返す。
+
+     */
 
     function getCurrentPhotoType() {
       if (isSectionMode) return SECTION_PHOTO_TYPE;
@@ -34,6 +46,9 @@
      * 看板表示用の「試料No.」には、現場運用上「1-①」のような表記が入る想定。
      * ファイル名では丸数字を半角数字に直し、「1-①」も「1-1」も同じ 1-1 として扱う。
      */
+    /**
+     * 看板表示の「1-①」等をファイル名用sampleNo / pointNoへ正規化する。
+     */
     function parseSampleAndPoint(value) {
       const rawText = String(value || "").trim() || POINT_DISPLAY_DEFAULT;
       const normalized = normalizeFullWidthText(rawText)
@@ -54,6 +69,12 @@
       }).replace(/　/g, " ");
     }
 
+    /**
+
+     * 同名写真を上書きしないよう_02、_03…を付けて業務用ファイル名を生成する。
+
+     */
+
     function generatePhotoFileName(sampleNo, pointNo, statusCode, excludePhotoId = "") {
       const baseName = `${sampleNo}-${pointNo}-${statusCode}`;
       const used = new Set();
@@ -70,6 +91,12 @@
       while (used.has(next)) next += 1;
       return `${baseName}_${String(next).padStart(2, "0")}.jpg`;
     }
+
+    /**
+
+     * 起動時に保存写真を読み込み、撮影順へ整列してcapturedPhotosを復元する。
+
+     */
 
     async function loadPhotosFromIndexedDB() {
       try {

@@ -1,3 +1,14 @@
+/*
+ * ============================================================
+ * photo-store.js - IndexedDB 永続保存層
+ * ============================================================
+ * 責務: 写真と既存写真取込セッションを端末内へ保存する唯一の層。UI判断は持たず保存・読込・削除だけを担当する。
+ *
+ * 保守上の注意:
+ * - DBは electronic-board-camera-prototype / version 2。storesはphotosとimportSessions。構造変更時はマイグレーション必須。
+ * ============================================================
+ */
+
 (function () {
   "use strict";
 
@@ -8,6 +19,12 @@
   const ACTIVE_IMPORT_SESSION_ID = "active";
 
   let dbInstance = null;
+
+  /**
+
+   * IndexedDB接続を1つだけ保持し、DB更新時は次回アクセスで開き直す。
+
+   */
 
   function openDB() {
     return new Promise((resolve, reject) => {
@@ -41,6 +58,12 @@
     });
   }
 
+  /**
+
+   * 保存写真レコードを全件返す。UI反映や並び替えは呼び出し側の責務。
+
+   */
+
   async function getAllPhotos() {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -51,6 +74,12 @@
       tx.onabort = () => reject(tx.error || new Error("写真読込を中断しました"));
     });
   }
+
+  /**
+
+   * 写真1件を保存し、トランザクション完了後に成功=true / 失敗=falseを返す。
+
+   */
 
   async function savePhoto(photo) {
     try {
@@ -70,6 +99,12 @@
     }
   }
 
+  /**
+
+   * 写真1件をID指定で削除する。
+
+   */
+
   async function deletePhoto(photoId) {
     const db = await openDB();
     await new Promise((resolve, reject) => {
@@ -82,6 +117,12 @@
     });
   }
 
+  /**
+
+   * 既存写真取込の途中状態を保存し、アプリ再起動後の再開を可能にする。
+
+   */
+
   async function saveImportSession(session) {
     const db = await openDB();
     await new Promise((resolve, reject) => {
@@ -92,6 +133,12 @@
       tx.onabort = () => reject(tx.error || new Error("一時保存を中断しました"));
     });
   }
+
+  /**
+
+   * 中断中の取込セッションを読み込み、存在しない場合はnullを返す。
+
+   */
 
   async function loadImportSession() {
     try {

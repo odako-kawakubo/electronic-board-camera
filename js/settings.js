@@ -1,7 +1,19 @@
 /*
- * v65.9 Settings
- * 画質・看板文字サイズ・設定画面・アプリ更新確認を担当。
+ * ============================================================
+ * settings.js - 設定 / アプリ更新
+ * ============================================================
+ * 責務: 画質、看板文字サイズ、設定画面、バージョン表示、PWA更新確認を担当する。app.jsの初期状態生成で使うためapp.jsより先に読む。
+ *
+ * 保守上の注意:
+ * - localStorageのキー名変更は既存利用者の設定消失につながる。Service Worker更新処理は片側だけ変更しない。
+ * ============================================================
  */
+
+    /**
+
+     * 保存済み画質設定を読み込み、不正値ならstandardへ戻す。
+
+     */
 
     function loadPhotoQuality() {
       try {
@@ -11,6 +23,12 @@
 
       return "standard";
     }
+
+    /**
+
+     * 撮影画質を保存して設定UIへ即時反映する。
+
+     */
 
     function setPhotoQuality(value) {
       if (!PHOTO_QUALITY_SETTINGS[value]) return;
@@ -32,6 +50,12 @@
       qualityStandardButton.classList.toggle("active", photoQuality === "standard");
       qualityHighButton.classList.toggle("active", photoQuality === "high");
     }
+
+    /**
+
+     * 看板各項目の個別文字サイズを復元し、安全な範囲へ制限する。
+
+     */
 
     function loadBoardFieldTextSizes() {
       const defaults = { subject: 18, address: 17, room: 24, sample: 24, date: 24 };
@@ -163,6 +187,12 @@
       }
     }
 
+    /**
+
+     * Service WorkerとCache Storageを消して古いPWAキャッシュを外してから再読込する。
+
+     */
+
     async function reloadAppWithVersion(versionLabel) {
       await clearAppCachesAndServiceWorker();
       const reloadUrl = new URL(window.location.href);
@@ -170,6 +200,12 @@
       reloadUrl.searchParams.set("_reload", Date.now());
       window.location.replace(reloadUrl.toString());
     }
+
+    /**
+
+     * 公開中HTMLのAPP_VERSIONを確認し、差分がある場合だけ更新を提案する。
+
+     */
 
     async function checkAppUpdate() {
       try {

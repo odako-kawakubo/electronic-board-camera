@@ -1,4 +1,15 @@
-    const APP_VERSION = "v65.10";
+/*
+ * ============================================================
+ * app.js - アプリ全体の起点 / 共有状態
+ * ============================================================
+ * 責務: 各機能モジュールをつなぐ中心。共有定数・DOM参照・共有状態・初期化順序・共通UIだけを担当する。
+ *
+ * 保守上の注意:
+ * - 新機能を安易にここへ追加しない。まず担当モジュールを決める。HTMLのinline onclickがあるためclassic scriptのグローバル関数を前提とする。
+ * ============================================================
+ */
+
+    const APP_VERSION = "v65.11";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -136,7 +147,7 @@
     let activeSidePanel = null;
     let isDateManuallyEdited = false;
 
-    // v62: 既存写真読み込み編集セッション。元画像はセッション中だけIndexedDBへ一時保存する。
+    // 既存写真取込の編集中状態。元画像はセッション中だけ保持し、完了時に一時データを破棄する。
     let activeImportSession = null;
     let activeImportBaseDataUrl = "";
     let isImportBoardEdit = false;
@@ -237,11 +248,23 @@
       }
     });
 
+    /**
+
+     * 横向き運用の表示状態と左右反転設定を復元する。
+
+     */
+
     function setupForcedLandscape() {
       const savedFlip = localStorage.getItem("electronicBoardLandscapeFlip") === "1";
       document.body.classList.toggle("landscape-flipped", savedFlip);
       updateLandscapeFlipButton();
     }
+
+    /**
+
+     * 端末の持ち方に合わせて画面全体を180度反転し、次回起動用に保存する。
+
+     */
 
     function toggleLandscapeFlip() {
       const flipped = document.body.classList.toggle("landscape-flipped");
@@ -256,6 +279,12 @@
       button.setAttribute("aria-pressed", document.body.classList.contains("landscape-flipped") ? "true" : "false");
     }
 
+    /**
+
+     * 通常メッセージを短時間表示する共通トースト。
+
+     */
+
     function showToast(message) {
       toast.textContent = message;
       toast.classList.remove("error");
@@ -266,6 +295,12 @@
         toast.classList.remove("show");
       }, 1400);
     }
+
+    /**
+
+     * 保存失敗などのエラーを通常より長く表示する。
+
+     */
 
     function showErrorToast(message) {
       toast.textContent = message;

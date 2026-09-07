@@ -1,8 +1,19 @@
 /*
- * v65.7 Camera
- * カメラ起動・復帰・断面モード・撮影・撮影確認・画像生成を担当。
- * 看板の描画ルール本体 drawBoardOnCanvas() は app.js に残す。
+ * ============================================================
+ * camera.js - カメラ起動 / 撮影 / 撮影確認
+ * ============================================================
+ * 責務: 背面カメラ起動、撮影、静止確認、看板合成、端末内保存を担当する。看板描画はboard.js、保存実体はphoto-store.js。
+ *
+ * 保守上の注意:
+ * - PWA復帰時のカメラ再開処理を維持する。保存失敗写真を撮影済み一覧へ追加しない。
+ * ============================================================
  */
+
+    /**
+
+     * 背面カメラを起動し、画質設定を理想解像度として指定する。
+
+     */
 
     async function startCamera() {
       try {
@@ -85,6 +96,9 @@
      * プレビューから戻った後のカメラ復帰
      * iPhone / iPad のホーム画面PWAで重要
      */
+    /**
+     * 写真確認やPWA復帰後にカメラ映像を再開する。iOS対策として重要。
+     */
     async function resumeCameraAfterPreview() {
       try {
         const hasLiveTrack =
@@ -119,6 +133,12 @@
         showToast("カメラを再起動してください");
       }
     }
+
+    /**
+
+     * 元画像取得→看板合成→確認→IndexedDB保存→一覧反映の順で撮影全体を制御する。
+
+     */
 
     async function takePhoto() {
       if (isTakingPhoto) return;
@@ -302,6 +322,12 @@
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
+    /**
+
+     * video映像から看板なし元画像を生成し、後から修正できるようbaseDataUrlとして保持する。
+
+     */
+
     async function captureBaseImage() {
       const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
 
@@ -359,6 +385,12 @@
       const rect = getBoardDrawRectForCanvas(canvas);
       drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h);
     }
+
+    /**
+
+     * 元画像へ現在の看板を合成して最終JPEGを作る。元画像自体は変更しない。
+
+     */
 
     async function composeBoardOnBaseImage(baseDataUrl, options = {}) {
       const img = await loadImage(baseDataUrl);

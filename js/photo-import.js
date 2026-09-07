@@ -1,6 +1,12 @@
 /*
- * v65.6 Photo Import
- * 既存写真の複数選択、編集セッション、再開/破棄、1枚ずつの看板付与を担当。
+ * ============================================================
+ * photo-import.js - 既存写真への看板付与
+ * ============================================================
+ * 責務: 複数写真を読み込み1枚ずつ看板編集して保存する。途中状態をimportSessionsへ保存し再開できる。
+ *
+ * 保守上の注意:
+ * - 前写真の看板値を次へ引き継ぐ。元画像は編集セッション中だけ保持し、完了後は一時セッションを削除する。
+ * ============================================================
  */
 
     /* =========================================================
@@ -25,6 +31,12 @@
       importPhotoInput.value = "";
       importPhotoInput.click();
     }
+
+    /**
+
+     * 既存写真選択inputを監視し、複数写真の取込セッション開始につなげる。
+
+     */
 
     function setupImportPhotoInput() {
       if (!importPhotoInput || importPhotoInput.dataset.bound === "1") return;
@@ -60,6 +72,12 @@
       await openCurrentImportedPhoto();
     }
 
+    /**
+
+     * 保存済み取込セッションを復元し、中断した写真位置から編集を再開する。
+
+     */
+
     async function resumeImportSession() {
       const session = await PhotoStore.loadImportSession();
       if (!session || !session.items || session.currentIndex >= session.items.length) {
@@ -80,6 +98,12 @@
       if (importProgressBadge) importProgressBadge.classList.remove("show");
       showToast("編集中データを破棄しました");
     }
+
+    /**
+
+     * IndexedDBの中断セッション有無を確認し、起動画面へ再開UIを出す。
+
+     */
 
     async function refreshImportResumePanel() {
       const session = await PhotoStore.loadImportSession();

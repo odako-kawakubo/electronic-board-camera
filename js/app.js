@@ -1,4 +1,4 @@
-    const APP_VERSION = "v65.2";
+    const APP_VERSION = "v65.3";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -97,7 +97,6 @@
     const previewMeta = document.getElementById("previewMeta");
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
-    const previewModeToggleButton = document.getElementById("previewModeToggleButton");
     const previewSortButton = document.getElementById("previewSortButton");
     const boardCorrectionButton = document.getElementById("boardCorrectionButton");
     const selectAllButton = document.getElementById("selectAllButton");
@@ -108,9 +107,6 @@
     const editBoardModeButton = document.getElementById("editBoardModeButton");
     const boardEditResetButton = document.getElementById("boardEditResetButton");
     const samplingLocationInput = null;
-    const textSizeSmallButton = document.getElementById("textSizeSmallButton");
-    const textSizeNormalButton = document.getElementById("textSizeNormalButton");
-    const textSizeLargeButton = document.getElementById("textSizeLargeButton");
     const panelMainButtons = Array.from(document.querySelectorAll(".panel-main-button"));
     const sidePanels = {
       room: document.getElementById("roomPanel"),
@@ -121,7 +117,6 @@
     const roomValueCell = document.getElementById("roomValueCell");
     const visualStatusButton = document.getElementById("visualStatusButton");
     const toast = document.getElementById("toast");
-    const appVersionBadge = document.getElementById("appVersionBadge");
     const settingsVersionText = document.getElementById("settingsVersionText");
 
     let currentStream = null;
@@ -2619,9 +2614,6 @@
     function setPreviewListMode(value) {
       isPreviewListMode = Boolean(value);
       previewOverlay.classList.toggle("list-mode", isPreviewListMode);
-      if (previewModeToggleButton) {
-        previewModeToggleButton.textContent = isPreviewListMode ? "拡大表示" : "2列一覧";
-      }
       updateSelectAllButton();
     }
 
@@ -3864,9 +3856,6 @@
       boardWrap.classList.toggle("text-small", boardTextSize === "small");
       boardWrap.classList.toggle("text-large", boardTextSize === "large");
 
-      if (textSizeSmallButton) textSizeSmallButton.classList.toggle("active", boardTextSize === "small");
-      if (textSizeNormalButton) textSizeNormalButton.classList.toggle("active", boardTextSize === "normal");
-      if (textSizeLargeButton) textSizeLargeButton.classList.toggle("active", boardTextSize === "large");
       scheduleBoardPreviewRender();
     }
 
@@ -3911,7 +3900,6 @@
     }
 
     function renderAppVersion() {
-      if (appVersionBadge) appVersionBadge.textContent = getShortAppVersion();
       if (settingsVersionText) settingsVersionText.textContent = getShortAppVersion();
     }
 

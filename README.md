@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.15
+# 電子看板カメラ v65.16
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -146,3 +146,12 @@
 - 分割されていた `#boardEditHost` の `position: relative` を現行ブロックへ統合
 - 看板編集のv52系以降の上書きは意図的な最終値が多いため、未確認の削除は行わない
 - UI、看板寸法、IndexedDB、保存形式、OneDrive仕様は変更なし
+
+
+## v65.16 PWA責務分離
+- `js/pwa-controller.js` を追加し、PWA更新・Service Worker登録・iOS復帰制御を集約
+- `settings.js` は画質・文字サイズ・設定画面だけに縮小
+- `app.js` からPWA復帰イベントを除去し、機能初期化の司令塔へ整理
+- `index.html` のinline Service Worker登録を廃止
+- 圏外時の更新確認失敗は起動を止めない方針をコメントで明文化
+- IndexedDB、写真形式、撮影、看板、ファイル名、OneDrive仕様は変更なし

@@ -1,23 +1,21 @@
 /*
  * ============================================================
- * settings.js - 設定 / アプリ更新
+ * settings.js - 表示・撮影設定
  * ============================================================
- * 責務: 画質、看板文字サイズ、設定画面、バージョン表示、PWA更新確認を担当する。app.jsの初期状態生成で使うためapp.jsより先に読む。
+ * 責務: 画質、看板文字サイズ、設定画面を担当する。app.jsの初期状態生成で使うためshared-state.jsより先に読む。
  *
  * 保守上の注意:
- * - localStorageのキー名変更は既存利用者の設定消失につながる。Service Worker更新処理は片側だけ変更しない。
+ * - localStorageのキー名変更は既存利用者の設定消失につながる。PWA更新処理はpwa-controller.jsが担当する。
  * ============================================================
  */
 
     // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
-    const APP_VERSION = "v65.15";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
     const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
     const BOARD_FIELD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-field-text-size-v1";
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
-    const settingsVersionText = document.getElementById("settingsVersionText");
 
 
     /**
@@ -154,119 +152,3 @@
     function closeSettings() {
       settingsOverlay.classList.remove("show");
     }
-
-    function getShortAppVersion(version = APP_VERSION) {
-      const match = String(version || "").match(/^v?([0-9]+(?:\.[0-9]+)?[a-z]?)/i);
-      return match ? `v${match[1]}` : String(version || "");
-    }
-
-    function renderAppVersion() {
-      if (settingsVersionText) settingsVersionText.textContent = getShortAppVersion();
-    }
-
-    async function getLatestAppVersion() {
-      const url = new URL(window.location.href);
-      url.searchParams.set("_update_check", Date.now());
-
-      const response = await fetch(url.toString(), {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" }
-      });
-
-      const html = await response.text();
-      const match = html.match(/const APP_VERSION = "([^"]+)"/);
-      return match ? match[1] : null;
-    }
-
-    async function clearAppCachesAndServiceWorker() {
-      try {
-        if ("serviceWorker" in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map((registration) => registration.unregister()));
-        }
-      } catch (error) {
-        console.log("Service Worker解除に失敗しました", error);
-      }
-
-      try {
-        if (window.caches) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((key) => caches.delete(key)));
-        }
-      } catch (error) {
-        console.log("キャッシュ削除に失敗しました", error);
-      }
-    }
-
-    /**
-
-     * Service WorkerとCache Storageを消して古いPWAキャッシュを外してから再読込する。
-
-     */
-
-    async function reloadAppWithVersion(versionLabel) {
-      await clearAppCachesAndServiceWorker();
-      const reloadUrl = new URL(window.location.href);
-      reloadUrl.searchParams.set("v", versionLabel || Date.now());
-      reloadUrl.searchParams.set("_reload", Date.now());
-      window.location.replace(reloadUrl.toString());
-    }
-
-    /**
-
-     * 公開中HTMLのAPP_VERSIONを確認し、差分がある場合だけ更新を提案する。
-
-     */
-
-    async function checkAppUpdate() {
-      try {
-        const latestVersion = await getLatestAppVersion();
-        if (!latestVersion) return;
-
-        if (latestVersion !== APP_VERSION) {
-          const ok = window.confirm(
-            `新しいバージョンがあります。
-
-現在：${getShortAppVersion(APP_VERSION)}
-最新：${getShortAppVersion(latestVersion)}
-
-更新しますか？`
-          );
-
-          if (ok) await reloadAppWithVersion(latestVersion);
-        }
-      } catch (error) {
-        console.log("更新確認に失敗しました", error);
-      }
-    }
-
-    async function forceAppUpdate() {
-      try {
-        showToast("最新版を確認中...");
-        const latestVersion = await getLatestAppVersion();
-        if (latestVersion && latestVersion !== APP_VERSION) {
-          const ok = window.confirm(
-            `新しいバージョンがあります。
-
-現在：${getShortAppVersion(APP_VERSION)}
-最新：${getShortAppVersion(latestVersion)}
-
-更新しますか？`
-          );
-          if (!ok) return;
-          await reloadAppWithVersion(latestVersion);
-          return;
-        }
-
-        const ok = window.confirm(
-          `現在のバージョン：${getShortAppVersion(APP_VERSION)}
-
-キャッシュを削除して、このバージョンを読み込み直しますか？`
-        );
-        if (ok) await reloadAppWithVersion(latestVersion || APP_VERSION);
-      } catch (error) {
-        console.log("手動更新に失敗しました", error);
-        showErrorToast("更新に失敗しました");
-      }
-    }
-

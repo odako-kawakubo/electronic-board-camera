@@ -2,7 +2,7 @@
  * ============================================================
  * app.js - アプリ全体の起点 / 共通UI
  * ============================================================
- * 責務: 各機能モジュールをつなぐ起点。初期化順序、全体イベント、app専用UIだけを担当する。共有状態はshared-state.jsを正本とする。
+ * 責務: 各機能モジュールをつなぐ起点。機能初期化、画面向きイベント、app専用UIだけを担当する。共有状態はshared-state.js、PWA制御はpwa-controller.jsを正本とする。
  *
  * 保守上の注意:
  * - 新機能を安易にここへ追加しない。まず担当モジュールを決める。HTMLのinline onclickがあるためclassic scriptのグローバル関数を前提とする。
@@ -26,8 +26,6 @@
     // ============================================================
     document.addEventListener("DOMContentLoaded", async () => {
       setupForcedLandscape();
-      renderAppVersion();
-      checkAppUpdate();
       initializeBoard();
       setupStatusButtons();
       setupBoardMode();
@@ -66,22 +64,6 @@
       setTimeout(() => {
         handleWindowResize();
       }, 200);
-    });
-
-    /*
-     * iPhone / iPad のホーム画面PWA対策
-     * 画面復帰時にカメラが止まることがあるため復帰を試す
-     */
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && currentStream && !previewOverlay.classList.contains("show")) {
-        resumeCameraAfterPreview();
-      }
-    });
-
-    window.addEventListener("pageshow", () => {
-      if (currentStream && !previewOverlay.classList.contains("show")) {
-        resumeCameraAfterPreview();
-      }
     });
 
     /**

@@ -392,7 +392,7 @@
       const photo = photos[index];
       if (!photo) return;
       photo.selected = !photo.selected;
-      await savePhotoToIndexedDB(photo);
+      await PhotoStore.savePhoto(photo);
       updatePhotoCount();
       renderPreview();
 
@@ -413,7 +413,7 @@
 
       for (const photo of photos) {
         photo.selected = nextSelected;
-        await savePhotoToIndexedDB(photo);
+        await PhotoStore.savePhoto(photo);
       }
 
       updatePhotoCount();
@@ -540,7 +540,7 @@
         photo.fileName = generatePhotoFileName(photo.sampleNo, photo.pointNo, photo.statusCode, photo.id);
         photo.updatedAt = new Date().toISOString();
 
-        const correctedPhotoSaved = await savePhotoToIndexedDB(photo);
+        const correctedPhotoSaved = await PhotoStore.savePhoto(photo);
         if (!correctedPhotoSaved) {
           throw new Error("看板修正後の写真を端末内へ保存できませんでした");
         }
@@ -594,7 +594,7 @@
       const selectedIds = new Set(selectedPhotos.map((photo) => photo.id));
 
       for (const photo of selectedPhotos) {
-        await deletePhotoFromIndexedDB(photo.id);
+        await PhotoStore.deletePhoto(photo.id);
       }
 
       for (let i = capturedPhotos.length - 1; i >= 0; i--) {
@@ -665,7 +665,7 @@
         photo.savedLocal = true;
         photo.savedAt = savedAt;
         try {
-          await savePhotoToIndexedDB(photo);
+          await PhotoStore.savePhoto(photo);
         } catch (error) {
           console.warn("保存済マークの更新に失敗しました", error);
         }

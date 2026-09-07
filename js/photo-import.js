@@ -55,13 +55,13 @@
           type: file.type || "image/jpeg"
         }))
       };
-      await saveImportSession(activeImportSession);
+      await PhotoStore.saveImportSession(activeImportSession);
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
       await openCurrentImportedPhoto();
     }
 
     async function resumeImportSession() {
-      const session = await loadImportSession();
+      const session = await PhotoStore.loadImportSession();
       if (!session || !session.items || session.currentIndex >= session.items.length) {
         await discardImportSession();
         return;
@@ -72,7 +72,7 @@
     }
 
     async function discardImportSession() {
-      await deleteImportSession();
+      await PhotoStore.deleteImportSession();
       activeImportSession = null;
       activeImportBaseDataUrl = "";
       isImportBoardEdit = false;
@@ -82,7 +82,7 @@
     }
 
     async function refreshImportResumePanel() {
-      const session = await loadImportSession();
+      const session = await PhotoStore.loadImportSession();
       const valid = Boolean(session && Array.isArray(session.items) && session.items.length && session.currentIndex < session.items.length);
       if (!launchResumePanel || !launchResumeMeta) return;
       launchResumePanel.classList.toggle("show", valid);
@@ -95,7 +95,7 @@
     }
 
     async function openCurrentImportedPhoto() {
-      if (!activeImportSession) activeImportSession = await loadImportSession();
+      if (!activeImportSession) activeImportSession = await PhotoStore.loadImportSession();
       const session = activeImportSession;
       if (!session || !session.items || session.currentIndex >= session.items.length) {
         await completeImportSession();
@@ -173,7 +173,7 @@
           source: "import"
         };
 
-        const importedPhotoSaved = await savePhotoToIndexedDB(photo);
+        const importedPhotoSaved = await PhotoStore.savePhoto(photo);
         if (!importedPhotoSaved) {
           throw new Error("読み込み写真を端末内へ保存できませんでした");
         }
@@ -190,19 +190,19 @@
           return;
         }
 
-        await saveImportSession(session);
+        await PhotoStore.saveImportSession(session);
         // closeBoardEditMode が一度編集モードを閉じているため、次の1枚を即座に開ける。
         window.setTimeout(() => openCurrentImportedPhoto(), 40);
       } catch (error) {
         console.error("読み込み写真の保存に失敗しました", error);
         showErrorToast("看板付き写真の保存に失敗しました");
         // セッションは消さない。再起動後も同じ写真から再開できる。
-        await saveImportSession(session);
+        await PhotoStore.saveImportSession(session);
       }
     }
 
     async function completeImportSession() {
-      await deleteImportSession();
+      await PhotoStore.deleteImportSession();
       activeImportSession = null;
       activeImportBaseDataUrl = "";
       isImportBoardEdit = false;

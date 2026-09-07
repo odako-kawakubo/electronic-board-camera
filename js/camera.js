@@ -210,7 +210,7 @@
         };
 
         // 保存成功を確認してから、撮影済み配列と表示枚数へ反映する
-        const photoSaved = await savePhotoToIndexedDB(photo);
+        const photoSaved = await PhotoStore.savePhoto(photo);
         if (!photoSaved) {
           throw new Error("撮影写真を端末内へ保存できませんでした");
         }

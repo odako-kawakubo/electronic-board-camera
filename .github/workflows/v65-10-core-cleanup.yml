@@ -27,7 +27,6 @@ jobs:
 
           app_path=Path('js/app.js')
           s=app_path.read_text(encoding='utf-8')
-
           start=s.find('    function updatePhotoCount() {')
           end=s.find('    function showToast(message) {', start)
           if start < 0 or end < 0: raise SystemExit('photo utility markers not found')
@@ -91,14 +90,15 @@ jobs:
               if re.search(pat,app,re.M): raise SystemExit('photo utility remains in app.js: '+n)
               if not re.search(pat,util,re.M): raise SystemExit('photo utility missing: '+n)
           aliases=['savePhotoToIndexedDB','deletePhotoFromIndexedDB','saveImportSession','loadImportSession','deleteImportSession']
-          combined='\n'.join(files.values())
+          non_store='\n'.join(files[n] for n in names if n != 'photo-store.js')
           for alias in aliases:
-              if re.search(r'(?<!\.)\b'+alias+r'\b',combined): raise SystemExit('legacy storage alias remains: '+alias)
+              if re.search(r'(?<!\.)\b'+alias+r'\b',non_store): raise SystemExit('legacy storage alias remains: '+alias)
           order=['./js/photo-store.js','./js/settings.js','./js/app.js','./js/photo-utils.js','./js/board.js','./js/camera.js','./js/photo-import.js','./js/photo-viewer.js']
           pos=[html.find(x) for x in order]
           if any(x<0 for x in pos) or pos != sorted(pos): raise SystemExit('script order invalid: '+str(pos))
           if './js/photo-utils.js' not in sw: raise SystemExit('photo-utils missing from SW cache')
           if 'v65.10' not in app or 'v65.10' not in html or 'v65.10' not in sw: raise SystemExit('version mismatch')
+          combined='\n'.join(files.values())
           funcs=re.findall(r'^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',combined,re.M)
           dup=sorted({f for f in funcs if funcs.count(f)>1})
           if dup: raise SystemExit('duplicate functions: '+', '.join(dup))

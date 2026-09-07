@@ -5,7 +5,7 @@ on:
     branches: [ review/v65.1 ]
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -30,27 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: review/v65.1
-          fetch-depth: 0
           path: review-src
-
-      - name: Run v65.16 PWA responsibility split
-        working-directory: review-src
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/v65_16_pwa_split.py')
-          s = p.read_text(encoding='utf-8')
-          s = s.replace("r'\\\\bfunction\\\\s+([A-Za-z_$][\\\\w$]*)\\\\s*\\\\('", "r'\\bfunction\\s+([A-Za-z_$][\\w$]*)\\s*\\('")
-          s = s.replace("r'\\\\b([A-Za-z_$][\\\\w$]*)\\\\s*\\\\('", "r'\\b([A-Za-z_$][\\w$]*)\\s*\\('")
-          p.write_text(s, encoding='utf-8')
-          PY
-          python scripts/v65_16_pwa_split.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add js/app.js js/settings.js js/pwa-controller.js index.html service-worker.js README.md docs/v65.16-pwa-controller.md
-          git commit -m "v65.16 PWA責務を分離 [v65.16-done]"
-          git push origin HEAD:review/v65.1
 
       - name: Build combined Pages artifact
         run: |

@@ -1,4 +1,4 @@
-    const APP_VERSION = "v65.3";
+    const APP_VERSION = "v65.4";
 
     const APP_DATA = {
       subject: "テストビル解体に伴うアスベスト調査",
@@ -13,11 +13,6 @@
     ];
 
     const SECTION_PHOTO_TYPE = { value: "section", label: "断面", code: "4" };
-    const DB_NAME = "electronic-board-camera-prototype";
-    const DB_VERSION = 2;
-    const DB_STORE_NAME = "photos";
-    const IMPORT_SESSION_STORE_NAME = "importSessions";
-    const ACTIVE_IMPORT_SESSION_ID = "active";
     const DEFAULT_POINT_NO = "1";
     const POINT_DISPLAY_DEFAULT = "1-①";
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
@@ -125,9 +120,15 @@
     let isSectionMode = false;
     let hasInitializedBoard = false;
     let toastTimer = null;
-    let dbInstance = null;
 
     const capturedPhotos = [];
+
+    const savePhotoToIndexedDB = (photo) => PhotoStore.savePhoto(photo);
+    const deletePhotoFromIndexedDB = (photoId) => PhotoStore.deletePhoto(photoId);
+    const saveImportSession = (session) => PhotoStore.saveImportSession(session);
+    const loadImportSession = () => PhotoStore.loadImportSession();
+    const deleteImportSession = () => PhotoStore.deleteImportSession();
+
     let previewIndex = 0;
     let isPreviewListMode = false;
     let previewSortMode = "shooting";
@@ -3108,55 +3109,9 @@
       return `${baseName}_${String(next).padStart(2, "0")}.jpg`;
     }
 
-    function openPhotoDB() {
-      return new Promise((resolve, reject) => {
-        if (!("indexedDB" in window)) {
-          resolve(null);
-          return;
-        }
-
-        if (dbInstance) {
-          resolve(dbInstance);
-          return;
-        }
-
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains(DB_STORE_NAME)) {
-            db.createObjectStore(DB_STORE_NAME, { keyPath: "id" });
-          }
-          if (!db.objectStoreNames.contains(IMPORT_SESSION_STORE_NAME)) {
-            db.createObjectStore(IMPORT_SESSION_STORE_NAME, { keyPath: "id" });
-          }
-        };
-
-        request.onsuccess = () => {
-          dbInstance = request.result;
-          resolve(dbInstance);
-        };
-
-        request.onerror = () => {
-          console.error(request.error);
-          reject(request.error);
-        };
-      });
-    }
-
     async function loadPhotosFromIndexedDB() {
       try {
-        const db = await openPhotoDB();
-        if (!db) return;
-
-        const photos = await new Promise((resolve, reject) => {
-          const transaction = db.transaction(DB_STORE_NAME, "readonly");
-          const store = transaction.objectStore(DB_STORE_NAME);
-          const request = store.getAll();
-
-          request.onsuccess = () => resolve(request.result || []);
-          request.onerror = () => reject(request.error);
-        });
+        const photos = await PhotoStore.getAllPhotos();
 
         capturedPhotos.splice(0, capturedPhotos.length, ...photos.sort((a, b) => {
           return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -3174,49 +3129,6 @@
       } catch (error) {
         console.error(error);
         showToast("端末内保存の読込に失敗しました");
-      }
-    }
-
-    async function savePhotoToIndexedDB(photo) {
-      try {
-        const db = await openPhotoDB();
-        if (!db) {
-          throw new Error("IndexedDBを開けませんでした");
-        }
-
-        await new Promise((resolve, reject) => {
-          const transaction = db.transaction(DB_STORE_NAME, "readwrite");
-          const store = transaction.objectStore(DB_STORE_NAME);
-          const request = store.put(photo);
-
-          request.onsuccess = () => resolve();
-          request.onerror = () => reject(request.error);
-          transaction.onabort = () => reject(transaction.error || new Error("IndexedDB transaction aborted"));
-        });
-        return true;
-      } catch (error) {
-        console.error(error);
-        showToast("端末内保存に失敗しました");
-        return false;
-      }
-    }
-
-    async function deletePhotoFromIndexedDB(photoId) {
-      try {
-        const db = await openPhotoDB();
-        if (!db) return;
-
-        await new Promise((resolve, reject) => {
-          const transaction = db.transaction(DB_STORE_NAME, "readwrite");
-          const store = transaction.objectStore(DB_STORE_NAME);
-          const request = store.delete(photoId);
-
-          request.onsuccess = () => resolve();
-          request.onerror = () => reject(request.error);
-        });
-      } catch (error) {
-        console.error(error);
-        showToast("端末内写真の削除に失敗しました");
       }
     }
 
@@ -3466,49 +3378,6 @@
         return canvas.toDataURL("image/jpeg", 0.92);
       } finally {
         URL.revokeObjectURL(objectUrl);
-      }
-    }
-
-    async function saveImportSession(session) {
-      const db = await openPhotoDB();
-      if (!db) return;
-      await new Promise((resolve, reject) => {
-        const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readwrite");
-        tx.objectStore(IMPORT_SESSION_STORE_NAME).put(session);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error("一時保存を中断しました"));
-      });
-    }
-
-    async function loadImportSession() {
-      try {
-        const db = await openPhotoDB();
-        if (!db || !db.objectStoreNames.contains(IMPORT_SESSION_STORE_NAME)) return null;
-        return await new Promise((resolve, reject) => {
-          const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readonly");
-          const req = tx.objectStore(IMPORT_SESSION_STORE_NAME).get(ACTIVE_IMPORT_SESSION_ID);
-          req.onsuccess = () => resolve(req.result || null);
-          req.onerror = () => reject(req.error);
-        });
-      } catch (error) {
-        console.error("編集中写真の読込に失敗しました", error);
-        return null;
-      }
-    }
-
-    async function deleteImportSession() {
-      try {
-        const db = await openPhotoDB();
-        if (!db || !db.objectStoreNames.contains(IMPORT_SESSION_STORE_NAME)) return;
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readwrite");
-          const req = tx.objectStore(IMPORT_SESSION_STORE_NAME).delete(ACTIVE_IMPORT_SESSION_ID);
-          req.onsuccess = () => resolve();
-          req.onerror = () => reject(req.error);
-        });
-      } catch (error) {
-        console.error("編集中写真の削除に失敗しました", error);
       }
     }
 

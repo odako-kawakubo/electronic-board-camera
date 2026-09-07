@@ -16,7 +16,7 @@ concurrency:
 jobs:
   deploy:
     environment:
-      name: github-pages
+      name: review-pages
       url: ${{ steps.deployment.outputs.page_url }}review/
     runs-on: ubuntu-latest
     steps:

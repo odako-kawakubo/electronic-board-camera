@@ -17,7 +17,7 @@ jobs:
           ref: review/v65.1
           fetch-depth: 0
 
-      - name: Run v2 refactor steps
+      - name: Run v2 refactor steps with corrected verifier
         shell: bash
         run: |
           python - <<'PY'
@@ -45,6 +45,12 @@ jobs:
 
           if len(blocks) != 3:
             raise SystemExit(f'v2 run block count mismatch: {len(blocks)}')
+
+          # index.htmlには onclick="if (...) ..." がある。ifは関数ではないので検証対象外。
+          blocks[1] = blocks[1].replace(
+            "const missing = [...new Set(onclickNames.filter(n => !functions.has(n)))];",
+            "const missing = [...new Set(onclickNames.filter(n => n !== 'if' && !functions.has(n)))];"
+          )
 
           for index, block in enumerate(blocks, 1):
             print(f'--- running v2 block {index} ---')

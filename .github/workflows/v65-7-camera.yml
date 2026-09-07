@@ -36,29 +36,11 @@ jobs:
               return text[:a]+text[b:], text[a:b]
 
           blocks=[]
-
-          # Camera lifecycle, section mode, resume and takePhoto.
-          s, block = cut(
-              s,
-              '    async function startCamera() {',
-              '    function setupBoardPersistence() {'
-          )
+          s, block = cut(s, '    async function startCamera() {', '    function setupBoardPersistence() {')
           blocks.append(block)
-
-          # Capture confirmation overlay.
-          s, block = cut(
-              s,
-              '    function showCaptureReview(dataUrl) {',
-              '    async function renderBoardElementToCanvas(element) {'
-          )
+          s, block = cut(s, '    function showCaptureReview(dataUrl) {', '    async function renderBoardElementToCanvas(element) {')
           blocks.append(block)
-
-          # Camera flash/still + image capture/composition pipeline.
-          s, block = cut(
-              s,
-              '    function runCameraFlash() {',
-              '    function updatePhotoCount() {'
-          )
+          s, block = cut(s, '    function runCameraFlash() {', '    function updatePhotoCount() {')
           blocks.append(block)
 
           camera='''/*\n * v65.7 Camera\n * カメラ起動・復帰・断面モード・撮影・撮影確認・画像生成を担当。\n * 看板の描画ルール本体 drawBoardOnCanvas() は app.js に残す。\n */\n\n'''+''.join(blocks)
@@ -112,7 +94,7 @@ jobs:
           if not re.search(r'^\s*function\s+drawBoardOnCanvas\s*\(', app, re.M):
               raise SystemExit('drawBoardOnCanvas must remain in app.js')
 
-          order=['./js/photo-store.js','./js/app.js','./js/camera.js','./js/photo-viewer.js','./js/photo-import.js']
+          order=['./js/photo-store.js','./js/app.js','./js/camera.js','./js/photo-import.js','./js/photo-viewer.js']
           pos=[html.find(x) for x in order]
           if any(x < 0 for x in pos) or pos != sorted(pos): raise SystemExit('script order invalid: '+str(pos))
           if './js/camera.js' not in sw: raise SystemExit('camera.js missing from service worker cache')

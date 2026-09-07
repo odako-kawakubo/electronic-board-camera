@@ -1,0 +1,35 @@
+name: v65.13 fix verifier
+
+on:
+  push:
+    branches: [ review/v65.1 ]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: "contains(github.event.head_commit.message, 'v65.13 検証条件を修正')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: review/v65.1
+          fetch-depth: 0
+      - name: Fix declaration matcher
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/v65-13-module-ownership.yml')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("new RegExp(`\\\\b(?:const|let)\\\\s+${name}\\\\b`).test(texts['js/app.js'])", "new RegExp(`^\\\\s*(?:const|let)\\\\s+${name}\\\\b`, 'm').test(texts['js/app.js'])")
+          s = s.replace("all.match(new RegExp(`\\\\b(?:const|let)\\\\s+${name}\\\\b`, 'g'))", "all.match(new RegExp(`^\\\\s*(?:const|let)\\\\s+${name}\\\\b`, 'gm'))")
+          p.write_text(s, encoding='utf-8')
+          Path('.github/workflows/v65-13-fix-verifier.yml').unlink()
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v65.13 宣言検証を修正"
+          git push origin HEAD:review/v65.1

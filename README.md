@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.18
+# 電子看板カメラ v65.19
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -172,3 +172,12 @@
 - 圏外navigation時はquery有無に依存せず `index.html` / `./` へフォールバック
 - app shell静的ファイルはcache-firstとして圏外起動を優先
 - 写真正本は引き続きPhotoStore / IndexedDB。DB schema・Base64形式は変更なし
+
+
+## v65.19 端末保存診断・read-back確認
+- PhotoStoreへ `getPhoto(photoId)` を追加
+- 保存成功判定をtransaction完了だけでなく同IDのread-back実在確認まで強化
+- `dataUrl` / `baseDataUrl` の存在も保存直後に確認
+- 保存失敗時にerror.name / error.message / 写真概算サイズを撮影画面へ表示
+- IndexedDB schema/version、Base64保存形式、撮影画質は変更なし
+- 圏外起動修正は保存原因特定後へ延期

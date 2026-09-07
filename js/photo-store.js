@@ -76,26 +76,61 @@
   }
 
   /**
-
-   * 写真1件を保存し、トランザクション完了後に成功=true / 失敗=falseを返す。
-
+   * 写真1件をID指定で読み返す。保存直後検証にも利用する。
    */
+  async function getPhoto(photoId) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(PHOTO_STORE_NAME, "readonly");
+      const req = tx.objectStore(PHOTO_STORE_NAME).get(photoId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error("写真読込を中断しました"));
+    });
+  }
 
+  function estimatePhotoBytes(photo) {
+    const dataUrlChars = String(photo && photo.dataUrl || "").length;
+    const baseDataUrlChars = String(photo && photo.baseDataUrl || "").length;
+    // Base64本体は概ね3/4。ヘッダやその他metadataを考慮して概算値として扱う。
+    return Math.round((dataUrlChars + baseDataUrlChars) * 0.75);
+  }
+
+  function normalizeStorageError(error) {
+    return {
+      name: String(error && error.name || "Error"),
+      message: String(error && error.message || error || "不明なエラー")
+    };
+  }
+
+  /**
+   * 写真1件を保存し、transaction完了後に同じIDをread-backして実在確認する。
+   * 戻り値は { ok, errorName, errorMessage, estimatedBytes }。
+   */
   async function savePhoto(photo) {
+    const estimatedBytes = estimatePhotoBytes(photo);
     try {
       const db = await openDB();
       await new Promise((resolve, reject) => {
         const tx = db.transaction(PHOTO_STORE_NAME, "readwrite");
         const req = tx.objectStore(PHOTO_STORE_NAME).put(photo);
         tx.oncomplete = () => resolve();
-        req.onerror = () => reject(req.error);
-        tx.onerror = () => reject(tx.error);
+        req.onerror = () => reject(req.error || new Error("写真putに失敗しました"));
+        tx.onerror = () => reject(tx.error || new Error("写真保存transactionでエラーが発生しました"));
         tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
       });
-      return true;
+
+      const stored = await getPhoto(photo.id);
+      if (!stored) throw new Error("保存直後の読み返しで写真が見つかりません");
+      if (stored.id !== photo.id) throw new Error("保存直後の読み返しで写真IDが一致しません");
+      if (!stored.dataUrl || !stored.baseDataUrl) throw new Error("保存直後の読み返しで画像データが不足しています");
+
+      return { ok: true, errorName: "", errorMessage: "", estimatedBytes };
     } catch (error) {
-      console.error("写真の端末内保存に失敗しました", error);
-      return false;
+      const detail = normalizeStorageError(error);
+      console.error("写真の端末内保存に失敗しました", { ...detail, estimatedBytes, photoId: photo && photo.id });
+      return { ok: false, errorName: detail.name, errorMessage: detail.message, estimatedBytes };
     }
   }
 
@@ -176,6 +211,7 @@
 
   window.PhotoStore = Object.freeze({
     getAllPhotos,
+    getPhoto,
     savePhoto,
     deletePhoto,
     saveImportSession,

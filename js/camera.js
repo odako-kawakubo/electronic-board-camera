@@ -245,10 +245,17 @@
           savedAt: ""
         };
 
-        // 保存成功を確認してから、撮影済み配列と表示枚数へ反映する
-        const photoSaved = await PhotoStore.savePhoto(photo);
-        if (!photoSaved) {
-          throw new Error("撮影写真を端末内へ保存できませんでした");
+        // transaction完了だけでなく、保存直後のread-backまで確認してから一覧へ反映する。
+        const saveResult = await PhotoStore.savePhoto(photo);
+        if (!saveResult || !saveResult.ok) {
+          const sizeMb = saveResult && Number.isFinite(saveResult.estimatedBytes)
+            ? (saveResult.estimatedBytes / (1024 * 1024)).toFixed(1)
+            : "?";
+          const errorName = saveResult && saveResult.errorName ? saveResult.errorName : "UnknownError";
+          const errorMessage = saveResult && saveResult.errorMessage ? saveResult.errorMessage : "保存できませんでした";
+          const error = new Error(`${errorName}: ${errorMessage} / 約${sizeMb}MB`);
+          error.storageDiagnostic = true;
+          throw error;
         }
 
         capturedPhotos.push(photo);
@@ -262,7 +269,11 @@
         showToast("撮影しました");
       } catch (error) {
         console.error(error);
-        showErrorToast("撮影データの保存に失敗しました");
+        if (error && error.storageDiagnostic) {
+          showErrorToast(`保存失敗：${error.message}`);
+        } else {
+          showErrorToast("撮影データの保存に失敗しました");
+        }
         hideCapturedStill();
       } finally {
         isTakingPhoto = false;

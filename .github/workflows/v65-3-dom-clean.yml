@@ -1,0 +1,97 @@
+name: v65.3 stale DOM cleanup
+
+on:
+  push:
+    branches:
+      - review/v65.1
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message, '[v65.3-done]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: review/v65.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Remove stale DOM references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('js/app.js')
+          s=p.read_text(encoding='utf-8')
+
+          for line in [
+            '    const previewModeToggleButton = document.getElementById("previewModeToggleButton");\n',
+            '    const textSizeSmallButton = document.getElementById("textSizeSmallButton");\n',
+            '    const textSizeNormalButton = document.getElementById("textSizeNormalButton");\n',
+            '    const textSizeLargeButton = document.getElementById("textSizeLargeButton");\n',
+            '    const appVersionBadge = document.getElementById("appVersionBadge");\n',
+          ]:
+              if line not in s:
+                  raise SystemExit('Expected stale DOM declaration not found: '+line.strip())
+              s=s.replace(line,'',1)
+
+          old='''      if (previewModeToggleButton) {\n        previewModeToggleButton.textContent = isPreviewListMode ? "拡大表示" : "2列一覧";\n      }\n'''
+          if old not in s: raise SystemExit('previewModeToggleButton block not found')
+          s=s.replace(old,'',1)
+
+          for line in [
+            '      if (textSizeSmallButton) textSizeSmallButton.classList.toggle("active", boardTextSize === "small");\n',
+            '      if (textSizeNormalButton) textSizeNormalButton.classList.toggle("active", boardTextSize === "normal");\n',
+            '      if (textSizeLargeButton) textSizeLargeButton.classList.toggle("active", boardTextSize === "large");\n',
+            '      if (appVersionBadge) appVersionBadge.textContent = getShortAppVersion();\n',
+          ]:
+              if line not in s: raise SystemExit('Expected stale use not found: '+line.strip())
+              s=s.replace(line,'',1)
+
+          s=s.replace('const APP_VERSION = "v65.2";', 'const APP_VERSION = "v65.3";', 1)
+          p.write_text(s,encoding='utf-8')
+
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8').replace('id="settingsVersionText">v65.2<','id="settingsVersionText">v65.3<',1)
+          idx.write_text(h,encoding='utf-8')
+
+          sw=Path('service-worker.js')
+          w=sw.read_text(encoding='utf-8').replace('electronic-board-camera-v65.2','electronic-board-camera-v65.3')
+          sw.write_text(w,encoding='utf-8')
+
+          readme=Path('README.md')
+          r=readme.read_text(encoding='utf-8')
+          r=re.sub(r'^# 電子看板カメラ v65\.2$', '# 電子看板カメラ v65.3', r, count=1, flags=re.M)
+          r += '\n## v65.3 内部整理\n- HTMLに存在しない旧DOM参照5件を削除\n- 対応する常時無効だった表示更新処理を削除\n- UI・操作・保存仕様は変更なし\n'
+          readme.write_text(r,encoding='utf-8')
+          PY
+      - name: Verify
+        run: |
+          node --check js/app.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          js=Path('js/app.js').read_text(encoding='utf-8')
+          html=Path('index.html').read_text(encoding='utf-8')
+          ids=set(re.findall(r'id="([^"]+)"',html))
+          refs=set(re.findall(r'document\.getElementById\("([^"]+)"\)',js))
+          missing=sorted(refs-ids)
+          if missing: raise SystemExit('Stale DOM refs remain: '+', '.join(missing))
+          defs=re.findall(r'^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(',js,re.M)
+          dup=sorted({x for x in defs if defs.count(x)>1})
+          if dup: raise SystemExit('Duplicate functions: '+', '.join(dup))
+          if 'v65.3' not in js or 'v65.3' not in html or 'v65.3' not in Path('service-worker.js').read_text(encoding='utf-8'):
+              raise SystemExit('Version markers not updated')
+          print(f'DOM refs OK; functions={len(defs)} unique={len(set(defs))}')
+          PY
+      - name: Commit and remove temporary workflow
+        run: |
+          rm .github/workflows/v65-3-dom-clean.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v65.3 旧DOM参照整理 [v65.3-done]"
+          git push origin HEAD:review/v65.1

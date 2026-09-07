@@ -5,7 +5,7 @@ on:
     branches: [ review/v65.1 ]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -30,7 +30,226 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: review/v65.1
+          fetch-depth: 0
           path: review-src
+
+      - name: Build v65.14 shared state structure
+        working-directory: review-src
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('js/app.js')
+          app = app_path.read_text(encoding='utf-8')
+          start_marker = '    // ============================================================\n    // アプリ共通定数\n'
+          end_marker = '    // ============================================================\n    // アプリ起動・全体イベント\n'
+          start = app.find(start_marker)
+          end = app.find(end_marker)
+          if start < 0 or end < 0 or end <= start:
+              raise SystemExit('app.js shared declaration section markers not found')
+
+          app_owned = '''    // ============================================================
+    // app.js専用DOM・状態
+    // 他モジュールから参照しないものだけをここに残す。
+    // ============================================================
+    const cameraScreen = document.getElementById("cameraScreen");
+    const boardLayer = document.querySelector(".board-layer");
+    const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
+    const boardEditHost = document.getElementById("boardEditHost");
+    const toast = document.getElementById("toast");
+    let toastTimer = null;
+
+'''
+          app = app[:start] + app_owned + app[end:]
+          app = app.replace(' * app.js - アプリ全体の起点 / 共有状態', ' * app.js - アプリ全体の起点 / 共通UI')
+          app = app.replace(
+              ' * 責務: 各機能モジュールをつなぐ中心。共有定数・DOM参照・共有状態・初期化順序・共通UIだけを担当する。',
+              ' * 責務: 各機能モジュールをつなぐ起点。初期化順序、全体イベント、app専用UIだけを担当する。共有状態はshared-state.jsを正本とする。'
+          )
+          app_path.write_text(app, encoding='utf-8')
+
+          Path('js/shared-state.js').write_text('''/*
+ * ============================================================
+ * shared-state.js - モジュール間共有の定数 / DOM / 実行状態
+ * ============================================================
+ * 責務: camera / board / import / viewer / photo-utils など複数モジュールが
+ *       同じ名前で参照する値だけを一か所に集約する。
+ *
+ * 保守上の注意:
+ * - classic script の共有スコープを意図的に利用している。ES modules化までは
+ *   ここで宣言した名前を各ファイルへ重複定義しない。
+ * - 単一モジュールだけで使う値はここへ追加せず、その担当モジュールへ置く。
+ * - photoQuality / boardTextSize の初期化は settings.js の読込後でなければならない。
+ * - APP_DATA は現状テスト用初期値。OneDrive/SharePoint案件連携時の置換対象。
+ * ============================================================
+ */
+
+    const APP_DATA = {
+      subject: "テストビル解体に伴うアスベスト調査",
+      address: "神奈川県小田原市小八幡2-3-6"
+    };
+
+    const STATUS_LIST = [
+      { value: "visual", label: "目視", code: "5" },
+      { value: "before", label: "施工前", code: "1" },
+      { value: "during", label: "施工中", code: "2" },
+      { value: "after", label: "施工後", code: "3" }
+    ];
+
+    const SECTION_PHOTO_TYPE = { value: "section", label: "断面", code: "4" };
+    const POINT_DISPLAY_DEFAULT = "1-①";
+    const BOARD_TEXT_SIZE_MULTIPLIERS = {
+      small: 0.88,
+      normal: 1,
+      large: 1.12
+    };
+    const PHOTO_QUALITY_SETTINGS = {
+      standard: { label: "標準", width: 3024, height: 2268 },
+      high: { label: "高画質", width: 3264, height: 2448 }
+    };
+
+    const BOARD_POSITIONS = ["bottom-left", "bottom-right", "top-right", "top-left"];
+    const BOARD_POSITION_LABELS = {
+      "bottom-left": "左下",
+      "bottom-right": "右下",
+      "top-right": "右上",
+      "top-left": "左上"
+    };
+
+    const captureFrame = document.getElementById("captureFrame");
+    const boardWrap = document.getElementById("boardWrap");
+    const photoBoard = document.getElementById("photoBoard");
+    const boardEditOverlay = document.getElementById("boardEditOverlay");
+    const boardEditPhotoBackdrop = document.getElementById("boardEditPhotoBackdrop");
+    const boardEditDoneButton = document.getElementById("boardEditDoneButton");
+    const subjectText = document.getElementById("subjectText");
+    const addressText = document.getElementById("addressText");
+    const roomNoInput = document.getElementById("roomNoInput");
+    const sampleNoInput = document.getElementById("sampleNoInput");
+    const dateText = document.getElementById("dateText");
+    const photoCount = document.getElementById("photoCount");
+    const previewOverlay = document.getElementById("previewOverlay");
+    const categoryToggleButton = document.getElementById("categoryToggleButton");
+
+    let currentStream = null;
+    let selectedStatus = "visual";
+    let isSectionMode = false;
+    const capturedPhotos = [];
+    let previewIndex = 0;
+    let boardEditTargetPhotoId = null;
+    let photoQuality = loadPhotoQuality();
+    let boardTextSize = loadBoardTextSize();
+    const boardFieldTextSize = loadBoardFieldTextSizes();
+    let boardMode = "survey";
+    let activeSidePanel = null;
+    let isDateManuallyEdited = false;
+
+    const boardState = {
+      x: 12,
+      y: 12,
+      scale: 1,
+      minScale: 0.35,
+      maxScale: 1.8,
+      sizeRatio: 0.45,
+      minSizeRatio: 0.35,
+      maxSizeRatio: 0.55,
+      position: "bottom-left"
+    };
+''', encoding='utf-8')
+
+          index_path = Path('index.html')
+          index = index_path.read_text(encoding='utf-8')
+          old = '  <script src="./js/photo-store.js"></script>\n  <script src="./js/settings.js"></script>\n  <script src="./js/app.js"></script>'
+          new = '  <script src="./js/photo-store.js"></script>\n  <script src="./js/settings.js"></script>\n  <script src="./js/shared-state.js"></script>\n  <script src="./js/app.js"></script>'
+          if old not in index:
+              raise SystemExit('index script marker not found')
+          index = index.replace(old, new, 1)
+          index = index.replace('id="settingsVersionText">v65.13<', 'id="settingsVersionText">v65.14<', 1)
+          index_path.write_text(index, encoding='utf-8')
+
+          settings_path = Path('js/settings.js')
+          settings = settings_path.read_text(encoding='utf-8')
+          if 'const APP_VERSION = "v65.13";' not in settings:
+              raise SystemExit('settings source version mismatch')
+          settings_path.write_text(settings.replace('const APP_VERSION = "v65.13";', 'const APP_VERSION = "v65.14";', 1), encoding='utf-8')
+
+          sw_path = Path('service-worker.js')
+          sw = sw_path.read_text(encoding='utf-8')
+          if 'const CACHE_NAME = "electronic-board-camera-v65.13";' not in sw:
+              raise SystemExit('service worker source version mismatch')
+          sw = sw.replace('const CACHE_NAME = "electronic-board-camera-v65.13";', 'const CACHE_NAME = "electronic-board-camera-v65.14";', 1)
+          sw = sw.replace('  "./js/settings.js",\n  "./js/app.js",', '  "./js/settings.js",\n  "./js/shared-state.js",\n  "./js/app.js",', 1)
+          sw_path.write_text(sw, encoding='utf-8')
+
+          readme_path = Path('README.md')
+          readme = readme_path.read_text(encoding='utf-8').replace('# 電子看板カメラ v65.13', '# 電子看板カメラ v65.14', 1)
+          if '## v65.14 共有状態整理' not in readme:
+              readme += '\n\n## v65.14 共有状態整理\n- 複数モジュールが直接参照する共有定数・共有DOM・共有実行状態を `js/shared-state.js` へ集約\n- 既存の変数名とclassic scriptの参照方法は維持し、機能側の呼び出し変更を回避\n- `app.js` は初期化・全体イベント・app専用UIへ責務を縮小\n- IndexedDB、写真形式、命名規則、UI、OneDrive連携仕様は変更なし\n'
+          readme_path.write_text(readme, encoding='utf-8')
+
+          Path('docs/v65.14-shared-state.md').write_text('''# v65.14 共有状態整理
+
+## 目的
+`app.js` に残っていた複数モジュール共有の宣言を `shared-state.js` に集約し、起動処理と共有状態の責務を分離する。
+
+## 設計
+- classic scriptは継続し、既存モジュールの変数参照を書き換えない。
+- `settings.js` → `shared-state.js` → `app.js` の順に読み込む。
+- `photoQuality` 等の初期値ロードが `settings.js` に依存するため、この順序は変更しない。
+- 単一モジュール所有の宣言は各担当モジュールに置く。
+- app専用のDOM/状態（toast等）はapp.jsに残す。
+
+## 非変更
+撮影、看板、写真取込、IndexedDB、Base64保存、ファイル名、OneDrive、画面操作。
+''', encoding='utf-8')
+          PY
+
+          for f in js/*.js; do node --check "$f"; done
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const files = fs.readdirSync('js').filter(f => f.endsWith('.js')).map(f => `js/${f}`);
+          const texts = Object.fromEntries(files.map(f => [f, fs.readFileSync(f, 'utf8')]));
+          const all = Object.values(texts).join('\n');
+          const app = texts['js/app.js'];
+          const shared = texts['js/shared-state.js'];
+          const html = fs.readFileSync('index.html', 'utf8');
+          const sw = fs.readFileSync('service-worker.js', 'utf8');
+          const names = ['APP_DATA','STATUS_LIST','SECTION_PHOTO_TYPE','POINT_DISPLAY_DEFAULT','BOARD_TEXT_SIZE_MULTIPLIERS','PHOTO_QUALITY_SETTINGS','BOARD_POSITIONS','BOARD_POSITION_LABELS','captureFrame','boardWrap','photoBoard','boardEditOverlay','boardEditPhotoBackdrop','boardEditDoneButton','subjectText','addressText','roomNoInput','sampleNoInput','dateText','photoCount','previewOverlay','categoryToggleButton','currentStream','selectedStatus','isSectionMode','capturedPhotos','previewIndex','boardEditTargetPhotoId','photoQuality','boardTextSize','boardFieldTextSize','boardMode','activeSidePanel','isDateManuallyEdited','boardState'];
+          for (const name of names) {
+            const re = new RegExp(`^\\s*(?:const|let)\\s+${name}\\b`, 'm');
+            if (!re.test(shared)) throw new Error(`${name} missing from shared-state.js`);
+            if (re.test(app)) throw new Error(`${name} still declared in app.js`);
+          }
+          for (const name of ['cameraScreen','boardLayer','boardEditPhotoStage','boardEditHost','toast','toastTimer']) {
+            const re = new RegExp(`^\\s*(?:const|let)\\s+${name}\\b`, 'm');
+            if (!re.test(app)) throw new Error(`${name} must remain app-owned`);
+          }
+          const order = ['./js/photo-store.js','./js/settings.js','./js/shared-state.js','./js/app.js','./js/photo-utils.js','./js/board.js','./js/camera.js','./js/photo-import.js','./js/photo-viewer.js'];
+          let last = -1;
+          for (const src of order) {
+            const at = html.indexOf(`src="${src}"`);
+            if (at < 0 || at <= last) throw new Error(`script order mismatch: ${src}`);
+            last = at;
+          }
+          if (!sw.includes('electronic-board-camera-v65.14') || !sw.includes('"./js/shared-state.js"')) throw new Error('SW mismatch');
+          if (!texts['js/settings.js'].includes('const APP_VERSION = "v65.14";')) throw new Error('APP_VERSION mismatch');
+          if (!html.includes('id="settingsVersionText">v65.14<')) throw new Error('HTML version mismatch');
+          const funcs = new Set([...all.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]));
+          const bodies = [...html.matchAll(/onclick="([^"]+)"/g)].map(m => m[1]);
+          const calls = bodies.flatMap(body => [...body.matchAll(/(?:^|[;\s])([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]));
+          const ignore = new Set(['if','return']);
+          const missing = [...new Set(calls.filter(n => !ignore.has(n) && !funcs.has(n)))];
+          if (missing.length) throw new Error(`missing onclick functions: ${missing.join(', ')}`);
+          NODE
+
+          rm -f .github/workflows/v65-14-shared-state.yml .v65.14-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v65.14 共有状態を分離 [v65.14-done]"
+          git push origin HEAD:review/v65.1
 
       - name: Build combined Pages artifact
         run: |
@@ -38,8 +257,6 @@ jobs:
           rsync -a --exclude '.git' --exclude '.github' main-src/ site/
           rsync -a --exclude '.git' --exclude '.github' review-src/ site/review/
 
-          # Review PWA must not share the production cache namespace.
-          # Source version is detected automatically so this workflow does not need edits every release.
           python - <<'PY'
           from pathlib import Path
           import json
@@ -50,18 +267,9 @@ jobs:
           match = re.search(r'const CACHE_NAME = "electronic-board-camera-(v[^"]+)";', text)
           if not match:
               raise SystemExit('review cache version could not be detected')
-
           version = match.group(1)
-          text = text.replace(
-              f'const CACHE_NAME = "electronic-board-camera-{version}";',
-              f'const CACHE_NAME = "electronic-board-camera-review-{version}";',
-              1,
-          )
-          text = text.replace(
-              '.filter((key) => key !== CACHE_NAME)',
-              '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)',
-              1,
-          )
+          text = text.replace(f'const CACHE_NAME = "electronic-board-camera-{version}";', f'const CACHE_NAME = "electronic-board-camera-review-{version}";', 1)
+          text = text.replace('.filter((key) => key !== CACHE_NAME)', '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)', 1)
           sw.write_text(text, encoding='utf-8')
 
           manifest = Path('site/review/manifest.json')

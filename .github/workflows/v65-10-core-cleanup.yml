@@ -41,7 +41,6 @@ jobs:
           s=s.replace('const APP_VERSION = "v65.9";', 'const APP_VERSION = "v65.10";',1)
           app_path.write_text(s,encoding='utf-8')
 
-          # Replace storage aliases across feature modules with the real storage API.
           replacements={
             'savePhotoToIndexedDB(':'PhotoStore.savePhoto(',
             'deletePhotoFromIndexedDB(':'PhotoStore.deletePhoto(',
@@ -94,7 +93,7 @@ jobs:
           aliases=['savePhotoToIndexedDB','deletePhotoFromIndexedDB','saveImportSession','loadImportSession','deleteImportSession']
           combined='\n'.join(files.values())
           for alias in aliases:
-              if re.search(r'\b'+alias+r'\b',combined): raise SystemExit('legacy storage alias remains: '+alias)
+              if re.search(r'(?<!\.)\b'+alias+r'\b',combined): raise SystemExit('legacy storage alias remains: '+alias)
           order=['./js/photo-store.js','./js/settings.js','./js/app.js','./js/photo-utils.js','./js/board.js','./js/camera.js','./js/photo-import.js','./js/photo-viewer.js']
           pos=[html.find(x) for x in order]
           if any(x<0 for x in pos) or pos != sorted(pos): raise SystemExit('script order invalid: '+str(pos))

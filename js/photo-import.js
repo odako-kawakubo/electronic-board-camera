@@ -9,6 +9,18 @@
  * ============================================================
  */
 
+    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    const launchModeOverlay = document.getElementById("launchModeOverlay");
+    const launchResumePanel = document.getElementById("launchResumePanel");
+    const launchResumeMeta = document.getElementById("launchResumeMeta");
+    const importPhotoInput = document.getElementById("importPhotoInput");
+    const importProgressBadge = document.getElementById("importProgressBadge");
+    const importBoardPositionLabel = document.getElementById("importBoardPositionLabel");
+    let activeImportSession = null;
+    let activeImportBaseDataUrl = "";
+    let isImportBoardEdit = false;
+
+
     /* =========================================================
      * v62: 既存写真へ看板を付ける機能
      * - 初期画面でカメラ / 写真読み込みを選択

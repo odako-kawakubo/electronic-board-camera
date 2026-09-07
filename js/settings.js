@@ -9,6 +9,17 @@
  * ============================================================
  */
 
+    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    const APP_VERSION = "v65.13";
+    const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
+    const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
+    const BOARD_FIELD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-field-text-size-v1";
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const qualityStandardButton = document.getElementById("qualityStandardButton");
+    const qualityHighButton = document.getElementById("qualityHighButton");
+    const settingsVersionText = document.getElementById("settingsVersionText");
+
+
     /**
 
      * 保存済み画質設定を読み込み、不正値ならstandardへ戻す。

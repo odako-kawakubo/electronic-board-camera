@@ -9,6 +9,50 @@
  * ============================================================
  */
 
+    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    const BOARD_FORM_STORAGE_KEY = "electronic-board-camera-board-form-v1";
+    const SAMPLING_NAME_HISTORY_STORAGE_KEY = "electronic-board-camera-sampling-name-history-v1";
+    const samplingNameHistoryList = document.getElementById("samplingNameHistoryList");
+    const boardCanvasPreview = document.getElementById("boardCanvasPreview");
+    const boardEditCanvas = document.getElementById("boardEditCanvas");
+    const boardEditSubject = document.getElementById("boardEditSubject");
+    const boardEditAddress = document.getElementById("boardEditAddress");
+    const boardEditRoom = document.getElementById("boardEditRoom");
+    const boardEditSample = document.getElementById("boardEditSample");
+    const boardEditDate = document.getElementById("boardEditDate");
+    const boardEditStatus = document.getElementById("boardEditStatus");
+    const boardEditModeSelect = document.getElementById("boardEditModeSelect");
+    const boardEditRoomLabel = document.getElementById("boardEditRoomLabel");
+    const boardEditSelectedFieldLabel = document.getElementById("boardEditSelectedFieldLabel");
+    const statusButtons = Array.from(document.querySelectorAll(".status-btn"));
+    const boardEditModeBadge = document.getElementById("boardEditModeBadge");
+    const editBoardModeButton = document.getElementById("editBoardModeButton");
+    const boardEditResetButton = document.getElementById("boardEditResetButton");
+    const samplingLocationInput = null;
+    const panelMainButtons = Array.from(document.querySelectorAll(".panel-main-button"));
+    const sidePanels = {
+      room: document.getElementById("roomPanel"),
+      sample: document.getElementById("samplePanel"),
+      board: document.getElementById("boardPanel")
+    };
+    const roomLabelCell = document.getElementById("roomLabelCell");
+    const roomValueCell = document.getElementById("roomValueCell");
+    const visualStatusButton = document.getElementById("visualStatusButton");
+    let hasInitializedBoard = false;
+    let lastBoardTapAt = 0;
+    let isBoardEditMode = false;
+    let boardEditHistory = [];
+    let boardEditHistoryIndex = -1;
+    let isApplyingBoardHistory = false;
+    let boardEditHistoryTimer = null;
+    let boardEditDraft = null;
+    let boardEditSelectedField = "subject";
+    let boardEditRenderQueued = false;
+    let boardEditRenderToken = 0;
+    let boardEditIsComposing = false;
+    let boardEditFinishRequested = false;
+
+
     /**
 
      * 保存済み看板内容を復元し、日付・区分・履歴・写真枚数を初期同期する。

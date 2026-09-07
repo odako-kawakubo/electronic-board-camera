@@ -9,6 +9,22 @@
  * ============================================================
  */
 
+    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    const video = document.getElementById("video");
+    const captureFreezeImage = document.getElementById("captureFreezeImage");
+    const cameraFlash = document.getElementById("cameraFlash");
+    const captureReviewOverlay = document.getElementById("captureReviewOverlay");
+    const captureReviewImage = document.getElementById("captureReviewImage");
+    const cameraGuide = document.getElementById("cameraGuide");
+    const startButton = document.getElementById("startButton");
+    const viewButton = document.getElementById("viewButton");
+    const sectionButton = document.getElementById("sectionButton");
+    const shootButton = document.getElementById("shootButton");
+    const sectionModeBadge = document.getElementById("sectionModeBadge");
+    let isTakingPhoto = false;
+    let captureReviewResolver = null;
+
+
     /**
 
      * 背面カメラを起動し、画質設定を理想解像度として指定する。

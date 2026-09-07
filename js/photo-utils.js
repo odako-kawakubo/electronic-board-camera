@@ -9,6 +9,10 @@
  * ============================================================
  */
 
+    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    const DEFAULT_POINT_NO = "1";
+
+
     function updatePhotoCount() {
       photoCount.textContent = `撮影済み\n${capturedPhotos.length}枚`;
       updateSelectAllButton();

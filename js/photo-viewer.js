@@ -9,6 +9,28 @@
  * ============================================================
  */
 
+    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    const previewImage = document.getElementById("previewImage");
+    const photoZoomOverlay = document.getElementById("photoZoomOverlay");
+    const photoZoomImage = document.getElementById("photoZoomImage");
+    const previewCounter = document.getElementById("previewCounter");
+    const caseSelectButton = document.getElementById("caseSelectButton");
+    const casePickerOverlay = document.getElementById("casePickerOverlay");
+    const casePickerList = document.getElementById("casePickerList");
+    const previewMeta = document.getElementById("previewMeta");
+    const previewThumbnails = document.getElementById("previewThumbnails");
+    const previewList = document.getElementById("previewList");
+    const previewSortButton = document.getElementById("previewSortButton");
+    const boardCorrectionButton = document.getElementById("boardCorrectionButton");
+    const selectAllButton = document.getElementById("selectAllButton");
+    let isPreviewListMode = false;
+    let previewSortMode = "shooting";
+    let selectedCaseSubject = "";
+    let isBoardCorrectionSelectMode = false;
+    let previewTouchStartX = 0;
+    let previewTouchStartY = 0;
+
+
     function getCurrentSubjectName() {
       const value = subjectText && ("value" in subjectText ? subjectText.value : subjectText.textContent);
       return String(value || "").trim() || "無題案件";

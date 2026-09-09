@@ -135,17 +135,23 @@
     }
 
     function openCasePicker() {
+      // アルバム側はappOrientationShellと同じ強制横向きで表示する。
+      casePickerOpenedFromTop = false;
+      casePickerOverlay.classList.add("app-oriented-modal");
       renderCasePicker();
       casePickerOverlay.classList.add("show");
     }
 
     function openCasePickerFromTop() {
+      // トップ画面は端末の縦横をそのまま使う。
       casePickerOpenedFromTop = true;
-      openCasePicker();
+      casePickerOverlay.classList.remove("app-oriented-modal");
+      renderCasePicker();
+      casePickerOverlay.classList.add("show");
     }
 
     function closeCasePicker() {
-      casePickerOverlay.classList.remove("show");
+      casePickerOverlay.classList.remove("show", "app-oriented-modal");
       casePickerOpenedFromTop = false;
     }
 

@@ -147,6 +147,10 @@
     function openSettings() {
       renderPhotoQualitySettings();
       if (window.CaseSession) CaseSession.renderSessionPanel();
+
+      // トップは端末の向きをそのまま使い、アルバム側は従来の強制横向きへ合わせる。
+      const topVisible = Boolean(launchModeOverlay && !launchModeOverlay.classList.contains("hidden"));
+      settingsOverlay.classList.toggle("app-oriented-modal", !topVisible);
       settingsOverlay.classList.add("show");
       if (typeof refreshStorageStatusUI === "function") {
         refreshStorageStatusUI();
@@ -154,6 +158,6 @@
     }
 
     function closeSettings() {
-      settingsOverlay.classList.remove("show");
+      settingsOverlay.classList.remove("show", "app-oriented-modal");
     }
 

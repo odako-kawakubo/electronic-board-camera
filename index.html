@@ -296,58 +296,6 @@
     </div>
   </div>
 
-  <div id="casePickerOverlay">
-    <div class="case-picker-panel">
-      <h2 class="case-picker-title">案件を選択</h2>
-      <div id="casePickerList"></div>
-      <button class="settings-close" type="button" onclick="closeCasePicker()">閉じる</button>
-    </div>
-  </div>
-
-
-  <div id="settingsOverlay" onclick="if(event.target===this) closeSettings()">
-    <div class="settings-panel">
-      <h2 class="settings-title">設定</h2>
-
-      <div class="settings-section-title">🔄 アプリ更新</div>
-      <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.24</strong>
-      </div>
-      <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
-
-      <div class="settings-section-title">💾 端末保存</div>
-      <div class="settings-version-box">
-        状態：<strong id="storagePersistenceText">確認中...</strong><br>
-        <span id="storageUsageText">使用量：確認中...</span>
-      </div>
-      <button class="settings-update-button" type="button" onclick="refreshStorageStatusUI()">保存状態を再確認</button>
-
-      <div class="settings-section-title">📱 端末</div>
-      <div class="settings-version-box">
-        端末名：<strong id="settingsDeviceNameText">-</strong>
-      </div>
-      <button class="settings-update-button" type="button" onclick="CaseSession.changeDeviceName()">端末名を変更</button>
-
-      <div class="settings-section-title">📷 写真画質</div>
-
-      <button id="qualityStandardButton" class="quality-option" type="button" onclick="setPhotoQuality('standard')">
-        <span class="quality-dot"></span>
-        <span>標準（3024×2268）</span>
-      </button>
-
-      <button id="qualityHighButton" class="quality-option" type="button" onclick="setPhotoQuality('high')">
-        <span class="quality-dot"></span>
-        <span>高画質（3264×2448）</span>
-      </button>
-
-      <div class="settings-note">
-        今後追加予定：ライト、ズーム、位置情報、グリッド表示、シャッター音など。
-      </div>
-
-      <button class="settings-close" type="button" onclick="closeSettings()">閉じる</button>
-    </div>
-  </div>
-
   <div id="boardEditOverlay">
     <div class="board-edit-form-panel">
       <div class="board-edit-form-header">
@@ -424,6 +372,59 @@
     </div>
   </div>
   </div>
+
+  <div id="casePickerOverlay">
+    <div class="case-picker-panel">
+      <h2 class="case-picker-title">案件を選択</h2>
+      <div id="casePickerList"></div>
+      <button class="settings-close" type="button" onclick="closeCasePicker()">閉じる</button>
+    </div>
+  </div>
+
+
+  <div id="settingsOverlay" onclick="if(event.target===this) closeSettings()">
+    <div class="settings-panel">
+      <h2 class="settings-title">設定</h2>
+
+      <div class="settings-section-title">🔄 アプリ更新</div>
+      <div class="settings-version-box">
+        現在：<strong id="settingsVersionText">v65.25</strong>
+      </div>
+      <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
+
+      <div class="settings-section-title">💾 端末保存</div>
+      <div class="settings-version-box">
+        状態：<strong id="storagePersistenceText">確認中...</strong><br>
+        <span id="storageUsageText">使用量：確認中...</span>
+      </div>
+      <button class="settings-update-button" type="button" onclick="refreshStorageStatusUI()">保存状態を再確認</button>
+
+      <div class="settings-section-title">📱 端末</div>
+      <div class="settings-version-box">
+        端末名：<strong id="settingsDeviceNameText">-</strong>
+      </div>
+      <button class="settings-update-button" type="button" onclick="CaseSession.changeDeviceName()">端末名を変更</button>
+
+      <div class="settings-section-title">📷 写真画質</div>
+
+      <button id="qualityStandardButton" class="quality-option" type="button" onclick="setPhotoQuality('standard')">
+        <span class="quality-dot"></span>
+        <span>標準（3024×2268）</span>
+      </button>
+
+      <button id="qualityHighButton" class="quality-option" type="button" onclick="setPhotoQuality('high')">
+        <span class="quality-dot"></span>
+        <span>高画質（3264×2448）</span>
+      </button>
+
+      <div class="settings-note">
+        今後追加予定：ライト、ズーム、位置情報、グリッド表示、シャッター音など。
+      </div>
+
+      <button class="settings-close" type="button" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+
 
   <script src="./js/photo-store.js"></script>
   <script src="./js/case-session.js"></script>

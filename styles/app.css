@@ -1396,6 +1396,26 @@
       display: flex;
     }
 
+    /* v65.25: body直下へ出した共通モーダルを、撮影/アルバム起点時だけ
+     * appOrientationShellと同じ向きへ合わせる。トップ起点時は無回転。 */
+    @media (orientation: portrait) {
+      #casePickerOverlay.app-oriented-modal,
+      #settingsOverlay.app-oriented-modal {
+        inset: auto;
+        left: 50%;
+        top: 50%;
+        width: var(--app-vw);
+        height: var(--app-vh);
+        transform: translate(-50%, -50%) rotate(90deg);
+        transform-origin: center center;
+      }
+
+      body.landscape-flipped #casePickerOverlay.app-oriented-modal,
+      body.landscape-flipped #settingsOverlay.app-oriented-modal {
+        transform: translate(-50%, -50%) rotate(-90deg);
+      }
+    }
+
     .settings-panel {
       width: min(100%, 520px);
       max-height: calc(var(--app-vh) - 40px);

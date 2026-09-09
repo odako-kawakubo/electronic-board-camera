@@ -226,6 +226,7 @@
         const sampleNo = sampleParts.sampleNo;
         const pointNo = sampleParts.pointNo;
         const fileName = generatePhotoFileName(sampleNo, pointNo, photoType.code);
+        const caseSession = window.CaseSession ? CaseSession.getCurrentSession() : null;
         const photo = {
           id: `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
           dataUrl,
@@ -238,6 +239,15 @@
           pointNo,
           roomNo: roomNoInput.value.trim(),
           subjectName: getCurrentSubjectName(),
+          // 撮影時点の所属セッションを固定する。件名変更で所属や保存先を変えない。
+          caseId: caseSession ? caseSession.id : "",
+          caseDate: caseSession ? caseSession.dateCode : "",
+          caseBranch: caseSession ? caseSession.branch : null,
+          deviceName: caseSession ? caseSession.deviceName : "",
+          oneDriveFolderName: caseSession ? caseSession.folderName : "",
+          uploadStatus: "pending",
+          uploadedAt: "",
+          oneDriveItemId: "",
           isSection: photoType.value === SECTION_PHOTO_TYPE.value,
           selected: false,
           createdAt: createdAt.toISOString(),

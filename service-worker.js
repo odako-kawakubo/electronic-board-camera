@@ -1,10 +1,11 @@
-const CACHE_NAME = "electronic-board-camera-v65.20";
+const CACHE_NAME = "electronic-board-camera-v65.21";
 
 const APP_FILES = [
   "./",
   "./index.html",
   "./styles/app.css",
   "./js/photo-store.js",
+  "./js/case-session.js",
   "./js/settings.js",
   "./js/shared-state.js",
   "./js/app.js",

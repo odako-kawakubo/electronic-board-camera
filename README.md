@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.20
+# 電子看板カメラ v65.21
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -192,3 +192,14 @@
 - 設定を開くたびに最新値を再集計
 - 起動画面へ「⚙ 設定・更新」を常設し、写真0枚でも更新可能にした
 - IndexedDB schema/version、Base64保存形式は変更なし
+
+
+## v65.21 撮影セッション基盤
+- 現段階の仮案件IDとして `yymmdd_枝番` を採用
+- 同日2案件目以降は `_02`, `_03` と明示的に新規セッション開始
+- 端末名をローカル保持し、保存先予定名を `端末名_yymmdd_枝番` で生成
+- 件名は識別キーに使わない
+- 撮影写真へ `caseId / caseDate / caseBranch / deviceName / oneDriveFolderName` を固定保存
+- OneDrive用の `uploadStatus / uploadedAt / oneDriveItemId` を先行追加（送信自体は未実装）
+- 日付が変わった場合は当日 `_01` セッションを自動開始
+- DB schema/versionは変更なし

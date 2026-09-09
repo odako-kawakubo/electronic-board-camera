@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.28
+# 電子看板カメラ v65.29
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -267,3 +267,11 @@
 - DB保存成功後だけ画面状態を確定し、失敗時は自動ロールバック
 - camera/import/album/viewerの直接push/splice/プロパティ更新を整理
 - 永続正本は従来どおりPhotoStore / IndexedDB
+
+
+## v65.29 構造整理
+- `board-sampling.js` を追加し、採取箇所文字列の解析/対象切替/増減をboard.jsから分離
+- `currentStream` をshared-stateからcamera.jsへ戻す
+- `activeSidePanel` をshared-stateからboard.jsへ戻す
+- shared-stateには複数モジュールで本当に共有する状態だけを残す
+- 機能仕様・DB schemaは変更なし

@@ -71,7 +71,6 @@
     // 共有実行状態
     // 変数名を維持し、既存モジュールの参照方法は変更しない。
     // ============================================================
-    let currentStream = null;
     let selectedStatus = "visual";
     let isSectionMode = false;
     let previewIndex = 0;
@@ -80,7 +79,6 @@
     let boardTextSize = loadBoardTextSize();
     const boardFieldTextSize = loadBoardFieldTextSizes();
     let boardMode = "survey";
-    let activeSidePanel = null;
     let isDateManuallyEdited = false;
 
     const boardState = {

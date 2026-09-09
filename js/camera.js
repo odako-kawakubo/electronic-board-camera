@@ -23,6 +23,7 @@
     const sectionModeBadge = document.getElementById("sectionModeBadge");
     let isTakingPhoto = false;
     let captureReviewResolver = null;
+    let currentStream = null;
 
 
     /**

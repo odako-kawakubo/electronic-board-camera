@@ -24,36 +24,64 @@
 
     let isPreviewListMode = false;
     let previewSortMode = "shooting";
-    let selectedCaseSubject = "";
+    let selectedCaseKey = "";
 
     function getPhotoSubject(photo) {
       return String(photo.subjectName || photo.subject || APP_DATA.subject || "無題案件").trim() || "無題案件";
+    }
+
+    // v65.22以降は案件番号(caseId)を写真所属の正本とする。
+    // 旧版写真にはcaseIdがないため、その写真だけ従来の件名グループへ退避する。
+    function getPhotoCaseKey(photo) {
+      const caseId = String(photo.caseId || "").trim();
+      return caseId ? `case:${caseId}` : `legacy:${getPhotoSubject(photo)}`;
+    }
+
+    function getPhotoCaseId(photo) {
+      return String(photo.caseId || "").trim();
     }
 
     function getCaseSummaries() {
       const map = new Map();
 
       capturedPhotos.forEach((photo) => {
+        const key = getPhotoCaseKey(photo);
+        const caseId = getPhotoCaseId(photo);
         const subject = getPhotoSubject(photo);
-        const current = map.get(subject) || { subject, count: 0, latest: 0 };
+        const photoTime = new Date(photo.createdAt || 0).getTime();
+        const current = map.get(key) || { key, caseId, subject, count: 0, latest: 0 };
         current.count += 1;
-        current.latest = Math.max(current.latest, new Date(photo.createdAt || 0).getTime());
-        map.set(subject, current);
+        // 件名は識別キーに使わず、その案件で最も新しい写真の看板件名を表示名に使う。
+        if (photoTime >= current.latest) {
+          current.latest = photoTime;
+          current.subject = subject;
+        }
+        map.set(key, current);
       });
 
       return Array.from(map.values()).sort((a, b) => b.latest - a.latest);
     }
 
-    function getLatestCaseSubject() {
+    function getCaseDisplayName(item) {
+      if (!item) return "案件なし";
+      return item.caseId ? `${item.caseId}_${item.subject}` : item.subject;
+    }
+
+    function getLatestCaseKey() {
       const cases = getCaseSummaries();
-      return cases.length ? cases[0].subject : "";
+      return cases.length ? cases[0].key : "";
+    }
+
+    function getSelectedCaseSummary() {
+      const cases = getCaseSummaries();
+      return cases.find((item) => item.key === selectedCaseKey) || cases[0] || null;
     }
 
     function getPreviewPhotos() {
       let photos = capturedPhotos.slice();
 
-      if (selectedCaseSubject) {
-        photos = photos.filter((photo) => getPhotoSubject(photo) === selectedCaseSubject);
+      if (selectedCaseKey) {
+        photos = photos.filter((photo) => getPhotoCaseKey(photo) === selectedCaseKey);
       }
 
       if (previewSortMode === "sample") {
@@ -83,7 +111,8 @@
 
     function updatePreviewHeader() {
       if (caseSelectButton) {
-        const title = selectedCaseSubject || getLatestCaseSubject() || "案件なし";
+        const summary = getSelectedCaseSummary();
+        const title = getCaseDisplayName(summary);
         const count = getPreviewPhotos().length;
         caseSelectButton.textContent = `${title}　${count}枚 ▼`;
       }
@@ -109,9 +138,9 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "case-item";
-        button.classList.toggle("active", item.subject === selectedCaseSubject);
+        button.classList.toggle("active", item.key === selectedCaseKey);
         button.onclick = () => {
-          selectedCaseSubject = item.subject;
+          selectedCaseKey = item.key;
           previewIndex = 0;
           closeCasePicker();
           renderPreview();
@@ -119,7 +148,7 @@
 
         const name = document.createElement("div");
         name.className = "case-name";
-        name.textContent = item.subject;
+        name.textContent = getCaseDisplayName(item);
 
         const count = document.createElement("div");
         count.className = "case-count";

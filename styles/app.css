@@ -2310,3 +2310,23 @@
     .launch-session-button.secondary {
       opacity: .82;
     }
+
+
+    /* v65.22 アルバムからトップ画面へ戻る。撮影画面には表示しない。 */
+    .preview-top-button {
+      min-width: 72px;
+      height: 38px;
+      padding: 0 14px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 10px;
+      background: rgba(0,0,0,.48);
+      color: #fff;
+      font: 800 14px/1 inherit;
+      cursor: pointer;
+    }
+    .preview-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }

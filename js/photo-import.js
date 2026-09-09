@@ -188,6 +188,7 @@
         const photoType = getCurrentPhotoType();
         const sampleParts = parseSampleAndPoint(sampleNoInput.value);
         const createdAt = new Date();
+        const caseSession = window.CaseSession ? CaseSession.getCurrentSession() : null;
         const photo = {
           id: `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
           dataUrl,
@@ -201,6 +202,14 @@
           pointNo: sampleParts.pointNo,
           roomNo: roomNoInput.value.trim(),
           subjectName: getCurrentSubjectName(),
+          caseId: caseSession ? caseSession.id : "",
+          caseDate: caseSession ? caseSession.dateCode : "",
+          caseBranch: caseSession ? caseSession.branch : null,
+          deviceName: caseSession ? caseSession.deviceName : "",
+          oneDriveFolderName: caseSession ? caseSession.folderName : "",
+          uploadStatus: "pending",
+          uploadedAt: "",
+          oneDriveItemId: "",
           isSection: photoType.value === SECTION_PHOTO_TYPE.value,
           selected: false,
           createdAt: createdAt.toISOString(),
@@ -210,8 +219,9 @@
         };
 
         const importedPhotoSaved = await PhotoStore.savePhoto(photo);
-        if (!importedPhotoSaved) {
-          throw new Error("読み込み写真を端末内へ保存できませんでした");
+        if (!importedPhotoSaved || !importedPhotoSaved.ok) {
+          const detail = importedPhotoSaved && importedPhotoSaved.errorMessage ? importedPhotoSaved.errorMessage : "保存できませんでした";
+          throw new Error(`読み込み写真を端末内へ保存できませんでした: ${detail}`);
         }
         capturedPhotos.push(photo);
         previewIndex = capturedPhotos.length - 1;

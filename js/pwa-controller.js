@@ -15,7 +15,7 @@
  * ============================================================
  */
 
-    const APP_VERSION = "v65.21";
+    const APP_VERSION = "v65.22";
     const settingsVersionText = document.getElementById("settingsVersionText");
 
     document.addEventListener("DOMContentLoaded", () => {

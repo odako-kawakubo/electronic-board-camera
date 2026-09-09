@@ -31,7 +31,7 @@
       // v61: セッション内に写真があれば再読込を省略し、表示ボタンの待ち時間を短縮する。
       if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
 
-      selectedCaseSubject = getLatestCaseSubject();
+      selectedCaseKey = getLatestCaseKey();
       const photos = getPreviewPhotos();
       previewIndex = Math.max(0, photos.length - 1);
       setPreviewListMode(false);
@@ -50,6 +50,22 @@
        * PWAでカメラが止まっていたら再取得を試す
        */
       await resumeCameraAfterPreview();
+    }
+
+    /**
+     * 写真一覧から起動画面へ戻る。撮影画面にはトップ導線を置かない。
+     * カメラストリームは止め、起動方法を改めて選べる状態へ戻す。
+     */
+    async function returnToTopScreen() {
+      isBoardCorrectionSelectMode = false;
+      previewOverlay.classList.remove("board-correction-selecting", "show");
+      setPreviewListMode(false);
+      if (typeof stopCurrentStream === "function") stopCurrentStream();
+      if (typeof showStartButton === "function") showStartButton();
+      if (typeof closeSettings === "function") closeSettings();
+      if (typeof closeCasePicker === "function") closeCasePicker();
+      if (launchModeOverlay) launchModeOverlay.classList.remove("hidden");
+      if (typeof refreshImportResumePanel === "function") await refreshImportResumePanel();
     }
 
     function showPrevPhoto() {

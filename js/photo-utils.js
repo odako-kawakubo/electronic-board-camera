@@ -104,11 +104,7 @@
 
     async function loadPhotosFromIndexedDB() {
       try {
-        const photos = await PhotoStore.getAllPhotos();
-
-        capturedPhotos.splice(0, capturedPhotos.length, ...photos.sort((a, b) => {
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        }));
+        await PhotoState.reload();
 
         capturedPhotos.forEach((photo) => {
           if (!photo.subjectName) photo.subjectName = getPhotoSubject(photo);

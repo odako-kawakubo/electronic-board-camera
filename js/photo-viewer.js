@@ -229,42 +229,24 @@
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         }
 
-        // DB保存に失敗した場合、画面上のphotoだけ新状態にしないため旧値を退避する。
-        const previousPhotoState = {
-          dataUrl: photo.dataUrl,
-          subjectName: photo.subjectName,
-          roomNo: photo.roomNo,
-          status: photo.status,
-          statusLabel: photo.statusLabel,
-          statusCode: photo.statusCode,
-          sampleNo: photo.sampleNo,
-          pointNo: photo.pointNo,
-          isSection: photo.isSection,
-          fileName: photo.fileName,
-          updatedAt: photo.updatedAt
-        };
-
-        photo.dataUrl = newDataUrl;
-        photo.subjectName = getCurrentSubjectName();
-        photo.roomNo = roomNoInput.value.trim();
         const correctedType = getCurrentPhotoType();
         const correctedParts = parseSampleAndPoint(sampleNoInput.value);
-        photo.status = correctedType.value;
-        photo.statusLabel = correctedType.label;
-        photo.statusCode = correctedType.code;
-        photo.sampleNo = correctedParts.sampleNo;
-        photo.pointNo = correctedParts.pointNo;
-        photo.isSection = correctedType.value === SECTION_PHOTO_TYPE.value;
-        // v61: 編集後の新しい基本名に対して、対象写真自身を除外して再採番する。
-        photo.fileName = generatePhotoFileName(photo.sampleNo, photo.pointNo, photo.statusCode, photo.id);
-        photo.updatedAt = new Date().toISOString();
-
-        const correctedPhotoSaved = await PhotoStore.savePhoto(photo);
+        const nextFileName = generatePhotoFileName(correctedParts.sampleNo, correctedParts.pointNo, correctedType.code, photo.id);
+        const correctedPhotoSaved = await PhotoState.update(photo, (draft) => {
+          draft.dataUrl = newDataUrl;
+          draft.subjectName = getCurrentSubjectName();
+          draft.roomNo = roomNoInput.value.trim();
+          draft.status = correctedType.value;
+          draft.statusLabel = correctedType.label;
+          draft.statusCode = correctedType.code;
+          draft.sampleNo = correctedParts.sampleNo;
+          draft.pointNo = correctedParts.pointNo;
+          draft.isSection = correctedType.value === SECTION_PHOTO_TYPE.value;
+          draft.fileName = nextFileName;
+          draft.updatedAt = new Date().toISOString();
+        });
         if (!correctedPhotoSaved || !correctedPhotoSaved.ok) {
-          Object.assign(photo, previousPhotoState);
-          const detail = correctedPhotoSaved && correctedPhotoSaved.errorMessage
-            ? correctedPhotoSaved.errorMessage
-            : "保存できませんでした";
+          const detail = correctedPhotoSaved && correctedPhotoSaved.errorMessage ? correctedPhotoSaved.errorMessage : "保存できませんでした";
           throw new Error(`看板修正後の写真を端末内へ保存できませんでした: ${detail}`);
         }
         previewIndex = Math.max(0, getPreviewPhotos().findIndex((item) => item.id === photo.id));
@@ -357,16 +339,11 @@
       let failedCount = 0;
 
       for (const photo of photos) {
-        const previousSavedLocal = photo.savedLocal;
-        const previousSavedAt = photo.savedAt;
-        photo.savedLocal = true;
-        photo.savedAt = savedAt;
-
-        const result = await PhotoStore.savePhoto(photo);
+        const result = await PhotoState.update(photo, (draft) => {
+          draft.savedLocal = true;
+          draft.savedAt = savedAt;
+        });
         if (!result || !result.ok) {
-          // DBへ反映できなかった場合はメモリ上の表示だけ保存済みにしない。
-          photo.savedLocal = previousSavedLocal;
-          photo.savedAt = previousSavedAt;
           failedCount += 1;
           console.warn("保存済マークの更新に失敗しました", result);
         }

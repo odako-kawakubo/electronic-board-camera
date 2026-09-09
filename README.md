@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.27
+# 電子看板カメラ v65.28
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -259,3 +259,11 @@
 - 採取箇所履歴も件名キーを廃止しcaseId基準へ変更
 - 旧v1単一看板データは現在案件へ1回だけ移行
 - 保存責務をboard-persistence.jsへ分離
+
+
+## v65.28 写真状態更新経路一本化
+- `photo-state.js` がcapturedPhotosを所有
+- 新規追加/更新/削除/再読込をPhotoState経由へ統一
+- DB保存成功後だけ画面状態を確定し、失敗時は自動ロールバック
+- camera/import/album/viewerの直接push/splice/プロパティ更新を整理
+- 永続正本は従来どおりPhotoStore / IndexedDB

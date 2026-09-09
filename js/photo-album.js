@@ -383,13 +383,11 @@
       const photo = photos[index];
       if (!photo) return;
 
-      const previousSelected = Boolean(photo.selected);
-      photo.selected = !previousSelected;
-      const result = await PhotoStore.savePhoto(photo);
-      if (!result || !result.ok) {
-        photo.selected = previousSelected;
-        showErrorToast("写真の選択状態を保存できませんでした");
-      }
+      const nextSelected = !Boolean(photo.selected);
+      const result = await PhotoState.update(photo, (draft) => {
+        draft.selected = nextSelected;
+      });
+      if (!result || !result.ok) showErrorToast("写真の選択状態を保存できませんでした");
 
       updatePhotoCount();
       renderPreview();
@@ -411,13 +409,10 @@
       let failedCount = 0;
 
       for (const photo of photos) {
-        const previousSelected = Boolean(photo.selected);
-        photo.selected = nextSelected;
-        const result = await PhotoStore.savePhoto(photo);
-        if (!result || !result.ok) {
-          photo.selected = previousSelected;
-          failedCount += 1;
-        }
+        const result = await PhotoState.update(photo, (draft) => {
+          draft.selected = nextSelected;
+        });
+        if (!result || !result.ok) failedCount += 1;
       }
 
       updatePhotoCount();
@@ -457,16 +452,9 @@
       const ok = window.confirm(`選択した画像 ${selectedPhotos.length}枚を削除しますか？`);
       if (!ok) return;
 
-      const selectedIds = new Set(selectedPhotos.map((photo) => photo.id));
-
-      for (const photo of selectedPhotos) {
-        await PhotoStore.deletePhoto(photo.id);
-      }
-
-      for (let i = capturedPhotos.length - 1; i >= 0; i--) {
-        if (selectedIds.has(capturedPhotos[i].id)) {
-          capturedPhotos.splice(i, 1);
-        }
+      const deleteResult = await PhotoState.deleteMany(selectedPhotos);
+      if (!deleteResult.ok) {
+        showErrorToast(`削除失敗：${deleteResult.failed.length}枚`);
       }
 
       const remainingPhotos = getPreviewPhotos();
@@ -480,6 +468,6 @@
       }
 
       updatePhotoCount();
-      showToast("削除しました");
+      if (deleteResult.ok) showToast("削除しました");
     }
 

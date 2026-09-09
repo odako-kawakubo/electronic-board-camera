@@ -240,7 +240,7 @@
         });
 
         // transaction完了だけでなく、保存直後のread-backまで確認してから一覧へ反映する。
-        const saveResult = await PhotoStore.savePhoto(photo);
+        const saveResult = await PhotoState.addNew(photo);
         if (!saveResult || !saveResult.ok) {
           const sizeMb = saveResult && Number.isFinite(saveResult.estimatedBytes)
             ? (saveResult.estimatedBytes / (1024 * 1024)).toFixed(1)
@@ -252,7 +252,6 @@
           throw error;
         }
 
-        capturedPhotos.push(photo);
         previewIndex = capturedPhotos.length - 1;
         updatePhotoCount();
 

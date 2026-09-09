@@ -74,7 +74,6 @@
     let currentStream = null;
     let selectedStatus = "visual";
     let isSectionMode = false;
-    const capturedPhotos = [];
     let previewIndex = 0;
     let boardEditTargetPhotoId = null;
     let photoQuality = loadPhotoQuality();

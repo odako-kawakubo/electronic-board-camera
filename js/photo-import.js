@@ -220,8 +220,9 @@
 
         const importedPhotoSaved = await PhotoStore.savePhoto(photo);
         if (!importedPhotoSaved || !importedPhotoSaved.ok) {
+          const errorName = importedPhotoSaved && importedPhotoSaved.errorName ? importedPhotoSaved.errorName : "UnknownError";
           const detail = importedPhotoSaved && importedPhotoSaved.errorMessage ? importedPhotoSaved.errorMessage : "保存できませんでした";
-          throw new Error(`読み込み写真を端末内へ保存できませんでした: ${detail}`);
+          throw new Error(`読み込み写真を端末内へ保存できませんでした: ${errorName}: ${detail}`);
         }
         capturedPhotos.push(photo);
         previewIndex = capturedPhotos.length - 1;

@@ -376,8 +376,15 @@
       const photos = getPreviewPhotos();
       const photo = photos[index];
       if (!photo) return;
-      photo.selected = !photo.selected;
-      await PhotoStore.savePhoto(photo);
+
+      const previousSelected = Boolean(photo.selected);
+      photo.selected = !previousSelected;
+      const result = await PhotoStore.savePhoto(photo);
+      if (!result || !result.ok) {
+        photo.selected = previousSelected;
+        showErrorToast("写真の選択状態を保存できませんでした");
+      }
+
       updatePhotoCount();
       renderPreview();
 
@@ -395,15 +402,25 @@
 
       const allSelected = photos.every((photo) => photo.selected);
       const nextSelected = !allSelected;
+      let failedCount = 0;
 
       for (const photo of photos) {
+        const previousSelected = Boolean(photo.selected);
         photo.selected = nextSelected;
-        await PhotoStore.savePhoto(photo);
+        const result = await PhotoStore.savePhoto(photo);
+        if (!result || !result.ok) {
+          photo.selected = previousSelected;
+          failedCount += 1;
+        }
       }
 
       updatePhotoCount();
       renderPreview();
-      showToast(nextSelected ? "表示中の写真を全選択しました" : "表示中の写真を全解除しました");
+      if (failedCount) {
+        showErrorToast(`選択状態の保存に失敗：${failedCount}枚`);
+      } else {
+        showToast(nextSelected ? "表示中の写真を全選択しました" : "表示中の写真を全解除しました");
+      }
     }
 
     function updateSelectAllButton() {

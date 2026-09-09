@@ -229,6 +229,21 @@
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         }
 
+        // DB保存に失敗した場合、画面上のphotoだけ新状態にしないため旧値を退避する。
+        const previousPhotoState = {
+          dataUrl: photo.dataUrl,
+          subjectName: photo.subjectName,
+          roomNo: photo.roomNo,
+          status: photo.status,
+          statusLabel: photo.statusLabel,
+          statusCode: photo.statusCode,
+          sampleNo: photo.sampleNo,
+          pointNo: photo.pointNo,
+          isSection: photo.isSection,
+          fileName: photo.fileName,
+          updatedAt: photo.updatedAt
+        };
+
         photo.dataUrl = newDataUrl;
         photo.subjectName = getCurrentSubjectName();
         photo.roomNo = roomNoInput.value.trim();
@@ -245,8 +260,12 @@
         photo.updatedAt = new Date().toISOString();
 
         const correctedPhotoSaved = await PhotoStore.savePhoto(photo);
-        if (!correctedPhotoSaved) {
-          throw new Error("看板修正後の写真を端末内へ保存できませんでした");
+        if (!correctedPhotoSaved || !correctedPhotoSaved.ok) {
+          Object.assign(photo, previousPhotoState);
+          const detail = correctedPhotoSaved && correctedPhotoSaved.errorMessage
+            ? correctedPhotoSaved.errorMessage
+            : "保存できませんでした";
+          throw new Error(`看板修正後の写真を端末内へ保存できませんでした: ${detail}`);
         }
         previewIndex = Math.max(0, getPreviewPhotos().findIndex((item) => item.id === photo.id));
         updatePhotoCount();
@@ -335,14 +354,26 @@
 
     async function markPhotosAsSaved(photos) {
       const savedAt = new Date().toISOString();
+      let failedCount = 0;
+
       for (const photo of photos) {
+        const previousSavedLocal = photo.savedLocal;
+        const previousSavedAt = photo.savedAt;
         photo.savedLocal = true;
         photo.savedAt = savedAt;
-        try {
-          await PhotoStore.savePhoto(photo);
-        } catch (error) {
-          console.warn("保存済マークの更新に失敗しました", error);
+
+        const result = await PhotoStore.savePhoto(photo);
+        if (!result || !result.ok) {
+          // DBへ反映できなかった場合はメモリ上の表示だけ保存済みにしない。
+          photo.savedLocal = previousSavedLocal;
+          photo.savedAt = previousSavedAt;
+          failedCount += 1;
+          console.warn("保存済マークの更新に失敗しました", result);
         }
+      }
+
+      if (failedCount) {
+        showErrorToast(`保存状態の更新に失敗：${failedCount}枚`);
       }
     }
 

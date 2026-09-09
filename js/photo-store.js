@@ -124,7 +124,13 @@
       const stored = await getPhoto(photo.id);
       if (!stored) throw new Error("保存直後の読み返しで写真が見つかりません");
       if (stored.id !== photo.id) throw new Error("保存直後の読み返しで写真IDが一致しません");
-      if (!stored.dataUrl || !stored.baseDataUrl) throw new Error("保存直後の読み返しで画像データが不足しています");
+      if (!stored.dataUrl) throw new Error("保存直後の読み返しで完成画像が不足しています");
+
+      // 元画像はカメラ撮影では必須だが、既存写真への看板添付では仕様上保持しない。
+      // 保存前のphotoがbaseDataUrlを持っていた場合だけ、read-backでも存在確認する。
+      if (photo.baseDataUrl && !stored.baseDataUrl) {
+        throw new Error("保存直後の読み返しで元画像が不足しています");
+      }
 
       return { ok: true, errorName: "", errorMessage: "", estimatedBytes };
     } catch (error) {

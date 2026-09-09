@@ -25,6 +25,7 @@
     let isPreviewListMode = false;
     let previewSortMode = "shooting";
     let selectedCaseKey = "";
+    let casePickerOpenedFromTop = false;
 
     function getPhotoSubject(photo) {
       return String(photo.subjectName || photo.subject || APP_DATA.subject || "無題案件").trim() || "無題案件";
@@ -58,6 +59,17 @@
         }
         map.set(key, current);
       });
+
+      if (window.CaseSession) {
+        const active = CaseSession.getCurrentSession();
+        if (active && active.id) {
+          const key = `case:${active.id}`;
+          if (!map.has(key)) {
+            const currentSubject = typeof getCurrentSubjectName === "function" ? getCurrentSubjectName() : "無題案件";
+            map.set(key, { key, caseId: active.id, subject: currentSubject, count: 0, latest: new Date(active.createdAt || 0).getTime() });
+          }
+        }
+      }
 
       return Array.from(map.values()).sort((a, b) => b.latest - a.latest);
     }
@@ -127,8 +139,14 @@
       casePickerOverlay.classList.add("show");
     }
 
+    function openCasePickerFromTop() {
+      casePickerOpenedFromTop = true;
+      openCasePicker();
+    }
+
     function closeCasePicker() {
       casePickerOverlay.classList.remove("show");
+      casePickerOpenedFromTop = false;
     }
 
     function renderCasePicker() {
@@ -142,7 +160,14 @@
         button.onclick = () => {
           selectedCaseKey = item.key;
           previewIndex = 0;
+          const openedFromTop = casePickerOpenedFromTop;
+          casePickerOpenedFromTop = false;
           closeCasePicker();
+
+          if (openedFromTop && item.caseId && window.CaseSession) {
+            CaseSession.activateSession(item.caseId, item.subject);
+            return;
+          }
           renderPreview();
         };
 

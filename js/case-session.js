@@ -5,7 +5,7 @@
  * 責務:
  * - 現段階の案件識別として yymmdd_枝番 の仮案件IDを発番・保持する
  * - 端末名を保持し、将来のOneDrive保存先フォルダ名を生成する
- * - 起動画面へ現在セッションと新規セッション開始UIを表示する
+ * - トップ画面へ現在の選択案件を表示し、新規案件・案件切替を管理する
  *
  * 将来:
  * - projectIdによる正式案件選択へ置換する。camera.jsはCaseSessionの公開APIだけを見る。
@@ -129,11 +129,10 @@
   }
 
   function getCurrentSession() {
-    const today = formatDateCode();
+    // v65.23: 日付が変わっても勝手に案件を切り替えない。
+    // 再起動・スリープ復帰時は「最後に選択していた案件」をそのまま確認できることを優先する。
     let session = loadActiveSession();
-    if (!session || session.dateCode !== today) {
-      session = createSession();
-    }
+    if (!session) session = createSession();
     return session;
   }
 
@@ -148,6 +147,38 @@
     return next;
   }
 
+  function activateSession(caseId, subjectName = "") {
+    const id = String(caseId || "").trim();
+    const match = id.match(/^(\d{6})_(\d+)$/);
+    if (!match) return getCurrentSession();
+
+    const deviceName = getDeviceName();
+    const session = {
+      id,
+      dateCode: match[1],
+      branch: Number(match[2]),
+      deviceName,
+      folderName: buildFolderName(deviceName, id),
+      createdAt: new Date().toISOString(),
+      kind: "temporary"
+    };
+    saveActiveSession(session);
+
+    // 現段階では案件情報の正本が未接続なので、件名だけは最新写真の看板値から戻す。
+    // 住所・採取場所などの案件別看板状態は全体レビュー後に正式設計する。
+    const subject = String(subjectName || "").trim();
+    const subjectInput = document.getElementById("subjectText");
+    if (subject && subjectInput) {
+      subjectInput.value = subject;
+      if (typeof syncBoardTextareas === "function") syncBoardTextareas();
+      if (typeof saveBoardForm === "function") saveBoardForm();
+    }
+
+    renderSessionPanel();
+    if (typeof showToast === "function") showToast(`案件 ${id} を選択しました`);
+    return session;
+  }
+
   function changeDeviceName() {
     const current = getDeviceName();
     const next = window.prompt("この端末の名前を入力してください", current);
@@ -156,43 +187,42 @@
     if (typeof showToast === "function") showToast(`端末名を ${saved} にしました`);
   }
 
-  function ensureSessionPanel() {
-    const card = document.querySelector(".launch-mode-card");
-    const actions = document.querySelector(".launch-mode-actions");
-    if (!card || !actions || document.getElementById("launchCaseSessionPanel")) return;
-
-    const panel = document.createElement("div");
-    panel.id = "launchCaseSessionPanel";
-    panel.className = "launch-case-session-panel";
-    panel.innerHTML = `
-      <div class="launch-case-session-label">撮影セッション</div>
-      <div id="launchCaseSessionId" class="launch-case-session-id"></div>
-      <div id="launchCaseSessionFolder" class="launch-case-session-folder"></div>
-      <div class="launch-case-session-actions">
-        <button type="button" class="launch-session-button" onclick="CaseSession.startNewSession()">新しい撮影を開始</button>
-        <button type="button" class="launch-session-button secondary" onclick="CaseSession.changeDeviceName()">端末名変更</button>
-      </div>
-    `;
-    card.insertBefore(panel, actions);
+  function getCurrentSubject() {
+    const subjectInput = document.getElementById("subjectText");
+    const value = subjectInput ? subjectInput.value : "";
+    return String(value || "").trim() || "無題案件";
   }
 
   function renderSessionPanel() {
-    ensureSessionPanel();
     const session = getCurrentSession();
-    const id = document.getElementById("launchCaseSessionId");
-    const folder = document.getElementById("launchCaseSessionFolder");
+    const id = document.getElementById("launchCurrentCaseId");
+    const subject = document.getElementById("launchCurrentCaseSubject");
+    const device = document.getElementById("settingsDeviceNameText");
     if (id) id.textContent = session.id;
-    if (folder) folder.textContent = `保存先予定：${session.folderName}`;
+    if (subject) subject.textContent = getCurrentSubject();
+    if (device) device.textContent = session.deviceName || getDeviceName();
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     getCurrentSession();
     renderSessionPanel();
+
+    const subjectInput = document.getElementById("subjectText");
+    if (subjectInput && subjectInput.dataset.homeCaseBound !== "1") {
+      subjectInput.dataset.homeCaseBound = "1";
+      subjectInput.addEventListener("input", renderSessionPanel);
+      subjectInput.addEventListener("change", renderSessionPanel);
+    }
+
+    // board.jsの初期復元後の値もトップへ反映する。
+    window.setTimeout(renderSessionPanel, 0);
   });
 
   window.CaseSession = Object.freeze({
     getCurrentSession,
     startNewSession,
+    activateSession,
+    renderSessionPanel,
     getDeviceName,
     setDeviceName,
     changeDeviceName,

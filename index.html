@@ -15,14 +15,25 @@
 
 <body>
 
-  <div id="launchModeOverlay" aria-label="起動方法を選択">
+  <div id="launchModeOverlay" aria-label="トップ画面">
     <div class="launch-mode-card">
       <div class="launch-mode-title">電子看板カメラ</div>
-      <div class="launch-mode-subtitle">撮影するか、既存写真へ看板を追加するか選択してください</div>
-      <div class="launch-mode-actions">
-        <button class="launch-mode-button launch-camera-button" type="button" onclick="chooseCameraMode()">📷 カメラを起動</button>
-        <button class="launch-mode-button launch-import-button" type="button" onclick="chooseImportMode()">🖼 写真から看板を付ける</button>
+
+      <div class="launch-home-grid">
+        <div class="launch-home-case" aria-label="選択中の案件">
+          <div class="launch-home-label">選択中の案件</div>
+          <div id="launchCurrentCaseId" class="launch-home-case-id"></div>
+          <div id="launchCurrentCaseSubject" class="launch-home-case-subject"></div>
+        </div>
+        <button class="launch-home-button launch-settings-button" type="button" onclick="openSettings()">⚙ 設定</button>
+
+        <button class="launch-home-button launch-case-select-button" type="button" onclick="openCasePickerFromTop()">案件選択</button>
+        <button class="launch-home-button launch-new-case-button" type="button" onclick="CaseSession.startNewSession()">新規案件</button>
+
+        <button class="launch-home-button launch-camera-button" type="button" onclick="chooseCameraMode()">📷 カメラ起動</button>
+        <button class="launch-home-button launch-import-button" type="button" onclick="chooseImportMode()">🖼 看板添付</button>
       </div>
+
       <div id="launchResumePanel" class="launch-resume-panel">
         <div class="launch-resume-title">編集中の写真があります</div>
         <div id="launchResumeMeta" class="launch-resume-meta"></div>
@@ -300,7 +311,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.22</strong>
+        現在：<strong id="settingsVersionText">v65.23</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -310,6 +321,12 @@
         <span id="storageUsageText">使用量：確認中...</span>
       </div>
       <button class="settings-update-button" type="button" onclick="refreshStorageStatusUI()">保存状態を再確認</button>
+
+      <div class="settings-section-title">📱 端末</div>
+      <div class="settings-version-box">
+        端末名：<strong id="settingsDeviceNameText">-</strong>
+      </div>
+      <button class="settings-update-button" type="button" onclick="CaseSession.changeDeviceName()">端末名を変更</button>
 
       <div class="settings-section-title">📷 写真画質</div>
 

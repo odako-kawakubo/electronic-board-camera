@@ -146,6 +146,7 @@
 
     function openSettings() {
       renderPhotoQualitySettings();
+      if (window.CaseSession) CaseSession.renderSessionPanel();
       settingsOverlay.classList.add("show");
       if (typeof refreshStorageStatusUI === "function") {
         refreshStorageStatusUI();
@@ -156,16 +157,3 @@
       settingsOverlay.classList.remove("show");
     }
 
-    // 写真0枚でも更新不能にならないよう、起動画面にも設定入口を常設する。
-    document.addEventListener("DOMContentLoaded", () => {
-      const actions = document.querySelector(".launch-mode-actions");
-      if (!actions || document.getElementById("launchSettingsButton")) return;
-
-      const button = document.createElement("button");
-      button.id = "launchSettingsButton";
-      button.type = "button";
-      button.className = "launch-mode-button launch-settings-button";
-      button.textContent = "⚙ 設定・更新";
-      button.addEventListener("click", openSettings);
-      actions.appendChild(button);
-    });

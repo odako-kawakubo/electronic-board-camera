@@ -2172,7 +2172,7 @@
 
   
 
-    /* v62: 起動モード選択 / 既存写真への看板追加 */
+    /* v65.23 トップ画面: 案件確認を起点にした2列 x 3段構成 */
     #launchModeOverlay {
       position: fixed;
       inset: 0;
@@ -2180,56 +2180,105 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      overflow: auto;
+      padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
       background: radial-gradient(circle at 50% 30%, #26364f 0%, #111823 48%, #080b10 100%);
       color: #fff;
     }
     #launchModeOverlay.hidden { display: none; }
     .launch-mode-card {
-      width: min(680px, 92vw);
-      padding: 28px;
+      width: min(720px, 100%);
+      max-height: 100%;
+      padding: clamp(12px, 3vw, 24px);
       border: 1px solid rgba(255,255,255,.18);
-      border-radius: 22px;
+      border-radius: 20px;
       background: rgba(19, 28, 42, .94);
-      box-shadow: 0 24px 70px rgba(0,0,0,.48);
+      box-shadow: 0 20px 60px rgba(0,0,0,.46);
       text-align: center;
     }
-    .launch-mode-title { font-size: clamp(24px, 4vw, 38px); font-weight: 900; letter-spacing: .04em; }
-    .launch-mode-subtitle { margin-top: 8px; color: #b9c5d5; font-size: 14px; font-weight: 700; }
-    .launch-mode-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 26px; }
-    .launch-mode-button {
-      min-height: 92px;
-      border: 0;
-      border-radius: 18px;
-      color: #fff;
-      font: 900 20px/1.25 inherit;
-      cursor: pointer;
-      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+    .launch-mode-title {
+      margin-bottom: clamp(10px, 2.2vh, 18px);
+      font-size: clamp(20px, 4vw, 34px);
+      font-weight: 900;
+      letter-spacing: .04em;
     }
+    .launch-home-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+      grid-template-rows: repeat(3, minmax(64px, auto));
+      gap: clamp(8px, 1.8vw, 14px);
+    }
+    .launch-home-case,
+    .launch-home-button {
+      min-width: 0;
+      min-height: 74px;
+      border-radius: 16px;
+    }
+    .launch-home-case {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,.20);
+      background: rgba(255,255,255,.08);
+      text-align: left;
+      overflow: hidden;
+    }
+    .launch-home-label { color: #aebccc; font-size: 12px; font-weight: 800; }
+    .launch-home-case-id {
+      width: 100%;
+      margin-top: 3px;
+      font-size: clamp(17px, 3vw, 23px);
+      font-weight: 900;
+      letter-spacing: .035em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .launch-home-case-subject {
+      width: 100%;
+      margin-top: 2px;
+      color: #e7edf5;
+      font-size: clamp(11px, 2vw, 14px);
+      font-weight: 800;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .launch-home-button {
+      border: 0;
+      padding: 8px 12px;
+      color: #fff;
+      font: 900 clamp(15px, 2.5vw, 19px)/1.2 inherit;
+      cursor: pointer;
+      box-shadow: 0 7px 18px rgba(0,0,0,.24);
+      touch-action: manipulation;
+    }
+    .launch-settings-button { background: linear-gradient(135deg, #4b5563, #2f3742); }
+    .launch-case-select-button { background: linear-gradient(135deg, #586b83, #3d4c60); }
+    .launch-new-case-button { background: linear-gradient(135deg, #805ad5, #5a3ca8); }
     .launch-camera-button { background: linear-gradient(135deg, #2f80ed, #1b5fc7); }
     .launch-import-button { background: linear-gradient(135deg, #27ae60, #168846); }
-    .launch-settings-button {
-      grid-column: 1 / -1;
-      min-height: 58px;
-      background: linear-gradient(135deg, #4b5563, #2f3742);
-      font-size: 17px;
-    }
+
     .launch-resume-panel {
       display: none;
-      margin-top: 18px;
-      padding: 16px;
+      margin-top: 10px;
+      padding: 10px 12px;
       border: 1px solid rgba(242,201,76,.55);
-      border-radius: 16px;
+      border-radius: 13px;
       background: rgba(242,201,76,.09);
       text-align: left;
     }
     .launch-resume-panel.show { display: block; }
-    .launch-resume-title { color: #f2c94c; font-weight: 900; font-size: 17px; }
-    .launch-resume-meta { margin-top: 5px; color: #e6e9ee; font-size: 14px; }
-    .launch-resume-actions { display: flex; gap: 10px; margin-top: 12px; }
-    .launch-resume-actions button { flex: 1; min-height: 48px; border: 0; border-radius: 12px; font-weight: 900; cursor: pointer; }
+    .launch-resume-title { color: #f2c94c; font-weight: 900; font-size: 14px; }
+    .launch-resume-meta { margin-top: 3px; color: #e6e9ee; font-size: 12px; }
+    .launch-resume-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .launch-resume-actions button { flex: 1; min-height: 40px; border: 0; border-radius: 10px; font-weight: 900; cursor: pointer; }
     .resume-import-button { background: #f2c94c; color: #171717; }
     .discard-import-button { background: #3b4655; color: #fff; }
+
     #importProgressBadge {
       display: none;
       margin-left: 8px;
@@ -2261,56 +2310,29 @@
       font-weight: 900;
     }
     #importBoardPositionLabel { min-width: 78px; color: #fff; font-weight: 900; font-size: 13px; text-align: center; }
-    @media (max-width: 680px) {
-      .launch-mode-actions { grid-template-columns: 1fr; }
-      .launch-mode-card { padding: 22px 18px; }
-      .launch-mode-button { min-height: 76px; }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      #launchModeOverlay { align-items: flex-start; }
+      .launch-mode-card { padding: 10px 14px; }
+      .launch-mode-title { margin-bottom: 8px; font-size: 20px; }
+      .launch-home-grid { grid-template-rows: repeat(3, minmax(56px, 1fr)); gap: 7px 10px; }
+      .launch-home-case, .launch-home-button { min-height: 56px; border-radius: 12px; }
+      .launch-home-case { padding: 6px 10px; }
+      .launch-home-label { font-size: 10px; }
+      .launch-home-case-id { font-size: 16px; }
+      .launch-home-case-subject { font-size: 11px; }
+      .launch-home-button { font-size: 14px; }
+      .launch-resume-panel { margin-top: 7px; padding: 7px 9px; }
+      .launch-resume-title { font-size: 12px; }
+      .launch-resume-meta { font-size: 10px; }
+      .launch-resume-actions button { min-height: 34px; }
     }
 
-
-
-    /* v65.21 撮影セッション */
-    .launch-case-session-panel {
-      margin-top: 18px;
-      padding: 14px 16px;
-      border: 1px solid rgba(255,255,255,.18);
-      border-radius: 14px;
-      background: rgba(255,255,255,.07);
-      text-align: left;
+    @media (orientation: portrait) and (max-width: 430px) {
+      .launch-mode-card { padding: 14px 12px; }
+      .launch-home-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 9px; }
+      .launch-home-case, .launch-home-button { min-height: 72px; }
     }
-    .launch-case-session-label {
-      font-size: 13px;
-      opacity: .72;
-    }
-    .launch-case-session-id {
-      margin-top: 3px;
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: .04em;
-    }
-    .launch-case-session-folder {
-      margin-top: 4px;
-      font-size: 12px;
-      opacity: .75;
-      overflow-wrap: anywhere;
-    }
-    .launch-case-session-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .launch-session-button {
-      flex: 1;
-      min-height: 38px;
-      border: 0;
-      border-radius: 10px;
-      font: 800 13px/1.2 inherit;
-      cursor: pointer;
-    }
-    .launch-session-button.secondary {
-      opacity: .82;
-    }
-
 
     /* v65.22 アルバムからトップ画面へ戻る。撮影画面には表示しない。 */
     .preview-top-button {

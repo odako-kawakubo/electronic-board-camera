@@ -2372,3 +2372,45 @@
       justify-content: space-between;
       gap: 10px;
     }
+
+
+    /* v65.30 Microsoftログイン - しらべと同じMicrosoftシンボル/2段表記 */
+    .microsoft-auth-status-box { margin-bottom: 8px; }
+    .microsoft-signin-button,
+    .microsoft-account-button {
+      width: 100%;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 11px;
+      padding: 7px 14px;
+      border: 1px solid #8a8a8a;
+      border-radius: 8px;
+      background: #fff;
+      color: #1f1f1f;
+      cursor: pointer;
+      font: inherit;
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+    .microsoft-signin-button[hidden],
+    .microsoft-account-button[hidden] { display: none; }
+    .microsoft-signin-button img,
+    .microsoft-account-button img { width: 23px; height: 23px; flex: 0 0 23px; }
+    .microsoft-signin-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      line-height: 1.05;
+    }
+    .microsoft-signin-copy > span { font-size: 10px; color: #555; }
+    .microsoft-signin-copy > strong {
+      max-width: 100%;
+      margin-top: 2px;
+      font-size: 15px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }

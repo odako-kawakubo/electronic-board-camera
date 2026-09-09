@@ -1,4 +1,4 @@
-# 電子看板カメラ v65.29
+# 電子看板カメラ v65.30
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -275,3 +275,13 @@
 - `activeSidePanel` をshared-stateからboard.jsへ戻す
 - shared-stateには複数モジュールで本当に共有する状態だけを残す
 - 機能仕様・DB schemaは変更なし
+
+
+## v65.30 Microsoftログイン基盤
+- しらべと同じEntraアプリ登録 / clientId / tenantId / Graph scopesを使用
+- MSAL Browser 2.38.3、redirectログイン、localStorageセッション保持を採用
+- `prompt: select_account` でMicrosoftアカウント選択
+- 設定画面にしらべと同じMicrosoftシンボルを使ったログイン表示を追加
+- ログイン済みアカウント名、Graphトークン取得可否を表示
+- オフラインやMSAL読込失敗でもカメラPWA本体の起動を止めない
+- OneDrive写真送信はv65.31以降。DB schemaは変更なし

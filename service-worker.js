@@ -1,9 +1,13 @@
-const CACHE_NAME = "electronic-board-camera-v65.29";
+const CACHE_NAME = "electronic-board-camera-v65.30";
 
 const APP_FILES = [
   "./",
   "./index.html",
   "./styles/app.css",
+  "./js/microsoft-config.js",
+  "./js/graph-session.js",
+  "./js/microsoft-auth-ui.js",
+  "./assets/microsoft-symbol.svg",
   "./js/photo-store.js",
   "./js/photo-state.js",
   "./js/case-session.js",

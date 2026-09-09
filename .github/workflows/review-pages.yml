@@ -5,7 +5,7 @@ on:
     branches: [ review/v65.1 ]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -30,7 +30,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: review/v65.1
+          fetch-depth: 0
           path: review-src
+
+      - name: Run v65.22 case album and top update
+        working-directory: review-src
+        shell: bash
+        run: |
+          python scripts/v65_22_case_album_top.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/photo-album.js js/photo-viewer.js js/photo-import.js js/pwa-controller.js service-worker.js index.html styles/app.css README.md docs/v65.22-case-album-top.md
+          git commit -m "v65.22 案件別アルバムとトップ導線を追加 [v65.22-done]"
+          git push origin HEAD:review/v65.1
 
       - name: Build combined Pages artifact
         run: |

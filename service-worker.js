@@ -1,4 +1,4 @@
-const CACHE_NAME = "electronic-board-camera-v65.31";
+const CACHE_NAME = "electronic-board-camera-v65.32";
 
 const APP_FILES = [
   "./",
@@ -7,6 +7,8 @@ const APP_FILES = [
   "./js/microsoft-config.js",
   "./js/graph-session.js",
   "./js/microsoft-auth-ui.js",
+  "./js/onedrive-client.js",
+  "./js/onedrive-root.js",
   "./js/onedrive-connection.js",
   "./js/onedrive-status-ui.js",
   "./assets/microsoft-symbol.svg",

@@ -2,11 +2,8 @@
  * ============================================================
  * onedrive-connection.js - OneDrive接続状態の正本
  * ============================================================
- * 責務:
- * - Microsoftログイン状態とは別に、Graph経由でOneDriveへ実アクセス可能か確認する
- * - トップUIへ公開する接続状態を一元管理する
- *
- * v65.31では写真送信・フォルダ生成は行わない。
+ * Microsoftログインとは別に、「03 サンプリング」を実際に使用できるか確認する。
+ * v65.32では写真送信・フォルダ作成は行わない。
  * ============================================================
  */
 (function () {
@@ -20,15 +17,16 @@
     connected: false,
     text: "未接続",
     error: "",
-    driveId: ""
+    root: null,
+    rootSource: ""
   };
 
   function cloneState() {
-    return { ...state };
+    return { ...state, root: state.root ? { ...state.root } : null };
   }
 
   function publish(next) {
-    state = { ...next };
+    state = { ...next, root: next.root ? { ...next.root } : null };
     listeners.slice().forEach((callback) => callback(cloneState()));
   }
 
@@ -45,68 +43,98 @@
     };
   }
 
-  function disconnected(text = "未接続", error = "") {
-    return { phase: "unconnected", connected: false, text, error, driveId: "" };
+  function unavailableState(text = "未接続", error = "") {
+    return { phase: "unconnected", connected: false, text, error, root: null, rootSource: "" };
   }
 
-  async function fetchDriveRoot(token) {
-    const response = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id,driveType,webUrl", {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store"
-    });
-    if (!response.ok) {
-      let detail = "";
-      try {
-        const body = await response.json();
-        detail = body?.error?.message || body?.error?.code || "";
-      } catch (error) {}
-      const graphError = new Error(detail || `OneDrive接続確認に失敗しました (${response.status})`);
-      graphError.status = response.status;
-      throw graphError;
+  function isExpectedRootName(name) {
+    const expected = String(MicrosoftConfig.samplingRootName || "").trim();
+    const actual = String(name || "").trim();
+    return Boolean(expected && actual && (actual === expected || actual.includes(expected)));
+  }
+
+  async function verifyResolvedRoot(candidate) {
+    const verified = await OneDriveClient.getDriveItem(candidate);
+    if (!verified?.folder || !verified.driveId || !verified.itemId) {
+      const error = new Error("03 サンプリングの実体へアクセスできませんでした。");
+      error.code = "SAMPLING_ROOT_VERIFY_FAILED";
+      throw error;
     }
-    const drive = await response.json();
-    if (!drive?.id) throw new Error("OneDriveのdriveIdを確認できませんでした。");
-    return drive;
+    if (!isExpectedRootName(verified.name)) {
+      const error = new Error(`接続先「${verified.name || "-"}」は「${MicrosoftConfig.samplingRootName}」ではありません。`);
+      error.code = "SAMPLING_ROOT_NAME_MISMATCH";
+      throw error;
+    }
+
+    // 実運用で子フォルダを読むため、childrenまで取得できることを接続条件にする。
+    await OneDriveClient.listDriveChildren(verified);
+    return { ...verified, rootSource: candidate.rootSource || "" };
+  }
+
+  async function getUsableSamplingRoot({ force = false } = {}) {
+    if (navigator.onLine === false) {
+      const error = new Error("圏外です。");
+      error.code = "NETWORK_OFFLINE";
+      throw error;
+    }
+    await GraphSession.initialize();
+    if (!GraphSession.getState().account) {
+      const error = new Error("Microsoft Graphへログインしていません。");
+      error.code = "GRAPH_LOGIN_REQUIRED";
+      throw error;
+    }
+    await GraphSession.getAccessToken({ allowInteractive: false });
+    const candidate = await OneDriveRoot.getSamplingRoot({ force });
+    return verifyResolvedRoot(candidate);
   }
 
   async function refresh({ force = false } = {}) {
     const currentGeneration = ++generation;
 
     if (navigator.onLine === false) {
-      publish(disconnected("オフライン"));
+      OneDriveRoot.clearSamplingRoot();
+      publish(unavailableState("オフライン"));
       return cloneState();
     }
 
     await GraphSession.initialize().catch(() => null);
     const graph = GraphSession.getState();
     if (!graph.account) {
-      publish(disconnected("未接続"));
+      OneDriveRoot.clearSamplingRoot();
+      publish(unavailableState("未接続", graph.error || ""));
       return cloneState();
     }
 
-    publish({ phase: "checking", connected: false, text: "確認中", error: "", driveId: "" });
+    publish({
+      phase: "checking",
+      connected: false,
+      text: "確認中",
+      error: "",
+      root: OneDriveRoot.getCachedSamplingRoot(),
+      rootSource: OneDriveRoot.getCachedSamplingRoot()?.rootSource || ""
+    });
 
     try {
-      const token = await GraphSession.getAccessToken({ allowInteractive: false });
-      if (!token) throw new Error("Graphアクセストークンを取得できませんでした。");
-      const drive = await fetchDriveRoot(token);
-      if (currentGeneration != generation) return cloneState();
+      const root = await getUsableSamplingRoot({ force });
+      if (currentGeneration !== generation) return cloneState();
       publish({
         phase: "connected",
         connected: true,
         text: "接続",
         error: "",
-        driveId: String(drive.id || "")
+        root,
+        rootSource: root.rootSource || ""
       });
     } catch (error) {
-      if (currentGeneration != generation) return cloneState();
+      if (currentGeneration !== generation) return cloneState();
+      OneDriveRoot.clearSamplingRoot();
       publish({
         phase: "error",
         connected: false,
-        text: "エラー",
+        text: "未接続",
         error: error?.message || "OneDriveへ接続できません。",
-        driveId: ""
+        root: null,
+        rootSource: ""
       });
     }
     return cloneState();
@@ -115,11 +143,17 @@
   function initialize() {
     if (initialized) return;
     initialized = true;
-    GraphSession.subscribe(() => void refresh());
+    GraphSession.subscribe(() => void refresh({ force: true }));
     window.addEventListener("online", () => void refresh({ force: true }));
     window.addEventListener("offline", () => void refresh());
     void refresh();
   }
 
-  window.OneDriveConnection = Object.freeze({ getState, subscribe, refresh, initialize });
+  window.OneDriveConnection = Object.freeze({
+    getState,
+    subscribe,
+    refresh,
+    initialize,
+    getUsableSamplingRoot
+  });
 })();

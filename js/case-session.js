@@ -143,6 +143,7 @@
     );
     if (!ok) return current;
     const next = createSession();
+    if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
     if (typeof showToast === "function") showToast(`撮影セッション ${next.id} を開始しました`);
     return next;
   }
@@ -164,14 +165,13 @@
     };
     saveActiveSession(session);
 
-    // 現段階では案件情報の正本が未接続なので、件名だけは最新写真の看板値から戻す。
-    // 住所・採取場所などの案件別看板状態は全体レビュー後に正式設計する。
-    const subject = String(subjectName || "").trim();
-    const subjectInput = document.getElementById("subjectText");
-    if (subject && subjectInput) {
-      subjectInput.value = subject;
-      if (typeof syncBoardTextareas === "function") syncBoardTextareas();
-      if (typeof saveBoardForm === "function") saveBoardForm();
+    if (typeof restoreActiveCaseBoard === "function") {
+      restoreActiveCaseBoard();
+    } else {
+      // board-persistence.js未読込時だけ件名を最低限反映する。
+      const subject = String(subjectName || "").trim();
+      const subjectInput = document.getElementById("subjectText");
+      if (subject && subjectInput) subjectInput.value = subject;
     }
 
     renderSessionPanel();

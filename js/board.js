@@ -10,8 +10,6 @@
  */
 
     // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
-    const BOARD_FORM_STORAGE_KEY = "electronic-board-camera-board-form-v1";
-    const SAMPLING_NAME_HISTORY_STORAGE_KEY = "electronic-board-camera-sampling-name-history-v1";
     const samplingNameHistoryList = document.getElementById("samplingNameHistoryList");
     const boardCanvasPreview = document.getElementById("boardCanvasPreview");
     const boardEditCanvas = document.getElementById("boardEditCanvas");
@@ -60,30 +58,8 @@
      */
 
     function initializeBoard() {
-      const savedBoard = loadSavedBoardForm();
-      subjectText.value = savedBoard.subject || APP_DATA.subject;
-      addressText.value = savedBoard.address || APP_DATA.address;
-      syncBoardTextAreaVerticalCenter();
-      roomNoInput.value = savedBoard.roomNo || roomNoInput.value || "1-1";
-      sampleNoInput.value = savedBoard.sampleNo || sampleNoInput.value || POINT_DISPLAY_DEFAULT;
-
-      if (savedBoard.date && savedBoard.isDateManuallyEdited) {
-        dateText.textContent = savedBoard.date;
-        isDateManuallyEdited = true;
-      } else {
-        updateCurrentDate();
-      }
-
-      if (savedBoard.boardMode === "sampling" || savedBoard.boardMode === "survey") {
-        boardMode = savedBoard.boardMode;
-      }
-
-      syncBoardTextareas();
-      setStatus(savedBoard.selectedStatus || "visual");
-      applyBoardMode();
-      setSectionMode(false);
+      BoardPersistence.restoreActiveCaseBoard();
       updatePhotoCount();
-      updateSamplingNameHistoryList();
     }
 
     function updateCurrentDate() {
@@ -1389,90 +1365,8 @@
       });
     }
 
-    function loadSavedBoardForm() {
-      try {
-        const raw = localStorage.getItem(BOARD_FORM_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-      } catch (error) {
-        return {};
-      }
-    }
-
-    /**
-
-     * 現在の看板入力をlocalStorageへ保存し、次回起動や次写真へ引き継ぐ。
-
-     */
-
-    function saveBoardForm() {
-      try {
-        const data = {
-          subject: subjectText ? subjectText.value : "",
-          address: addressText ? addressText.value : "",
-          roomNo: roomNoInput ? roomNoInput.value : "",
-          sampleNo: sampleNoInput ? sampleNoInput.value : "",
-          date: dateText ? dateText.textContent : "",
-          isDateManuallyEdited,
-          selectedStatus,
-          boardMode,
-          savedAt: new Date().toISOString()
-        };
-        localStorage.setItem(BOARD_FORM_STORAGE_KEY, JSON.stringify(data));
-        if (typeof scheduleBoardPreviewRender === "function") {
-          scheduleBoardPreviewRender();
-        }
-      } catch (error) {}
-    }
-
     function setupSamplingNameHistory() {
       updateSamplingNameHistoryList();
-    }
-
-    function getSamplingHistoryKey() {
-      const subject = getCurrentSubjectName();
-      return subject || "無題案件";
-    }
-
-    function loadSamplingNameHistoryMap() {
-      try {
-        const raw = localStorage.getItem(SAMPLING_NAME_HISTORY_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-      } catch (error) {
-        return {};
-      }
-    }
-
-    function saveSamplingNameHistoryMap(map) {
-      try {
-        localStorage.setItem(SAMPLING_NAME_HISTORY_STORAGE_KEY, JSON.stringify(map));
-      } catch (error) {}
-    }
-
-    function getSamplingNameHistoryForCurrentCase() {
-      const map = loadSamplingNameHistoryMap();
-      const list = Array.isArray(map[getSamplingHistoryKey()]) ? map[getSamplingHistoryKey()] : [];
-      return list.filter(Boolean).slice(0, 12);
-    }
-
-    function saveSamplingNameHistoryForCurrentCase(value) {
-      const name = String(value || "").trim();
-      if (!name) return;
-      const key = getSamplingHistoryKey();
-      const map = loadSamplingNameHistoryMap();
-      const list = Array.isArray(map[key]) ? map[key] : [];
-      map[key] = [name, ...list.filter((item) => item !== name)].slice(0, 20);
-      saveSamplingNameHistoryMap(map);
-      updateSamplingNameHistoryList();
-    }
-
-    function updateSamplingNameHistoryList() {
-      if (!samplingNameHistoryList) return;
-      samplingNameHistoryList.innerHTML = "";
-      getSamplingNameHistoryForCurrentCase().forEach((name) => {
-        const option = document.createElement("option");
-        option.value = name;
-        samplingNameHistoryList.appendChild(option);
-      });
     }
 
     async function renderBoardElementToCanvas(element) {

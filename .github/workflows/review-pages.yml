@@ -5,7 +5,7 @@ on:
     branches: [ review/v65.1 ]
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -30,19 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: review/v65.1
-          fetch-depth: 0
           path: review-src
-
-      - name: Run v65.27 case board persistence
-        working-directory: review-src
-        shell: bash
-        run: |
-          python scripts/v65_27_case_board.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add js/board-persistence.js js/board.js js/case-session.js js/pwa-controller.js service-worker.js index.html README.md docs/v65.27-case-board.md
-          git commit -m "v65.27 看板状態を案件別に分離 [v65.27-done]"
-          git push origin HEAD:review/v65.1
 
       - name: Build combined Pages artifact
         run: |
@@ -50,6 +38,8 @@ jobs:
           rsync -a --exclude '.git' --exclude '.github' main-src/ site/
           rsync -a --exclude '.git' --exclude '.github' review-src/ site/review/
 
+          # Review PWA must not share the production cache namespace.
+          # Source version is detected automatically so this workflow does not need edits every release.
           python - <<'PY'
           from pathlib import Path
           import json

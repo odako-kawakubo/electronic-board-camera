@@ -5,7 +5,7 @@ on:
     branches: [ review/v65.1 ]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -30,7 +30,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: review/v65.1
+          fetch-depth: 0
           path: review-src
+
+      - name: Run v65.28 photo state refactor
+        working-directory: review-src
+        shell: bash
+        run: |
+          python scripts/v65_28_photo_state.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/photo-state.js js/shared-state.js js/camera.js js/photo-import.js js/photo-utils.js js/photo-album.js js/photo-viewer.js js/pwa-controller.js service-worker.js index.html README.md docs/v65.28-photo-state.md
+          git commit -m "v65.28 写真状態更新経路を一本化 [v65.28-done]"
+          git push origin HEAD:review/v65.1
 
       - name: Build combined Pages artifact
         run: |
@@ -38,53 +50,35 @@ jobs:
           rsync -a --exclude '.git' --exclude '.github' main-src/ site/
           rsync -a --exclude '.git' --exclude '.github' review-src/ site/review/
 
-          # Review PWA must not share the production cache namespace.
-          # Source version is detected automatically so this workflow does not need edits every release.
           python - <<'PY'
           from pathlib import Path
           import json
           import re
-
           sw = Path('site/review/service-worker.js')
           text = sw.read_text(encoding='utf-8')
           match = re.search(r'const CACHE_NAME = "electronic-board-camera-(v[^"]+)";', text)
-          if not match:
-              raise SystemExit('review cache version could not be detected')
-
+          if not match: raise SystemExit('review cache version could not be detected')
           version = match.group(1)
-          text = text.replace(
-              f'const CACHE_NAME = "electronic-board-camera-{version}";',
-              f'const CACHE_NAME = "electronic-board-camera-review-{version}";',
-              1,
-          )
-          text = text.replace(
-              '.filter((key) => key !== CACHE_NAME)',
-              '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)',
-              1,
-          )
+          text = text.replace(f'const CACHE_NAME = "electronic-board-camera-{version}";', f'const CACHE_NAME = "electronic-board-camera-review-{version}";', 1)
+          text = text.replace('.filter((key) => key !== CACHE_NAME)', '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)', 1)
           sw.write_text(text, encoding='utf-8')
-
           manifest = Path('site/review/manifest.json')
           data = json.loads(manifest.read_text(encoding='utf-8'))
           data['name'] = '電子看板カメラ REVIEW'
           data['short_name'] = '看板カメラR'
           data['start_url'] = f'./?v={version.removeprefix("v")}-review'
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-
           index = Path('site/review/index.html')
-          html = index.read_text(encoding='utf-8')
-          html = html.replace('<title>電子看板カメラ</title>', '<title>電子看板カメラ REVIEW</title>', 1)
+          html = index.read_text(encoding='utf-8').replace('<title>電子看板カメラ</title>', '<title>電子看板カメラ REVIEW</title>', 1)
           index.write_text(html, encoding='utf-8')
           PY
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

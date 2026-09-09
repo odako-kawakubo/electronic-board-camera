@@ -17,7 +17,24 @@
 
   <div id="launchModeOverlay" aria-label="トップ画面">
     <div class="launch-mode-card">
-      <div class="launch-mode-title">電子看板カメラ</div>
+      <div class="launch-topbar">
+        <div class="launch-mode-title">電子看板カメラ</div>
+        <div class="launch-connectivity" aria-label="MicrosoftとOneDriveの接続状態">
+          <button id="msAuthButton" class="microsoft-signin-button top-microsoft-button" type="button" onclick="loginMicrosoftGraph()" aria-label="Log in with Microsoft">
+            <img src="./assets/microsoft-symbol.svg" alt="" aria-hidden="true" />
+            <span class="microsoft-signin-copy"><span>Microsoft</span><strong>Log in</strong></span>
+          </button>
+          <button id="msAccountButton" class="microsoft-account-button top-microsoft-button" type="button" onclick="logoutMicrosoftGraph()" hidden>
+            <img src="./assets/microsoft-symbol.svg" alt="" aria-hidden="true" />
+            <span class="microsoft-signin-copy"><span>Microsoft</span><strong id="msAccountName"></strong></span>
+          </button>
+          <div id="oneDriveStatusBadge" class="onedrive-status-badge" data-phase="unconnected" aria-live="polite">
+            <span class="onedrive-status-label">OneDrive</span>
+            <span id="oneDriveStatusDot" class="onedrive-status-dot unconnected" aria-hidden="true"></span>
+            <strong id="oneDriveStatusText">未接続</strong>
+          </div>
+        </div>
+      </div>
 
       <div class="launch-home-grid">
         <div class="launch-home-case" aria-label="選択中の案件">
@@ -386,22 +403,9 @@
     <div class="settings-panel">
       <h2 class="settings-title">設定</h2>
 
-      <div class="settings-section-title">Microsoft</div>
-      <div class="settings-version-box microsoft-auth-status-box">
-        状態：<strong id="msAuthStatusText">確認中...</strong>
-      </div>
-      <button id="msAuthButton" class="microsoft-signin-button" type="button" onclick="loginMicrosoftGraph()" aria-label="Log in with Microsoft">
-        <img src="./assets/microsoft-symbol.svg" alt="" aria-hidden="true" />
-        <span class="microsoft-signin-copy"><span>Microsoft</span><strong>Log in</strong></span>
-      </button>
-      <button id="msAccountButton" class="microsoft-account-button" type="button" onclick="logoutMicrosoftGraph()" hidden>
-        <img src="./assets/microsoft-symbol.svg" alt="" aria-hidden="true" />
-        <span class="microsoft-signin-copy"><span>Microsoft</span><strong id="msAccountName"></strong></span>
-      </button>
-
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.30</strong>
+        現在：<strong id="settingsVersionText">v65.31</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
 
@@ -442,6 +446,8 @@
   <script src="./js/microsoft-config.js"></script>
   <script src="./js/graph-session.js"></script>
   <script src="./js/microsoft-auth-ui.js"></script>
+  <script src="./js/onedrive-connection.js"></script>
+  <script src="./js/onedrive-status-ui.js"></script>
   <script src="./js/photo-store.js"></script>
   <script src="./js/photo-state.js"></script>
   <script src="./js/case-session.js"></script>

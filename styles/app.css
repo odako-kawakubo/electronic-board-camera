@@ -2414,3 +2414,73 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+
+    /* v65.31 トップ接続ヘッダー */
+    .launch-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: clamp(10px, 2.2vh, 18px);
+    }
+    .launch-topbar .launch-mode-title { margin-bottom: 0; text-align: left; flex: 0 0 auto; }
+    .launch-connectivity {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .top-microsoft-button {
+      width: auto;
+      max-width: 205px;
+      min-height: 40px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      flex: 0 1 auto;
+    }
+    .top-microsoft-button img { width: 20px; height: 20px; flex-basis: 20px; }
+    .top-microsoft-button .microsoft-signin-copy > span { font-size: 9px; }
+    .top-microsoft-button .microsoft-signin-copy > strong { font-size: 12px; }
+    .onedrive-status-badge {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 9px;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .onedrive-status-label { font-weight: 800; }
+    .onedrive-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #7b8491;
+      box-shadow: 0 0 0 2px rgba(255,255,255,.08);
+      flex: 0 0 10px;
+    }
+    .onedrive-status-dot.connected { background: #2ecc71; }
+    .onedrive-status-dot.checking { background: #f2b84b; }
+    .onedrive-status-dot.error { background: #e05252; }
+    .onedrive-status-dot.unconnected { background: #7b8491; }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      .launch-topbar { margin-bottom: 7px; gap: 8px; }
+      .top-microsoft-button { min-height: 34px; padding: 3px 8px; max-width: 180px; }
+      .onedrive-status-badge { min-height: 34px; padding: 4px 8px; font-size: 11px; }
+    }
+
+    @media (max-width: 560px) {
+      .launch-topbar { align-items: flex-start; }
+      .launch-connectivity { gap: 5px; }
+      .top-microsoft-button { max-width: 145px; padding: 4px 7px; }
+      .top-microsoft-button .microsoft-signin-copy > span { display: none; }
+      .top-microsoft-button .microsoft-signin-copy > strong { font-size: 11px; }
+      .onedrive-status-badge { padding: 5px 7px; font-size: 10px; }
+    }

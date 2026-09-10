@@ -4,7 +4,8 @@
  * ============================================================
  * 責務:
  * - 現段階の案件識別として yymmdd_枝番 の仮案件IDを発番・保持する
- * - 端末名を保持し、将来のOneDrive保存先フォルダ名を生成する
+ * - 端末名を保持し、OneDrive保存先フォルダ名を生成する
+ * - 仮案件は「03 サンプリング / サンプリング写真」直下へ専用フォルダを確保する
  * - トップ画面へ現在の選択案件を表示し、新規案件・案件切替を管理する
  *
  * 将来:
@@ -19,6 +20,7 @@
   const ACTIVE_KEY = "electronic-board-camera-active-case-session-v1";
   const COUNTER_PREFIX = "electronic-board-camera-case-session-counter-v1-";
   const DEVICE_NAME_KEY = "electronic-board-camera-device-name-v1";
+  const folderEnsurePromises = new Map();
 
   function pad2(value) {
     return String(value).padStart(2, "0");
@@ -69,7 +71,9 @@
     if (current) {
       current.deviceName = next;
       current.folderName = buildFolderName(next, current.id);
+      clearRemoteFolderState(current);
       saveActiveSession(current);
+      void ensureTemporarySessionFolder(current);
     }
     renderSessionPanel();
     return next;
@@ -121,10 +125,15 @@
       deviceName,
       folderName: buildFolderName(deviceName, id),
       createdAt: new Date().toISOString(),
-      kind: "temporary"
+      kind: "temporary",
+      oneDriveFolderDriveId: "",
+      oneDriveFolderItemId: "",
+      oneDriveFolderStatus: "pending",
+      oneDriveFolderError: ""
     };
     saveActiveSession(session);
     renderSessionPanel();
+    void ensureTemporarySessionFolder(session);
     return session;
   }
 
@@ -161,9 +170,14 @@
       deviceName,
       folderName: buildFolderName(deviceName, id),
       createdAt: new Date().toISOString(),
-      kind: "temporary"
+      kind: "temporary",
+      oneDriveFolderDriveId: "",
+      oneDriveFolderItemId: "",
+      oneDriveFolderStatus: "pending",
+      oneDriveFolderError: ""
     };
     saveActiveSession(session);
+    void ensureTemporarySessionFolder(session);
 
     if (typeof restoreActiveCaseBoard === "function") {
       restoreActiveCaseBoard();
@@ -177,6 +191,82 @@
     renderSessionPanel();
     if (typeof showToast === "function") showToast(`案件 ${id} を選択しました`);
     return session;
+  }
+
+  function clearRemoteFolderState(session) {
+    session.oneDriveFolderDriveId = "";
+    session.oneDriveFolderItemId = "";
+    session.oneDriveFolderStatus = "pending";
+    session.oneDriveFolderError = "";
+  }
+
+  function isSameActiveSession(session) {
+    const active = loadActiveSession();
+    return Boolean(active && session && active.id === session.id && active.folderName === session.folderName);
+  }
+
+  function applyRemoteFolderState(session, folder, status, error = "") {
+    if (!isSameActiveSession(session)) return;
+    const current = loadActiveSession();
+    if (!current) return;
+    current.oneDriveFolderDriveId = folder?.driveId || "";
+    current.oneDriveFolderItemId = folder?.itemId || folder?.id || "";
+    current.oneDriveFolderStatus = status;
+    current.oneDriveFolderError = error;
+    saveActiveSession(current);
+  }
+
+  async function ensureTemporarySessionFolder(session = getCurrentSession()) {
+    if (!session || session.kind !== "temporary" || !session.folderName) return null;
+    if (navigator.onLine === false) return null;
+
+    const connection = window.OneDriveConnection?.getState?.();
+    if (!connection?.connected || !connection.photoRoot) return null;
+
+    if (
+      session.oneDriveFolderStatus === "ready" &&
+      session.oneDriveFolderDriveId &&
+      session.oneDriveFolderItemId
+    ) {
+      return {
+        driveId: session.oneDriveFolderDriveId,
+        itemId: session.oneDriveFolderItemId,
+        id: session.oneDriveFolderItemId,
+        name: session.folderName,
+        folder: {}
+      };
+    }
+
+    const key = `${connection.photoRoot.driveId}:${connection.photoRoot.itemId}:${session.folderName}`;
+    if (folderEnsurePromises.has(key)) return folderEnsurePromises.get(key);
+
+    applyRemoteFolderState(session, null, "creating");
+    const promise = OneDriveClient.ensureChildFolder(connection.photoRoot, session.folderName)
+      .then(async (folder) => {
+        const verified = await OneDriveClient.getDriveItem(folder);
+        if (!verified?.folder || !verified.driveId || !verified.itemId) {
+          const error = new Error("仮案件のOneDriveフォルダを確認できませんでした。");
+          error.code = "TEMP_CASE_FOLDER_VERIFY_FAILED";
+          throw error;
+        }
+        applyRemoteFolderState(session, verified, "ready");
+        return verified;
+      })
+      .catch((error) => {
+        applyRemoteFolderState(session, null, "error", error?.message || "フォルダ作成に失敗しました。");
+        console.warn("仮案件OneDriveフォルダの確保に失敗しました", error);
+        return null;
+      })
+      .finally(() => {
+        folderEnsurePromises.delete(key);
+      });
+
+    folderEnsurePromises.set(key, promise);
+    return promise;
+  }
+
+  async function ensureCurrentSessionFolder() {
+    return ensureTemporarySessionFolder(getCurrentSession());
   }
 
   function changeDeviceName() {
@@ -214,6 +304,13 @@
       subjectInput.addEventListener("change", renderSessionPanel);
     }
 
+    // OneDrive接続が後から復帰した場合も、現在の仮案件フォルダをその時点で確保する。
+    if (window.OneDriveConnection?.subscribe) {
+      OneDriveConnection.subscribe((state) => {
+        if (state?.connected) void ensureCurrentSessionFolder();
+      });
+    }
+
     // board.jsの初期復元後の値もトップへ反映する。
     window.setTimeout(renderSessionPanel, 0);
   });
@@ -226,6 +323,8 @@
     getDeviceName,
     setDeviceName,
     changeDeviceName,
-    buildFolderName
+    buildFolderName,
+    ensureTemporarySessionFolder,
+    ensureCurrentSessionFolder
   });
 })();

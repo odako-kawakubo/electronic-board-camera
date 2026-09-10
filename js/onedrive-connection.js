@@ -2,8 +2,11 @@
  * ============================================================
  * onedrive-connection.js - OneDrive接続状態の正本
  * ============================================================
- * Microsoftログインとは別に、「03 サンプリング」を実際に使用できるか確認する。
- * v65.32では写真送信・フォルダ作成は行わない。
+ * Microsoftログインとは別に、看板カメラが必要とするOneDrive業務ルートを確認する。
+ * 接続条件:
+ * - 「03 サンプリング」を解決・検証できる
+ * - そのchildrenを読める
+ * - 直下の「サンプリング写真」を解決・検証できる
  * ============================================================
  */
 (function () {
@@ -18,15 +21,31 @@
     text: "未接続",
     error: "",
     root: null,
+    projectRoot: null,
+    photoRoot: null,
     rootSource: ""
   };
 
+  function cloneRef(ref) {
+    return ref ? { ...ref } : null;
+  }
+
   function cloneState() {
-    return { ...state, root: state.root ? { ...state.root } : null };
+    return {
+      ...state,
+      root: cloneRef(state.root),
+      projectRoot: cloneRef(state.projectRoot),
+      photoRoot: cloneRef(state.photoRoot)
+    };
   }
 
   function publish(next) {
-    state = { ...next, root: next.root ? { ...next.root } : null };
+    state = {
+      ...next,
+      root: cloneRef(next.root),
+      projectRoot: cloneRef(next.projectRoot),
+      photoRoot: cloneRef(next.photoRoot)
+    };
     listeners.slice().forEach((callback) => callback(cloneState()));
   }
 
@@ -44,7 +63,16 @@
   }
 
   function unavailableState(text = "未接続", error = "") {
-    return { phase: "unconnected", connected: false, text, error, root: null, rootSource: "" };
+    return {
+      phase: "unconnected",
+      connected: false,
+      text,
+      error,
+      root: null,
+      projectRoot: null,
+      photoRoot: null,
+      rootSource: ""
+    };
   }
 
   function isExpectedRootName(name) {
@@ -66,26 +94,58 @@
       throw error;
     }
 
-    // 実運用で子フォルダを読むため、childrenまで取得できることを接続条件にする。
+    // 正式案件一覧を読む起点でもあるためchildrenまで取得できることを条件にする。
     await OneDriveClient.listDriveChildren(verified);
     return { ...verified, rootSource: candidate.rootSource || "" };
   }
 
-  async function getUsableSamplingRoot({ force = false } = {}) {
+  async function verifyPhotoRoot(candidate) {
+    const verified = await OneDriveClient.getDriveItem(candidate);
+    if (!verified?.folder || !verified.driveId || !verified.itemId) {
+      const error = new Error("サンプリング写真フォルダへアクセスできませんでした。");
+      error.code = "SAMPLING_PHOTO_ROOT_VERIFY_FAILED";
+      throw error;
+    }
+    if (String(verified.name || "").trim() !== "サンプリング写真") {
+      const error = new Error(`写真保存先「${verified.name || "-"}」が想定と一致しません。`);
+      error.code = "SAMPLING_PHOTO_ROOT_NAME_MISMATCH";
+      throw error;
+    }
+    await OneDriveClient.listDriveChildren(verified);
+    return verified;
+  }
+
+  async function getUsableSamplingContext({ force = false } = {}) {
     if (navigator.onLine === false) {
       const error = new Error("圏外です。");
       error.code = "NETWORK_OFFLINE";
       throw error;
     }
+
     await GraphSession.initialize();
     if (!GraphSession.getState().account) {
       const error = new Error("Microsoft Graphへログインしていません。");
       error.code = "GRAPH_LOGIN_REQUIRED";
       throw error;
     }
+
     await GraphSession.getAccessToken({ allowInteractive: false });
     const candidate = await OneDriveRoot.getSamplingRoot({ force });
-    return verifyResolvedRoot(candidate);
+    const root = await verifyResolvedRoot(candidate);
+    const photoCandidate = await OneDriveRoot.getSamplingPhotoRoot({ force: false });
+    const photoRoot = await verifyPhotoRoot(photoCandidate);
+
+    return {
+      root,
+      projectRoot: { ...root },
+      photoRoot,
+      rootSource: root.rootSource || ""
+    };
+  }
+
+  async function getUsableSamplingRoot({ force = false } = {}) {
+    const context = await getUsableSamplingContext({ force });
+    return context.root;
   }
 
   async function refresh({ force = false } = {}) {
@@ -111,19 +171,23 @@
       text: "確認中",
       error: "",
       root: OneDriveRoot.getCachedSamplingRoot(),
+      projectRoot: OneDriveRoot.getCachedSamplingRoot(),
+      photoRoot: OneDriveRoot.getCachedSamplingPhotoRoot(),
       rootSource: OneDriveRoot.getCachedSamplingRoot()?.rootSource || ""
     });
 
     try {
-      const root = await getUsableSamplingRoot({ force });
+      const context = await getUsableSamplingContext({ force });
       if (currentGeneration !== generation) return cloneState();
       publish({
         phase: "connected",
         connected: true,
         text: "接続",
         error: "",
-        root,
-        rootSource: root.rootSource || ""
+        root: context.root,
+        projectRoot: context.projectRoot,
+        photoRoot: context.photoRoot,
+        rootSource: context.rootSource
       });
     } catch (error) {
       if (currentGeneration !== generation) return cloneState();
@@ -134,6 +198,8 @@
         text: "未接続",
         error: error?.message || "OneDriveへ接続できません。",
         root: null,
+        projectRoot: null,
+        photoRoot: null,
         rootSource: ""
       });
     }
@@ -154,6 +220,7 @@
     subscribe,
     refresh,
     initialize,
-    getUsableSamplingRoot
+    getUsableSamplingRoot,
+    getUsableSamplingContext
   });
 })();

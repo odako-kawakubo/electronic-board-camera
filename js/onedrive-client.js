@@ -3,19 +3,31 @@
  * onedrive-client.js - Microsoft Graph / OneDrive低レベルAPI
  * ============================================================
  * Graph認証はgraph-session、業務ルート解決はonedrive-rootが担当する。
+ * この層ではGET/POSTなどGraph通信とdriveItemの正規化だけを扱う。
  */
 (function () {
   "use strict";
 
   const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
-  async function graphRequest(path) {
+  async function graphRequest(path, options = {}) {
     const token = await GraphSession.getAccessToken({ allowInteractive: false });
+    const method = String(options.method || "GET").toUpperCase();
+    const headers = { Authorization: `Bearer ${token}`, ...(options.headers || {}) };
+    let body = options.body;
+
+    if (body && typeof body !== "string" && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
+      headers["Content-Type"] = headers["Content-Type"] || "application/json";
+      body = JSON.stringify(body);
+    }
+
     const response = await fetch(`${GRAPH_BASE}${path}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
+      method,
+      headers,
+      body: method === "GET" || method === "HEAD" ? undefined : body,
       cache: "no-store"
     });
+
     if (!response.ok) {
       let detail = "";
       let graphCode = "";
@@ -30,10 +42,14 @@
       graphError.code = response.status === 401 ? "GRAPH_UNAUTHORIZED"
         : response.status === 403 ? "GRAPH_FORBIDDEN"
           : response.status === 404 ? "GRAPH_NOT_FOUND"
-            : "GRAPH_REQUEST_FAILED";
+            : response.status === 409 ? "GRAPH_CONFLICT"
+              : "GRAPH_REQUEST_FAILED";
       throw graphError;
     }
-    return response.json();
+
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
 
   async function listPaged(path) {
@@ -68,6 +84,7 @@
       id: String(source?.id || item?.id || ""),
       name: String(source?.name || item?.name || ""),
       folder: source?.folder || item?.folder || null,
+      file: source?.file || item?.file || null,
       parentReference: source?.parentReference || item?.parentReference || null,
       webUrl: source?.webUrl || item?.webUrl || "",
       remoteItem: remote
@@ -115,7 +132,7 @@
   async function getDriveItem(itemRef) {
     const ref = normalizeRef(itemRef);
     if (!ref.driveId || !ref.itemId) return null;
-    const item = await graphRequest(`/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}?$select=id,name,folder,webUrl,parentReference,remoteItem`);
+    const item = await graphRequest(`/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}?$select=id,name,folder,file,webUrl,parentReference,remoteItem`);
     return refForItem(item, ref.driveId);
   }
 
@@ -126,5 +143,57 @@
     return items.map((item) => refForItem(item, ref.driveId));
   }
 
-  window.OneDriveClient = Object.freeze({ resolveSharedUrl, searchDriveFolders, getDriveItem, listDriveChildren });
+  async function findChildFolder(parentRef, folderName) {
+    const expected = String(folderName || "").trim();
+    if (!expected) return null;
+    const children = await listDriveChildren(parentRef);
+    return children.find((item) => item.folder && String(item.name || "").trim() === expected) || null;
+  }
+
+  async function createChildFolder(parentRef, folderName) {
+    const ref = normalizeRef(parentRef);
+    const name = String(folderName || "").trim();
+    if (!ref.driveId || !ref.itemId) throw new Error("作成先のOneDriveフォルダを特定できません。");
+    if (!name) throw new Error("作成するフォルダ名が空です。");
+
+    const item = await graphRequest(
+      `/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}/children`,
+      {
+        method: "POST",
+        body: {
+          name,
+          folder: {},
+          "@microsoft.graph.conflictBehavior": "fail"
+        }
+      }
+    );
+    return refForItem(item, ref.driveId);
+  }
+
+  async function ensureChildFolder(parentRef, folderName) {
+    const existing = await findChildFolder(parentRef, folderName);
+    if (existing) return { ...existing, created: false };
+
+    try {
+      const created = await createChildFolder(parentRef, folderName);
+      return { ...created, created: true };
+    } catch (error) {
+      // 別端末が同名フォルダを先に作った競合は、再検索して同じフォルダへ合流する。
+      if (error?.status === 409 || error?.code === "GRAPH_CONFLICT") {
+        const raced = await findChildFolder(parentRef, folderName);
+        if (raced) return { ...raced, created: false };
+      }
+      throw error;
+    }
+  }
+
+  window.OneDriveClient = Object.freeze({
+    resolveSharedUrl,
+    searchDriveFolders,
+    getDriveItem,
+    listDriveChildren,
+    findChildFolder,
+    createChildFolder,
+    ensureChildFolder
+  });
 })();

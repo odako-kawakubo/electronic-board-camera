@@ -1,17 +1,18 @@
 /*
  * ============================================================
- * onedrive-root.js - 「03 サンプリング」業務ルートの解決
+ * onedrive-root.js - 「03 サンプリング」配下の業務ルート解決
  * ============================================================
- * しらべの「04 調査」と同じ解決順序:
- * 1. 固定共有URLをGraph /sharesで解決
- * 2. 失敗した場合だけOneDrive検索へフォールバック
- * 3. 表示名から「03 サンプリング」を選ぶ
+ * しらべの「04 調査」と同じ解決順序で「03 サンプリング」を解決する。
+ * その直下にある「サンプリング写真」を写真保存ルートとして保持する。
+ * 正式案件を探す projectRoot は samplingRoot と同じ実体を使う。
  * ============================================================
  */
 (function () {
   "use strict";
 
+  const PHOTO_ROOT_NAME = "サンプリング写真";
   let samplingRootCache = null;
+  let samplingPhotoRootCache = null;
 
   function cloneRoot(root) {
     return root ? { ...root } : null;
@@ -51,16 +52,61 @@
       return cloneRoot(samplingRootCache);
     }
     samplingRootCache = await resolveSamplingRoot();
+    samplingPhotoRootCache = null;
     return cloneRoot(samplingRootCache);
+  }
+
+  async function getProjectRoot({ force = false } = {}) {
+    // 正式案件は「03 サンプリング」直下に並ぶため、別ルートを持たず同じ実体を返す。
+    return getSamplingRoot({ force });
+  }
+
+  async function getSamplingPhotoRoot({ force = false } = {}) {
+    if (!force && samplingPhotoRootCache?.driveId && samplingPhotoRootCache?.itemId) {
+      return cloneRoot(samplingPhotoRootCache);
+    }
+
+    const root = await getSamplingRoot({ force });
+    const photoRoot = await OneDriveClient.findChildFolder(root, PHOTO_ROOT_NAME);
+    if (!photoRoot?.driveId || !photoRoot?.itemId || !photoRoot?.folder) {
+      const error = new Error(`「03 サンプリング」直下に「${PHOTO_ROOT_NAME}」フォルダが見つかりません。`);
+      error.code = "SAMPLING_PHOTO_ROOT_NOT_FOUND";
+      throw error;
+    }
+
+    samplingPhotoRootCache = { ...photoRoot, rootSource: "sampling-child" };
+    return cloneRoot(samplingPhotoRootCache);
+  }
+
+  async function listProjectFolders({ force = false } = {}) {
+    const projectRoot = await getProjectRoot({ force });
+    const children = await OneDriveClient.listDriveChildren(projectRoot);
+    return children.filter((item) => {
+      if (!item?.folder) return false;
+      return String(item.name || "").trim() !== PHOTO_ROOT_NAME;
+    });
   }
 
   function clearSamplingRoot() {
     samplingRootCache = null;
+    samplingPhotoRootCache = null;
   }
 
   function getCachedSamplingRoot() {
     return cloneRoot(samplingRootCache);
   }
 
-  window.OneDriveRoot = Object.freeze({ getSamplingRoot, clearSamplingRoot, getCachedSamplingRoot });
+  function getCachedSamplingPhotoRoot() {
+    return cloneRoot(samplingPhotoRootCache);
+  }
+
+  window.OneDriveRoot = Object.freeze({
+    getSamplingRoot,
+    getProjectRoot,
+    getSamplingPhotoRoot,
+    listProjectFolders,
+    clearSamplingRoot,
+    getCachedSamplingRoot,
+    getCachedSamplingPhotoRoot
+  });
 })();

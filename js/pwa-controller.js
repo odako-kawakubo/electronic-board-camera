@@ -15,7 +15,7 @@
  * ============================================================
  */
 
-    const APP_VERSION = "v65.32";
+    const APP_VERSION = "v65.33";
     const settingsVersionText = document.getElementById("settingsVersionText");
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -110,12 +110,7 @@
 
         if (latestVersion !== APP_VERSION) {
           const ok = window.confirm(
-            `新しいバージョンがあります。
-
-現在：${getShortAppVersion(APP_VERSION)}
-最新：${getShortAppVersion(latestVersion)}
-
-更新しますか？`
+            `新しいバージョンがあります。\n\n現在：${getShortAppVersion(APP_VERSION)}\n最新：${getShortAppVersion(latestVersion)}\n\n更新しますか？`
           );
 
           if (ok) await reloadAppWithVersion(latestVersion);
@@ -132,12 +127,7 @@
         const latestVersion = await getLatestAppVersion();
         if (latestVersion && latestVersion !== APP_VERSION) {
           const ok = window.confirm(
-            `新しいバージョンがあります。
-
-現在：${getShortAppVersion(APP_VERSION)}
-最新：${getShortAppVersion(latestVersion)}
-
-更新しますか？`
+            `新しいバージョンがあります。\n\n現在：${getShortAppVersion(APP_VERSION)}\n最新：${getShortAppVersion(latestVersion)}\n\n更新しますか？`
           );
           if (!ok) return;
           await reloadAppWithVersion(latestVersion);
@@ -145,9 +135,7 @@
         }
 
         const ok = window.confirm(
-          `現在のバージョン：${getShortAppVersion(APP_VERSION)}
-
-キャッシュを削除して、このバージョンを読み込み直しますか？`
+          `現在のバージョン：${getShortAppVersion(APP_VERSION)}\n\nキャッシュを削除して、このバージョンを読み込み直しますか？`
         );
         if (ok) await reloadAppWithVersion(latestVersion || APP_VERSION);
       } catch (error) {

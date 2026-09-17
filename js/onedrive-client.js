@@ -187,6 +187,28 @@
     }
   }
 
+  /**
+   * 写真をGraphのsimple uploadで保存する。
+   * 同名ファイルは同じ保存先へ上書きされるため、再送時も名前が増殖しない。
+   */
+  async function uploadDriveFile(parentRef, fileName, blob, contentType = "image/jpeg") {
+    const ref = normalizeRef(parentRef);
+    const name = String(fileName || "").trim();
+    if (!ref.driveId || !ref.itemId) throw new Error("写真の保存先フォルダを特定できません。");
+    if (!name) throw new Error("写真ファイル名が空です。");
+    if (!(blob instanceof Blob) && !(blob instanceof ArrayBuffer)) throw new Error("送信する写真データがありません。");
+
+    const item = await graphRequest(
+      `/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}:/${encodeURIComponent(name)}:/content`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": contentType || "application/octet-stream" },
+        body: blob
+      }
+    );
+    return refForItem(item, ref.driveId);
+  }
+
   window.OneDriveClient = Object.freeze({
     resolveSharedUrl,
     searchDriveFolders,
@@ -194,6 +216,7 @@
     listDriveChildren,
     findChildFolder,
     createChildFolder,
-    ensureChildFolder
+    ensureChildFolder,
+    uploadDriveFile
   });
 })();

@@ -4,7 +4,7 @@
  * ============================================================
  * 責務:
  * - カメラ撮影 / 既存写真への看板添付で共通する写真レコード生成を1か所に集約する
- * - 撮影時点の案件セッション情報と同期初期値を固定する
+ * - 撮影時点の案件セッション情報とoriginal/completedの送信初期値を固定する
  *
  * 保守上の注意:
  * - ここでは保存しない。保存正本はPhotoStore。
@@ -21,6 +21,7 @@
     const createdAt = options.createdAt instanceof Date
       ? options.createdAt.toISOString()
       : String(options.createdAt || new Date().toISOString());
+    const hasOriginal = Boolean(options.baseDataUrl);
 
     const photo = {
       id: options.id || `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -42,6 +43,19 @@
       deviceName: caseSession ? caseSession.deviceName : "",
       oneDriveFolderName: caseSession ? caseSession.folderName : "",
 
+      oneDriveDriveId: "",
+      originalUploadStatus: hasOriginal ? "pending" : "not-applicable",
+      originalUploadedAt: "",
+      originalItemId: "",
+      originalPath: "",
+      completedUploadStatus: "pending",
+      completedUploadedAt: "",
+      completedItemId: "",
+      completedPath: "",
+      originalUploadError: "",
+      completedUploadError: "",
+
+      // 旧参照との互換用。completedを代表値として維持する。
       uploadStatus: "pending",
       uploadedAt: "",
       oneDriveItemId: "",

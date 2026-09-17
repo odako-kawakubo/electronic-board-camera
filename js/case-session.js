@@ -6,6 +6,7 @@
  * - 現段階の案件識別として yymmdd_枝番 の仮案件IDを発番・保持する
  * - 端末名を保持し、OneDrive保存先フォルダ名を生成する
  * - 仮案件は「03 サンプリング / サンプリング写真」直下へ専用フォルダを確保する
+ * - 仮案件フォルダ内に「元画像」を確保し、完成画像と元画像の保存先を分ける
  * - トップ画面へ現在の選択案件を表示し、新規案件・案件切替を管理する
  *
  * 将来:
@@ -20,6 +21,7 @@
   const ACTIVE_KEY = "electronic-board-camera-active-case-session-v1";
   const COUNTER_PREFIX = "electronic-board-camera-case-session-counter-v1-";
   const DEVICE_NAME_KEY = "electronic-board-camera-device-name-v1";
+  const ORIGINAL_FOLDER_NAME = "元画像";
   const folderEnsurePromises = new Map();
 
   function pad2(value) {
@@ -128,6 +130,7 @@
       kind: "temporary",
       oneDriveFolderDriveId: "",
       oneDriveFolderItemId: "",
+      oneDriveOriginalFolderItemId: "",
       oneDriveFolderStatus: "pending",
       oneDriveFolderError: ""
     };
@@ -173,6 +176,7 @@
       kind: "temporary",
       oneDriveFolderDriveId: "",
       oneDriveFolderItemId: "",
+      oneDriveOriginalFolderItemId: "",
       oneDriveFolderStatus: "pending",
       oneDriveFolderError: ""
     };
@@ -196,6 +200,7 @@
   function clearRemoteFolderState(session) {
     session.oneDriveFolderDriveId = "";
     session.oneDriveFolderItemId = "";
+    session.oneDriveOriginalFolderItemId = "";
     session.oneDriveFolderStatus = "pending";
     session.oneDriveFolderError = "";
   }
@@ -205,12 +210,13 @@
     return Boolean(active && session && active.id === session.id && active.folderName === session.folderName);
   }
 
-  function applyRemoteFolderState(session, folder, status, error = "") {
+  function applyRemoteFolderState(session, folder, originalFolder, status, error = "") {
     if (!isSameActiveSession(session)) return;
     const current = loadActiveSession();
     if (!current) return;
     current.oneDriveFolderDriveId = folder?.driveId || "";
     current.oneDriveFolderItemId = folder?.itemId || folder?.id || "";
+    current.oneDriveOriginalFolderItemId = originalFolder?.itemId || originalFolder?.id || "";
     current.oneDriveFolderStatus = status;
     current.oneDriveFolderError = error;
     saveActiveSession(current);
@@ -226,21 +232,29 @@
     if (
       session.oneDriveFolderStatus === "ready" &&
       session.oneDriveFolderDriveId &&
-      session.oneDriveFolderItemId
+      session.oneDriveFolderItemId &&
+      session.oneDriveOriginalFolderItemId
     ) {
       return {
         driveId: session.oneDriveFolderDriveId,
         itemId: session.oneDriveFolderItemId,
         id: session.oneDriveFolderItemId,
         name: session.folderName,
-        folder: {}
+        folder: {},
+        originalFolder: {
+          driveId: session.oneDriveFolderDriveId,
+          itemId: session.oneDriveOriginalFolderItemId,
+          id: session.oneDriveOriginalFolderItemId,
+          name: ORIGINAL_FOLDER_NAME,
+          folder: {}
+        }
       };
     }
 
     const key = `${connection.photoRoot.driveId}:${connection.photoRoot.itemId}:${session.folderName}`;
     if (folderEnsurePromises.has(key)) return folderEnsurePromises.get(key);
 
-    applyRemoteFolderState(session, null, "creating");
+    applyRemoteFolderState(session, null, null, "creating");
     const promise = OneDriveClient.ensureChildFolder(connection.photoRoot, session.folderName)
       .then(async (folder) => {
         const verified = await OneDriveClient.getDriveItem(folder);
@@ -249,11 +263,19 @@
           error.code = "TEMP_CASE_FOLDER_VERIFY_FAILED";
           throw error;
         }
-        applyRemoteFolderState(session, verified, "ready");
-        return verified;
+        const originalFolder = await OneDriveClient.ensureChildFolder(verified, ORIGINAL_FOLDER_NAME);
+        const verifiedOriginal = await OneDriveClient.getDriveItem(originalFolder);
+        if (!verifiedOriginal?.folder || !verifiedOriginal.driveId || !verifiedOriginal.itemId) {
+          const error = new Error("仮案件の元画像フォルダを確認できませんでした。");
+          error.code = "TEMP_CASE_ORIGINAL_FOLDER_VERIFY_FAILED";
+          throw error;
+        }
+
+        applyRemoteFolderState(session, verified, verifiedOriginal, "ready");
+        return { ...verified, originalFolder: verifiedOriginal };
       })
       .catch((error) => {
-        applyRemoteFolderState(session, null, "error", error?.message || "フォルダ作成に失敗しました。");
+        applyRemoteFolderState(session, null, null, "error", error?.message || "フォルダ作成に失敗しました。");
         console.warn("仮案件OneDriveフォルダの確保に失敗しました", error);
         return null;
       })

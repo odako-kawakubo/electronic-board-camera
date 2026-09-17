@@ -189,8 +189,8 @@
         const sampleParts = parseSampleAndPoint(sampleNoInput.value);
         const photo = PhotoRecord.create({
           dataUrl,
-          // 読み込み元はカメラロールに残るため、完成後の元画像は保持しない。
-          baseDataUrl: "",
+          // OneDriveへ元画像/完成画像の両方を送るため、送信確認までは元画像も保持する。
+          baseDataUrl: activeImportBaseDataUrl,
           fileName: generatePhotoFileName(sampleParts.sampleNo, sampleParts.pointNo, photoType.code),
           status: photoType.value,
           statusLabel: photoType.label,

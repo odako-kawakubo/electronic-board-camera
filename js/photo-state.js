@@ -17,6 +17,23 @@ const capturedPhotos = [];
 (function () {
   "use strict";
 
+  const listeners = [];
+
+  function publish(change) {
+    listeners.slice().forEach((callback) => {
+      try { callback(change || {}); } catch (error) { console.warn("写真状態購読処理に失敗しました", error); }
+    });
+  }
+
+  function subscribe(callback) {
+    if (typeof callback !== "function") return () => {};
+    listeners.push(callback);
+    return () => {
+      const index = listeners.indexOf(callback);
+      if (index >= 0) listeners.splice(index, 1);
+    };
+  }
+
   function restoreObject(target, snapshot) {
     Object.keys(target).forEach((key) => {
       if (!(key in snapshot)) delete target[key];
@@ -28,6 +45,7 @@ const capturedPhotos = [];
     const photos = await PhotoStore.getAllPhotos();
     photos.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     capturedPhotos.splice(0, capturedPhotos.length, ...photos);
+    publish({ type: "reload" });
     return capturedPhotos;
   }
 
@@ -35,6 +53,7 @@ const capturedPhotos = [];
     const result = await PhotoStore.savePhoto(photo);
     if (!result || !result.ok) return result || { ok: false, errorName: "UnknownError", errorMessage: "保存できませんでした" };
     capturedPhotos.push(photo);
+    publish({ type: "add", photoId: photo.id });
     return result;
   }
 
@@ -49,6 +68,29 @@ const capturedPhotos = [];
       restoreObject(photo, previous);
       return result || { ok: false, errorName: "UnknownError", errorMessage: "保存できませんでした" };
     }
+    publish({ type: "update", photoId: photo.id });
+    return result;
+  }
+
+  async function patchById(photoId, patch, { notify = true } = {}) {
+    const id = String(photoId || "");
+    if (!id || !patch || typeof patch !== "object") {
+      return { ok: false, errorName: "InvalidPhotoPatch", errorMessage: "更新内容が不正です" };
+    }
+
+    let photo = capturedPhotos.find((item) => item.id === id) || null;
+    const isLiveObject = Boolean(photo);
+    if (!photo) photo = await PhotoStore.getPhoto(id);
+    if (!photo) return { ok: false, errorName: "PhotoNotFound", errorMessage: "写真が見つかりません" };
+
+    const previous = { ...photo };
+    Object.assign(photo, patch);
+    const result = await PhotoStore.savePhoto(photo);
+    if (!result || !result.ok) {
+      if (isLiveObject) restoreObject(photo, previous);
+      return result || { ok: false, errorName: "UnknownError", errorMessage: "保存できませんでした" };
+    }
+    if (notify) publish({ type: "patch", photoId: id });
     return result;
   }
 
@@ -70,6 +112,7 @@ const capturedPhotos = [];
       for (let i = capturedPhotos.length - 1; i >= 0; i--) {
         if (deletedIds.has(capturedPhotos[i].id)) capturedPhotos.splice(i, 1);
       }
+      publish({ type: "delete", photoIds: Array.from(deletedIds) });
     }
 
     return { ok: failed.length === 0, deletedIds, failed };
@@ -80,6 +123,8 @@ const capturedPhotos = [];
     reload,
     addNew,
     update,
-    deleteMany
+    patchById,
+    deleteMany,
+    subscribe
   });
 })();

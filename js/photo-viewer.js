@@ -17,6 +17,7 @@
     let isBoardCorrectionSelectMode = false;
     let previewTouchStartX = 0;
     let previewTouchStartY = 0;
+    let boardEditOriginalDataUrl = "";
 
     function getCurrentSubjectName() {
       const value = subjectText && ("value" in subjectText ? subjectText.value : subjectText.textContent);
@@ -129,7 +130,7 @@
       previewCounter.textContent = `${previewIndex + 1} / ${photos.length}`;
       previewMeta.textContent = isBoardCorrectionSelectMode
         ? "看板修正する写真を選択してください"
-        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.savedLocal ? "　✓端末保存済" : ""}${photo.selected ? "　✓選択中" : ""}`;
+        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
       updatePreviewHeader();
       renderThumbnails();
       renderPhotoList();
@@ -158,11 +159,6 @@
       const photo = photos[index];
       if (!photo) return;
 
-      if (!photo.baseDataUrl) {
-        window.alert("この写真は看板修正用データがありません。\n\nv49b以降で撮影した写真から、撮影後に看板を修正できます。");
-        return;
-      }
-
       previewIndex = index;
       isBoardCorrectionSelectMode = false;
       previewOverlay.classList.remove("board-correction-selecting");
@@ -171,10 +167,40 @@
       await openPhotoBoardCorrectionMode(photo.id);
     }
 
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("元画像を読み込めませんでした"));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function loadOriginalForBoardEdit(photo) {
+      if (photo.baseDataUrl) return photo.baseDataUrl;
+      const driveId = String(photo.oneDriveDriveId || "");
+      const itemId = String(photo.originalItemId || "");
+      if (!driveId || !itemId || String(photo.originalUploadStatus || "") !== "uploaded") {
+        throw new Error("OneDrive上の元画像を特定できません。");
+      }
+      showToast("元画像を読み込み中...");
+      const blob = await OneDriveClient.downloadDriveFile({ driveId, itemId });
+      return blobToDataUrl(blob);
+    }
+
     async function openPhotoBoardCorrectionMode(photoId) {
       const photo = capturedPhotos.find((item) => item.id === photoId);
       if (!photo) {
         showToast("修正対象の写真が見つかりません");
+        return;
+      }
+
+      try {
+        boardEditOriginalDataUrl = await loadOriginalForBoardEdit(photo);
+      } catch (error) {
+        console.error("看板修正用元画像の取得に失敗しました", error);
+        window.alert("看板修正用の元画像を取得できませんでした。\nOneDrive接続を確認して、もう一度お試しください。");
+        boardEditOriginalDataUrl = "";
         return;
       }
 
@@ -188,7 +214,7 @@
       syncBoardTextareas();
 
       if (boardEditPhotoBackdrop) {
-        boardEditPhotoBackdrop.src = photo.baseDataUrl || photo.dataUrl;
+        boardEditPhotoBackdrop.src = boardEditOriginalDataUrl;
         boardEditPhotoBackdrop.onload = () => scheduleBoardEditCanvasRender();
       }
       if (boardEditDoneButton) {
@@ -206,9 +232,9 @@
         return;
       }
 
-      if (!photo.baseDataUrl) {
+      if (!boardEditOriginalDataUrl) {
         boardEditTargetPhotoId = null;
-        window.alert("この写真は看板修正用データがありません。");
+        window.alert("看板修正用の元画像がありません。");
         return;
       }
 
@@ -221,17 +247,16 @@
         let canvas;
         let newDataUrl;
         try {
-          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData() });
+          canvas = await composeBoardOnBaseImage(boardEditOriginalDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData() });
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         } catch (error) {
           console.warn("HTML看板での再合成に失敗したため、旧Canvas描画で再合成します", error);
-          canvas = await composeBoardOnBaseImage(photo.baseDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData(), forceLegacyBoard: true });
+          canvas = await composeBoardOnBaseImage(boardEditOriginalDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData(), forceLegacyBoard: true });
           newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         }
 
         const correctedType = getCurrentPhotoType();
         const correctedParts = parseSampleAndPoint(sampleNoInput.value);
-        const previousFileName = String(photo.fileName || "");
         const nextFileName = generatePhotoFileName(correctedParts.sampleNo, correctedParts.pointNo, correctedType.code, photo.id, photo.caseId);
         const correctedPhotoSaved = await PhotoState.update(photo, (draft) => {
           draft.dataUrl = newDataUrl;
@@ -250,20 +275,14 @@
           draft.completedUploadedAt = "";
           draft.completedItemId = "";
           draft.completedPath = "";
+          draft.completedPendingFileName = "";
+          draft.completedPendingItemId = "";
           draft.completedUploadError = "";
           draft.uploadStatus = "pending";
           draft.uploadedAt = "";
           draft.oneDriveItemId = "";
 
-          // ファイル名が変わる修正ではoriginalも新しい名前で再送する。
-          if (nextFileName !== previousFileName) {
-            draft.originalUploadStatus = draft.baseDataUrl ? "pending" : "not-applicable";
-            draft.originalUploadedAt = "";
-            draft.originalItemId = "";
-            draft.originalPath = "";
-            draft.originalUploadError = "";
-          }
-
+          // 元画像は1写真につき1回だけ。編集版は完成画像だけを新規送信する。
           draft.updatedAt = new Date().toISOString();
         });
         if (!correctedPhotoSaved || !correctedPhotoSaved.ok) {
@@ -278,6 +297,7 @@
         showErrorToast("看板修正に失敗しました");
       } finally {
         boardEditTargetPhotoId = null;
+        boardEditOriginalDataUrl = "";
       }
     }
 
@@ -328,9 +348,7 @@
               files,
               title: photos.length === 1 ? photos[0].fileName : `電子看板写真 ${photos.length}枚`
             });
-            await markPhotosAsSaved(photos);
-            showToast("保存しました");
-            renderPreview();
+            showToast("保存 / 共有が完了しました");
             return;
           }
         } catch (error) {
@@ -350,29 +368,7 @@
           link.remove();
         }, index * 250);
       });
-      await markPhotosAsSaved(photos);
-      showToast("保存しました");
-      renderPreview();
-    }
-
-    async function markPhotosAsSaved(photos) {
-      const savedAt = new Date().toISOString();
-      let failedCount = 0;
-
-      for (const photo of photos) {
-        const result = await PhotoState.update(photo, (draft) => {
-          draft.savedLocal = true;
-          draft.savedAt = savedAt;
-        });
-        if (!result || !result.ok) {
-          failedCount += 1;
-          console.warn("保存済マークの更新に失敗しました", result);
-        }
-      }
-
-      if (failedCount) {
-        showErrorToast(`保存状態の更新に失敗：${failedCount}枚`);
-      }
+      showToast("保存 / 共有が完了しました");
     }
 
     function dataUrlToBlob(dataUrl) {

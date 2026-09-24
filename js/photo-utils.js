@@ -121,20 +121,14 @@
     function getPhotoOneDriveIndicatorState(photo) {
       if (!photo) return "pending";
 
-      const originalStatus = photo.baseDataUrl
-        ? String(photo.originalUploadStatus || "pending")
-        : "not-applicable";
-      const completedStatus = photo.completedUploadStatus
-        ? String(photo.completedUploadStatus)
-        : (photo.uploadStatus === "uploaded" && photo.oneDriveItemId ? "uploaded" : "pending");
+      const liveState = window.PhotoOneDriveSync?.getLiveState?.(photo.id) || "";
+      if (liveState === "uploading" || liveState === "verifying") return "working";
 
-      const originalDone = originalStatus === "uploaded" || originalStatus === "not-applicable";
-      const completedDone = completedStatus === "uploaded";
+      const originalRequired = photo.originalRequired !== false;
+      const originalDone = !originalRequired || String(photo.originalUploadStatus || "") === "uploaded";
+      const completedDone = String(photo.completedUploadStatus || "") === "uploaded";
+
       if (originalDone && completedDone) return "uploaded";
-
-      if (["uploading", "verifying"].includes(originalStatus) || ["uploading", "verifying"].includes(completedStatus)) {
-        return "working";
-      }
       return "pending";
     }
     /**

@@ -150,6 +150,13 @@
     return children.find((item) => item.folder && String(item.name || "").trim() === expected) || null;
   }
 
+  async function findChildFile(parentRef, fileName) {
+    const expected = String(fileName || "").trim();
+    if (!expected) return null;
+    const children = await listDriveChildren(parentRef);
+    return children.find((item) => item.file && String(item.name || "").trim() === expected) || null;
+  }
+
   async function createChildFolder(parentRef, folderName) {
     const ref = normalizeRef(parentRef);
     const name = String(folderName || "").trim();
@@ -189,17 +196,21 @@
 
   /**
    * 写真をGraphのsimple uploadで保存する。
-   * 同名ファイルは同じ保存先へ上書きされるため、再送時も名前が増殖しない。
+   * conflictBehavior:"fail" の場合は同名を上書きしない。
    */
-  async function uploadDriveFile(parentRef, fileName, blob, contentType = "image/jpeg") {
+  async function uploadDriveFile(parentRef, fileName, blob, contentType = "image/jpeg", options = {}) {
     const ref = normalizeRef(parentRef);
     const name = String(fileName || "").trim();
     if (!ref.driveId || !ref.itemId) throw new Error("写真の保存先フォルダを特定できません。");
     if (!name) throw new Error("写真ファイル名が空です。");
     if (!(blob instanceof Blob) && !(blob instanceof ArrayBuffer)) throw new Error("送信する写真データがありません。");
 
+    const conflict = options.conflictBehavior === "fail"
+      ? "?@microsoft.graph.conflictBehavior=fail"
+      : "";
+
     const item = await graphRequest(
-      `/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}:/${encodeURIComponent(name)}:/content`,
+      `/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}:/${encodeURIComponent(name)}:/content${conflict}`,
       {
         method: "PUT",
         headers: { "Content-Type": contentType || "application/octet-stream" },
@@ -209,14 +220,37 @@
     return refForItem(item, ref.driveId);
   }
 
+  async function downloadDriveFile(itemRef) {
+    const ref = normalizeRef(itemRef);
+    if (!ref.driveId || !ref.itemId) throw new Error("元画像を特定できません。");
+    const token = await GraphSession.getAccessToken({ allowInteractive: false });
+    const response = await fetch(
+      `${GRAPH_BASE}/drives/${encodeURIComponent(ref.driveId)}/items/${encodeURIComponent(ref.itemId)}/content`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store"
+      }
+    );
+    if (!response.ok) {
+      const error = new Error(`元画像を取得できませんでした (${response.status})`);
+      error.status = response.status;
+      error.code = response.status === 404 ? "GRAPH_NOT_FOUND" : "GRAPH_DOWNLOAD_FAILED";
+      throw error;
+    }
+    return response.blob();
+  }
+
   window.OneDriveClient = Object.freeze({
     resolveSharedUrl,
     searchDriveFolders,
     getDriveItem,
     listDriveChildren,
     findChildFolder,
+    findChildFile,
     createChildFolder,
     ensureChildFolder,
-    uploadDriveFile
+    uploadDriveFile,
+    downloadDriveFile
   });
 })();

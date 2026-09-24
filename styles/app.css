@@ -1898,23 +1898,6 @@
       font-size: 16px;
     }
 
-    .saved-badge {
-      position: absolute;
-      left: 4px;
-      top: auto;
-      bottom: 4px;
-      z-index: 5;
-      padding: 2px 4px;
-      border-radius: 999px;
-      background: rgba(39, 174, 96, 0.92);
-      color: #fff;
-      font-size: 8px;
-      font-weight: 900;
-      line-height: 1;
-      pointer-events: none;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.28);
-    }
-
     /* 右上の選択丸と重ならないよう、その左隣に7pxで表示する。 */
     .onedrive-photo-dot {
       position: absolute;
@@ -2504,3 +2487,70 @@
       .top-microsoft-button .microsoft-signin-copy > strong { font-size: 11px; }
       .onedrive-status-badge { padding: 5px 7px; font-size: 10px; }
     }
+
+
+/* v65.37 設定内クラウド操作 / しらべ準拠アップデートUI */
+.settings-inline-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.update-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 22000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,0.72);
+}
+
+.update-modal.show {
+  display: flex;
+}
+
+.update-card {
+  width: min(92vw, 420px);
+  border-radius: 16px;
+  background: #fff;
+  color: #111;
+  padding: 18px;
+  box-shadow: 0 16px 50px rgba(0,0,0,0.45);
+}
+
+.update-card h3 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.update-message {
+  min-height: 54px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.update-actions button {
+  min-width: 100px;
+  min-height: 42px;
+  border: 1px solid #cfd4dc;
+  border-radius: 10px;
+  background: #f3f5f8;
+  color: #111;
+  font-weight: 900;
+  font-family: inherit;
+}
+
+.update-actions button.primary {
+  border-color: #2f80ed;
+  background: #2f80ed;
+  color: #fff;
+}

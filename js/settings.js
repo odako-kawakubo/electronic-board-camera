@@ -16,6 +16,8 @@
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
+    const settingsMicrosoftStateText = document.getElementById("settingsMicrosoftStateText");
+    const settingsOneDriveStateText = document.getElementById("settingsOneDriveStateText");
 
 
     /**
@@ -144,8 +146,63 @@
       }
     }
 
+    function renderCloudSettings() {
+      const graph = window.GraphSession?.getState?.() || {};
+      const oneDrive = window.OneDriveConnection?.getState?.() || {};
+      if (settingsMicrosoftStateText) {
+        settingsMicrosoftStateText.textContent = graph.account
+          ? (graph.tokenReady ? "接続済み" : "ログイン済み")
+          : "未接続";
+      }
+      if (settingsOneDriveStateText) {
+        settingsOneDriveStateText.textContent = oneDrive.connected
+          ? "接続済み"
+          : (oneDrive.text || "未接続");
+        settingsOneDriveStateText.title = oneDrive.error || "";
+      }
+    }
+
+    async function reconnectCloudFromSettings() {
+      try {
+        const graph = GraphSession.getState();
+        if (!graph.account) {
+          await loginMicrosoftGraph();
+          return;
+        }
+        await GraphSession.getAccessToken({ allowInteractive: true });
+        await OneDriveConnection.refresh({ force: true });
+        renderCloudSettings();
+        if (OneDriveConnection.getState().connected) {
+          showToast("Microsoft / OneDriveへ再接続しました");
+          PhotoOneDriveSync.requestSync();
+        }
+      } catch (error) {
+        console.error("Microsoft / OneDrive再接続失敗", error);
+        showErrorToast("再接続できませんでした");
+      }
+    }
+
+    async function retryOneDriveUploadsFromSettings() {
+      try {
+        if (!OneDriveConnection.getState().connected) {
+          await OneDriveConnection.refresh({ force: true });
+        }
+        const result = await PhotoOneDriveSync.syncCurrentCaseNow();
+        renderCloudSettings();
+        if (result?.ok) {
+          showToast(result.uploaded ? `再送しました（${result.uploaded}件）` : "未送信を再確認しました");
+        } else {
+          showErrorToast("再送できませんでした。接続状態を確認してください");
+        }
+      } catch (error) {
+        console.error("OneDrive手動再送失敗", error);
+        showErrorToast("再送できませんでした");
+      }
+    }
+
     function openSettings() {
       renderPhotoQualitySettings();
+      renderCloudSettings();
       if (window.CaseSession) CaseSession.renderSessionPanel();
 
       // トップは端末の向きをそのまま使い、アルバム側は従来の強制横向きへ合わせる。
@@ -161,3 +218,13 @@
       settingsOverlay.classList.remove("show", "app-oriented-modal");
     }
 
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.GraphSession?.subscribe) GraphSession.subscribe(renderCloudSettings);
+      if (window.OneDriveConnection?.subscribe) OneDriveConnection.subscribe(renderCloudSettings);
+      renderCloudSettings();
+    });
+
+    window.reconnectCloudFromSettings = reconnectCloudFromSettings;
+    window.retryOneDriveUploadsFromSettings = retryOneDriveUploadsFromSettings;

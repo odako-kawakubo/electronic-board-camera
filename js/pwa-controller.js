@@ -2,144 +2,297 @@
  * ============================================================
  * pwa-controller.js - PWA起動 / 更新 / 復帰制御
  * ============================================================
- * 責務:
- * - アプリバージョン表示と更新確認
- * - Service Worker登録、解除、Cache Storage整理
- * - iPhone/iPadホーム画面PWAの復帰時カメラ再開
- *
- * 保守上の注意:
- * - 写真本体のIndexedDBはここから削除しない。更新処理で消してよいのは
- *   Service Worker登録とCache Storageだけ。
- * - 圏外でも起動できることを優先し、更新確認失敗は起動失敗にしない。
- * - カメラ復帰処理はcamera.jsのresumeCameraAfterPreview()を利用する。
+ * しらべと同じ更新思想:
+ * - version.json の version + revision で最新版を判定
+ * - 利用者が「アップデート」を押した時だけwaiting SWへ切替要求
+ * - Service Worker全解除 / Cache Storage全削除は行わない
+ * - localStorage / IndexedDB / 写真データには触れない
  * ============================================================
  */
+(function () {
+  "use strict";
 
-    const APP_VERSION = "v65.36";
-    const settingsVersionText = document.getElementById("settingsVersionText");
+  const FIRST_CONTROL_RELOAD_KEY = "boardCameraPwaFirstControlReloaded";
+  const UPDATE_VERIFY_KEY = "boardCameraExpectedRevisionAfterReload";
+  let registrationPromise = null;
 
-    document.addEventListener("DOMContentLoaded", () => {
-      renderAppVersion();
-      checkAppUpdate();
-      setupPwaResumeHandlers();
+  const settingsVersionText = document.getElementById("settingsVersionText");
+  const updateModal = document.getElementById("updateModal");
+  const updateMessage = document.getElementById("updateMessage");
+  const closeUpdateButton = document.getElementById("closeAppUpdateButton");
+  const confirmUpdateButton = document.getElementById("confirmAppUpdateButton");
+
+  function currentVersionInfo() {
+    return {
+      version: String(window.AppVersion?.version || "").trim(),
+      revision: String(window.AppVersion?.revision || "").trim()
+    };
+  }
+
+  function normalizeVersionInfo(info = {}) {
+    return {
+      version: String(info.version || "").trim(),
+      revision: String(info.revision || "").trim()
+    };
+  }
+
+  function sameBuild(left, right) {
+    const a = normalizeVersionInfo(left);
+    const b = normalizeVersionInfo(right);
+    return Boolean(a.version && b.version)
+      && a.version === b.version
+      && a.revision === b.revision;
+  }
+
+  function buildLabel(info) {
+    const value = normalizeVersionInfo(info);
+    return value.revision ? `v${value.version}（${value.revision}）` : `v${value.version}`;
+  }
+
+  function renderAppVersion() {
+    if (settingsVersionText) settingsVersionText.textContent = buildLabel(currentVersionInfo());
+  }
+
+  function bindFirstControlReload() {
+    if (!("serviceWorker" in navigator)) return;
+    if (navigator.serviceWorker.controller) {
+      sessionStorage.removeItem(FIRST_CONTROL_RELOAD_KEY);
+      return;
+    }
+
+    const onControllerChange = () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      if (sessionStorage.getItem(FIRST_CONTROL_RELOAD_KEY) === "1") return;
+      sessionStorage.setItem(FIRST_CONTROL_RELOAD_KEY, "1");
+      location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+  }
+
+  function initializePwa() {
+    if (!("serviceWorker" in navigator)) return Promise.resolve(null);
+    if (registrationPromise) return registrationPromise;
+
+    bindFirstControlReload();
+    registrationPromise = navigator.serviceWorker
+      .register("./service-worker.js", { scope: "./", updateViaCache: "none" })
+      .then((registration) => {
+        if (navigator.serviceWorker.controller) {
+          sessionStorage.removeItem(FIRST_CONTROL_RELOAD_KEY);
+        }
+        return registration;
+      })
+      .catch((error) => {
+        console.warn("Service Workerを登録できませんでした", error);
+        return null;
+      });
+
+    return registrationPromise;
+  }
+
+  function waitForWaitingWorker(registration, timeoutMs = 12000) {
+    if (registration?.waiting) return Promise.resolve(registration.waiting);
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timer = null;
+
+      const finish = (worker = null) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        resolve(worker);
+      };
+
+      const watch = (worker) => {
+        if (!worker) return;
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed") finish(registration.waiting || worker);
+        });
+      };
+
+      watch(registration?.installing);
+      registration?.addEventListener("updatefound", () => watch(registration.installing), { once: true });
+      timer = window.setTimeout(() => finish(registration?.waiting || null), timeoutMs);
     });
+  }
 
-    window.addEventListener("load", () => {
-      registerAppServiceWorker();
+  async function preparePwaUpdate() {
+    const registration = await initializePwa();
+    if (!registration) return null;
+    await registration.update();
+    return waitForWaitingWorker(registration);
+  }
+
+  async function activatePreparedPwaUpdate(worker) {
+    if (!worker || !("serviceWorker" in navigator)) return false;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timer = null;
+
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        navigator.serviceWorker.removeEventListener("controllerchange", onChange);
+        resolve(value);
+      };
+
+      const onChange = () => finish(true);
+      navigator.serviceWorker.addEventListener("controllerchange", onChange);
+      timer = window.setTimeout(() => finish(false), 12000);
+      worker.postMessage({ type: "SKIP_WAITING" });
     });
+  }
 
-    function registerAppServiceWorker() {
-      if (!("serviceWorker" in navigator)) return;
-      navigator.serviceWorker
-        .register("./service-worker.js")
-        .then(() => console.log("Service Worker 登録完了"))
-        .catch((error) => console.error("Service Worker登録失敗", error));
+  async function fetchLatestVersionInfo() {
+    try {
+      const response = await fetch(`./version.json?ts=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`version.json fetch failed: ${response.status}`);
+      return normalizeVersionInfo(await response.json());
+    } catch (error) {
+      console.warn("最新バージョンを取得できませんでした", error);
+      return { ...currentVersionInfo(), fetchFailed: true };
+    }
+  }
+
+  function renderUpdateActions(canUpdate) {
+    if (closeUpdateButton) closeUpdateButton.textContent = canUpdate ? "キャンセル" : "閉じる";
+    if (confirmUpdateButton) {
+      confirmUpdateButton.hidden = !canUpdate;
+      confirmUpdateButton.disabled = false;
+    }
+  }
+
+  function openUpdatePrompt() {
+    updateModal?.classList.add("show");
+  }
+
+  function closeUpdatePrompt() {
+    updateModal?.classList.remove("show");
+  }
+
+  async function showUpdatePrompt() {
+    const current = currentVersionInfo();
+
+    if (updateMessage) {
+      updateMessage.innerHTML =
+        `現在：${buildLabel(current)}<br>` +
+        "最新バージョンを確認しています...";
     }
 
-    function setupPwaResumeHandlers() {
-      document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) resumeCameraIfNeeded();
-      });
+    renderUpdateActions(false);
+    openUpdatePrompt();
 
-      window.addEventListener("pageshow", () => {
-        resumeCameraIfNeeded();
-      });
+    const latest = await fetchLatestVersionInfo();
+    if (!updateMessage) return;
+
+    if (latest.fetchFailed) {
+      updateMessage.innerHTML =
+        `現在：${buildLabel(current)}<br><br>` +
+        "最新バージョンを確認できませんでした。<br>" +
+        "通信状態を確認して、もう一度お試しください。";
+      renderUpdateActions(false);
+      return;
     }
 
-    function resumeCameraIfNeeded() {
-      if (!currentStream) return;
-      if (previewOverlay && previewOverlay.classList.contains("show")) return;
-      resumeCameraAfterPreview();
+    if (sameBuild(latest, current)) {
+      updateMessage.innerHTML =
+        `現在：${buildLabel(current)}<br>` +
+        `最新：${buildLabel(latest)}<br><br>` +
+        "<b>最新の状態です。</b>";
+      renderUpdateActions(false);
+      return;
     }
 
-    function getShortAppVersion(version = APP_VERSION) {
-      const match = String(version || "").match(/^v?([0-9]+(?:\.[0-9]+)?[a-z]?)/i);
-      return match ? `v${match[1]}` : String(version || "");
-    }
+    updateMessage.innerHTML =
+      `現在：${buildLabel(current)}<br>` +
+      `最新：${buildLabel(latest)}<br><br>` +
+      "<b>アップデートできます。</b>";
+    renderUpdateActions(true);
+  }
 
-    function renderAppVersion() {
-      if (settingsVersionText) settingsVersionText.textContent = getShortAppVersion();
-    }
+  async function applyAppUpdate() {
+    if (confirmUpdateButton) confirmUpdateButton.disabled = true;
 
-    async function getLatestAppVersion() {
-      const url = new URL(window.location.href);
-      url.searchParams.set("_update_check", Date.now());
+    try {
+      const latest = await fetchLatestVersionInfo();
+      if (latest.fetchFailed) throw new Error("最新バージョンを確認できませんでした。");
 
-      const response = await fetch(url.toString(), {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" }
-      });
+      sessionStorage.setItem(UPDATE_VERIFY_KEY, JSON.stringify(latest));
 
-      const html = await response.text();
-      const match = html.match(/const APP_VERSION = "([^"]+)"/);
-      return match ? match[1] : null;
-    }
+      if (updateMessage) updateMessage.textContent = "アップデートをダウンロードしています…";
+      const worker = await preparePwaUpdate();
 
-    async function clearAppCachesAndServiceWorker() {
-      try {
-        if ("serviceWorker" in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map((registration) => registration.unregister()));
-        }
-      } catch (error) {
-        console.log("Service Worker解除に失敗しました", error);
+      if (updateMessage) updateMessage.textContent = "アップデートを適用しています…";
+      const switched = await activatePreparedPwaUpdate(worker);
+      if (!switched && worker) {
+        console.warn("Service Worker切替完了を確認できませんでした。通常reloadを続行します。");
       }
 
-      try {
-        if (window.caches) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((key) => caches.delete(key)));
-        }
-      } catch (error) {
-        console.log("キャッシュ削除に失敗しました", error);
+      location.reload();
+    } catch (error) {
+      sessionStorage.removeItem(UPDATE_VERIFY_KEY);
+      console.error("アプリをアップデートできませんでした", error);
+      if (updateMessage) {
+        updateMessage.innerHTML =
+          "アップデートできませんでした。<br>" +
+          "通信状態を確認して、もう一度お試しください。";
       }
+      renderUpdateActions(false);
+    }
+  }
+
+  async function verifyPendingAppUpdate() {
+    const raw = sessionStorage.getItem(UPDATE_VERIFY_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(UPDATE_VERIFY_KEY);
+
+    let expected;
+    try {
+      expected = normalizeVersionInfo(JSON.parse(raw));
+    } catch (error) {
+      expected = { version: String(raw || ""), revision: "" };
     }
 
-    async function reloadAppWithVersion(versionLabel) {
-      await clearAppCachesAndServiceWorker();
-      const reloadUrl = new URL(window.location.href);
-      reloadUrl.searchParams.set("v", versionLabel || Date.now());
-      reloadUrl.searchParams.set("_reload", Date.now());
-      window.location.replace(reloadUrl.toString());
+    const latest = await fetchLatestVersionInfo();
+    const target = latest.fetchFailed ? expected : latest;
+    if (sameBuild(currentVersionInfo(), target)) return;
+
+    if (updateMessage) {
+      updateMessage.innerHTML =
+        "アップデートを確認できませんでした。<br><br>" +
+        "Safariでこのアプリを直接開いて、もう一度アップデートしてください。<br>" +
+        "それでも切り替わらない場合は、ホーム画面のアプリを終了して開き直してください。";
     }
+    renderUpdateActions(false);
+    openUpdatePrompt();
+  }
 
-    async function checkAppUpdate() {
-      try {
-        const latestVersion = await getLatestAppVersion();
-        if (!latestVersion) return;
+  function setupPwaResumeHandlers() {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) resumeCameraIfNeeded();
+    });
+    window.addEventListener("pageshow", resumeCameraIfNeeded);
+  }
 
-        if (latestVersion !== APP_VERSION) {
-          const ok = window.confirm(
-            `新しいバージョンがあります。\n\n現在：${getShortAppVersion(APP_VERSION)}\n最新：${getShortAppVersion(latestVersion)}\n\n更新しますか？`
-          );
+  function resumeCameraIfNeeded() {
+    if (typeof currentStream === "undefined" || !currentStream) return;
+    if (typeof previewOverlay !== "undefined" && previewOverlay?.classList.contains("show")) return;
+    if (typeof resumeCameraAfterPreview === "function") void resumeCameraAfterPreview();
+  }
 
-          if (ok) await reloadAppWithVersion(latestVersion);
-        }
-      } catch (error) {
-        // 圏外や通信不良は正常運用の一部。更新確認失敗で起動を止めない。
-        console.log("更新確認に失敗しました", error);
-      }
-    }
+  document.addEventListener("DOMContentLoaded", () => {
+    renderAppVersion();
+    setupPwaResumeHandlers();
+    void initializePwa();
+    void verifyPendingAppUpdate();
+  });
 
-    async function forceAppUpdate() {
-      try {
-        showToast("最新版を確認中...");
-        const latestVersion = await getLatestAppVersion();
-        if (latestVersion && latestVersion !== APP_VERSION) {
-          const ok = window.confirm(
-            `新しいバージョンがあります。\n\n現在：${getShortAppVersion(APP_VERSION)}\n最新：${getShortAppVersion(latestVersion)}\n\n更新しますか？`
-          );
-          if (!ok) return;
-          await reloadAppWithVersion(latestVersion);
-          return;
-        }
-
-        const ok = window.confirm(
-          `現在のバージョン：${getShortAppVersion(APP_VERSION)}\n\nキャッシュを削除して、このバージョンを読み込み直しますか？`
-        );
-        if (ok) await reloadAppWithVersion(latestVersion || APP_VERSION);
-      } catch (error) {
-        console.log("手動更新に失敗しました", error);
-        showErrorToast("更新に失敗しました");
-      }
-    }
+  window.showUpdatePrompt = showUpdatePrompt;
+  window.closeUpdatePrompt = closeUpdatePrompt;
+  window.applyAppUpdate = applyAppUpdate;
+  window.forceAppUpdate = showUpdatePrompt;
+})();

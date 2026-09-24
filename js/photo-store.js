@@ -126,8 +126,8 @@
       if (stored.id !== photo.id) throw new Error("保存直後の読み返しで写真IDが一致しません");
       if (!stored.dataUrl) throw new Error("保存直後の読み返しで完成画像が不足しています");
 
-      // 元画像はカメラ撮影では必須だが、既存写真への看板添付では仕様上保持しない。
-      // 保存前のphotoがbaseDataUrlを持っていた場合だけ、read-backでも存在確認する。
+      // 元画像を保持している写真は、撮影/看板添付を問わずread-backでも存在確認する。
+      // OneDriveで元画像/完成画像の両方を確認後は同期側がbaseDataUrlを解放するため、その後は必須にしない。
       if (photo.baseDataUrl && !stored.baseDataUrl) {
         throw new Error("保存直後の読み返しで元画像が不足しています");
       }

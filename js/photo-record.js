@@ -9,7 +9,7 @@
  * 保守上の注意:
  * - ここでは保存しない。保存正本はPhotoStore。
  * - UIや撮影処理を持たない。
- * - v65.26では既存プロパティのみ使用し、新しいプロパティは追加しない。
+ * - original/completedのOneDrive参照とpending metadataもここで初期化する。
  * ============================================================
  */
 
@@ -44,14 +44,21 @@
       oneDriveFolderName: caseSession ? caseSession.folderName : "",
 
       oneDriveDriveId: "",
+      originalRequired: hasOriginal,
+      originalFileName: String(options.fileName || ""),
       originalUploadStatus: hasOriginal ? "pending" : "not-applicable",
       originalUploadedAt: "",
       originalItemId: "",
       originalPath: "",
+      originalPendingFileName: "",
+      originalPendingItemId: "",
+      completedFileName: String(options.fileName || ""),
       completedUploadStatus: "pending",
       completedUploadedAt: "",
       completedItemId: "",
       completedPath: "",
+      completedPendingFileName: "",
+      completedPendingItemId: "",
       originalUploadError: "",
       completedUploadError: "",
 
@@ -61,9 +68,7 @@
       oneDriveItemId: "",
       isSection: Boolean(options.isSection),
       selected: false,
-      createdAt,
-      savedLocal: false,
-      savedAt: ""
+      createdAt
     };
 
     // 既存写真への看板添付だけが従来から持つ既存プロパティ。

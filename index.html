@@ -405,9 +405,19 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.36</strong>
+        現在：<strong id="settingsVersionText">v65.37</strong>
       </div>
-      <button class="settings-update-button" type="button" onclick="forceAppUpdate()">最新版を読み込み直す</button>
+      <button class="settings-update-button" type="button" onclick="showUpdatePrompt()">バージョン確認</button>
+
+      <div class="settings-section-title">☁ Microsoft / OneDrive</div>
+      <div class="settings-version-box">
+        Microsoft：<strong id="settingsMicrosoftStateText">確認中...</strong><br>
+        OneDrive：<strong id="settingsOneDriveStateText">確認中...</strong>
+      </div>
+      <div class="settings-inline-actions">
+        <button class="settings-update-button" type="button" onclick="reconnectCloudFromSettings()">再接続</button>
+        <button class="settings-update-button" type="button" onclick="retryOneDriveUploadsFromSettings()">今すぐ再送</button>
+      </div>
 
       <div class="settings-section-title">💾 端末保存</div>
       <div class="settings-version-box">
@@ -442,6 +452,17 @@
     </div>
   </div>
 
+  <div id="updateModal" class="update-modal" aria-modal="true" role="dialog">
+    <div class="update-card">
+      <h3>アップデート</h3>
+      <div id="updateMessage" class="update-message">最新バージョンを確認します。</div>
+      <div class="update-actions">
+        <button id="closeAppUpdateButton" type="button" onclick="closeUpdatePrompt()">閉じる</button>
+        <button id="confirmAppUpdateButton" class="primary" type="button" onclick="applyAppUpdate()" hidden>アップデート</button>
+      </div>
+    </div>
+  </div>
+
 
   <script src="./js/microsoft-config.js"></script>
   <script src="./js/graph-session.js"></script>
@@ -467,6 +488,7 @@
   <script src="./js/photo-album.js"></script>
   <script src="./js/photo-viewer.js"></script>
   <script src="./js/storage-manager.js"></script>
+  <script src="./js/app-version.js"></script>
   <script src="./js/pwa-controller.js"></script>
 </body>
 </html>

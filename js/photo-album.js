@@ -316,12 +316,6 @@
           await togglePhotoSelected(index);
         };
 
-        if (photo.savedLocal) {
-          const savedBadge = document.createElement("span");
-          savedBadge.className = "saved-badge";
-          savedBadge.textContent = "端末保存済";
-          item.appendChild(savedBadge);
-        }
         item.appendChild(createOneDrivePhotoDot(photo));
         item.appendChild(img);
         item.appendChild(check);
@@ -376,12 +370,6 @@
 
         info.appendChild(status);
         info.appendChild(file);
-        if (photo.savedLocal) {
-          const savedBadge = document.createElement("span");
-          savedBadge.className = "saved-badge";
-          savedBadge.textContent = "端末保存済";
-          item.appendChild(savedBadge);
-        }
         item.appendChild(createOneDrivePhotoDot(photo));
         item.appendChild(img);
         item.appendChild(check);

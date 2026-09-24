@@ -1901,7 +1901,8 @@
     .saved-badge {
       position: absolute;
       left: 4px;
-      top: 4px;
+      top: auto;
+      bottom: 4px;
       z-index: 5;
       padding: 2px 4px;
       border-radius: 999px;

@@ -63,6 +63,9 @@
       throw error;
     }
     Object.assign(photo, merged);
+    window.dispatchEvent(new CustomEvent("photo-upload-state-changed", {
+      detail: { photoId: photo.id }
+    }));
   }
 
   function buildVariantPlan(photo, folders) {
@@ -82,10 +85,21 @@
     if (!fileName) return { ok:false, reason:"filename-missing" };
 
     try {
+      await saveUploadPatch(photo, {
+        [plan.statusField]: "uploading",
+        [plan.errorField]: ""
+      });
+
       const blob = dataUrlToBlob(plan.dataUrl);
       const uploaded = await OneDriveClient.uploadDriveFile(plan.folder, fileName, blob, blob.type || "image/jpeg");
       const uploadedRef = {driveId:String(uploaded?.driveId || plan.folder?.driveId || ""),itemId:String(uploaded?.itemId || uploaded?.id || "")};
       if (!uploadedRef.driveId || !uploadedRef.itemId) throw new Error("OneDrive保存後のitemIdを確認できませんでした。");
+
+      await saveUploadPatch(photo, {
+        [plan.statusField]: "verifying",
+        [plan.errorField]: ""
+      });
+
       const verified = await OneDriveClient.getDriveItem(uploadedRef);
       if (!verified?.file || !verified?.itemId) throw new Error("OneDrive保存後のファイル実在確認に失敗しました。");
 

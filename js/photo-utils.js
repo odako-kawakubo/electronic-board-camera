@@ -79,23 +79,64 @@
 
      */
 
-    function generatePhotoFileName(sampleNo, pointNo, statusCode, excludePhotoId = "") {
+    function generatePhotoFileName(sampleNo, pointNo, statusCode, excludePhotoId = "", caseId = "") {
       const baseName = `${sampleNo}-${pointNo}-${statusCode}`;
+      const excludedPhoto = excludePhotoId
+        ? capturedPhotos.find((photo) => photo && photo.id === excludePhotoId)
+        : null;
+      const activeCaseId = window.CaseSession
+        ? String(CaseSession.getCurrentSession()?.id || "")
+        : "";
+      const targetCaseId = String(caseId || excludedPhoto?.caseId || activeCaseId || "");
       const used = new Set();
+
       capturedPhotos.forEach((photo) => {
         if (!photo || photo.id === excludePhotoId) return;
+        if (targetCaseId && String(photo.caseId || "") !== targetCaseId) return;
         if (String(photo.sampleNo) !== String(sampleNo) || String(photo.pointNo) !== String(pointNo) || String(photo.statusCode) !== String(statusCode)) return;
+
         const file = String(photo.fileName || "");
-        if (file === `${baseName}.jpg`) used.add(1);
-        const match = file.match(new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d{2,})\\.jpg$`));
-        if (match) used.add(Math.max(2, Number(match[1]) || 0));
+        if (file === `${baseName}.jpg`) {
+          used.add(1);
+          return;
+        }
+        if (file.startsWith(`${baseName}_`) && file.endsWith(".jpg")) {
+          const suffix = file.slice(baseName.length + 1, -4);
+          if (/^\d{2,}$/.test(suffix)) used.add(Math.max(2, Number(suffix) || 0));
+        }
       });
+
       if (!used.has(1)) return `${baseName}.jpg`;
       let next = 2;
       while (used.has(next)) next += 1;
       return `${baseName}_${String(next).padStart(2, "0")}.jpg`;
     }
 
+    /**
+     * 写真右上のOneDrive状態●で使う3状態を返す。
+     * uploaded = original/completedとも送信・実在確認済み
+     * working  = 送信中または保存確認中
+     * pending  = 未送信/再送待ち
+     */
+    function getPhotoOneDriveIndicatorState(photo) {
+      if (!photo) return "pending";
+
+      const originalStatus = photo.baseDataUrl
+        ? String(photo.originalUploadStatus || "pending")
+        : "not-applicable";
+      const completedStatus = photo.completedUploadStatus
+        ? String(photo.completedUploadStatus)
+        : (photo.uploadStatus === "uploaded" && photo.oneDriveItemId ? "uploaded" : "pending");
+
+      const originalDone = originalStatus === "uploaded" || originalStatus === "not-applicable";
+      const completedDone = completedStatus === "uploaded";
+      if (originalDone && completedDone) return "uploaded";
+
+      if (["uploading", "verifying"].includes(originalStatus) || ["uploading", "verifying"].includes(completedStatus)) {
+        return "working";
+      }
+      return "pending";
+    }
     /**
 
      * 起動時に保存写真を読み込み、撮影順へ整列してcapturedPhotosを復元する。

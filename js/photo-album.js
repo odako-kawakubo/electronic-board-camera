@@ -245,6 +245,28 @@
     }
 
 
+    function createOneDrivePhotoDot(photo) {
+      const dot = document.createElement("span");
+      dot.className = `onedrive-photo-dot ${getPhotoOneDriveIndicatorState(photo)}`;
+      dot.dataset.photoId = String(photo.id || "");
+      dot.setAttribute("aria-label", "OneDrive送信状態");
+      return dot;
+    }
+
+    function refreshOneDrivePhotoDots(photoId) {
+      const id = String(photoId || "");
+      if (!id) return;
+      const photo = capturedPhotos.find((item) => String(item.id || "") === id);
+      if (!photo) return;
+      const state = getPhotoOneDriveIndicatorState(photo);
+
+      document.querySelectorAll(".onedrive-photo-dot").forEach((dot) => {
+        if (dot.dataset.photoId !== id) return;
+        dot.classList.remove("uploaded", "working", "pending");
+        dot.classList.add(state);
+      });
+    }
+
     function renderThumbnails() {
       previewThumbnails.innerHTML = "";
 
@@ -297,9 +319,10 @@
         if (photo.savedLocal) {
           const savedBadge = document.createElement("span");
           savedBadge.className = "saved-badge";
-          savedBadge.textContent = "保存済";
+          savedBadge.textContent = "端末保存済";
           item.appendChild(savedBadge);
         }
+        item.appendChild(createOneDrivePhotoDot(photo));
         item.appendChild(img);
         item.appendChild(check);
         previewThumbnails.appendChild(item);
@@ -356,9 +379,10 @@
         if (photo.savedLocal) {
           const savedBadge = document.createElement("span");
           savedBadge.className = "saved-badge";
-          savedBadge.textContent = "保存済";
+          savedBadge.textContent = "端末保存済";
           item.appendChild(savedBadge);
         }
+        item.appendChild(createOneDrivePhotoDot(photo));
         item.appendChild(img);
         item.appendChild(check);
         item.appendChild(info);
@@ -471,3 +495,8 @@
       if (deleteResult.ok) showToast("削除しました");
     }
 
+
+    // OneDrive送信側の状態変更通知で、表示済みの●だけを更新する。
+    window.addEventListener("photo-upload-state-changed", (event) => {
+      refreshOneDrivePhotoDots(event?.detail?.photoId);
+    });

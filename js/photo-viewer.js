@@ -129,7 +129,7 @@
       previewCounter.textContent = `${previewIndex + 1} / ${photos.length}`;
       previewMeta.textContent = isBoardCorrectionSelectMode
         ? "看板修正する写真を選択してください"
-        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.savedLocal ? "　✓保存済" : ""}${photo.selected ? "　✓選択中" : ""}`;
+        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.savedLocal ? "　✓端末保存済" : ""}${photo.selected ? "　✓選択中" : ""}`;
       updatePreviewHeader();
       renderThumbnails();
       renderPhotoList();
@@ -231,7 +231,8 @@
 
         const correctedType = getCurrentPhotoType();
         const correctedParts = parseSampleAndPoint(sampleNoInput.value);
-        const nextFileName = generatePhotoFileName(correctedParts.sampleNo, correctedParts.pointNo, correctedType.code, photo.id);
+        const previousFileName = String(photo.fileName || "");
+        const nextFileName = generatePhotoFileName(correctedParts.sampleNo, correctedParts.pointNo, correctedType.code, photo.id, photo.caseId);
         const correctedPhotoSaved = await PhotoState.update(photo, (draft) => {
           draft.dataUrl = newDataUrl;
           draft.subjectName = getCurrentSubjectName();
@@ -243,6 +244,26 @@
           draft.pointNo = correctedParts.pointNo;
           draft.isSection = correctedType.value === SECTION_PHOTO_TYPE.value;
           draft.fileName = nextFileName;
+
+          // 完成画像を作り直したため、completedは必ず再送対象へ戻す。
+          draft.completedUploadStatus = "pending";
+          draft.completedUploadedAt = "";
+          draft.completedItemId = "";
+          draft.completedPath = "";
+          draft.completedUploadError = "";
+          draft.uploadStatus = "pending";
+          draft.uploadedAt = "";
+          draft.oneDriveItemId = "";
+
+          // ファイル名が変わる修正ではoriginalも新しい名前で再送する。
+          if (nextFileName !== previousFileName) {
+            draft.originalUploadStatus = draft.baseDataUrl ? "pending" : "not-applicable";
+            draft.originalUploadedAt = "";
+            draft.originalItemId = "";
+            draft.originalPath = "";
+            draft.originalUploadError = "";
+          }
+
           draft.updatedAt = new Date().toISOString();
         });
         if (!correctedPhotoSaved || !correctedPhotoSaved.ok) {

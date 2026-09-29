@@ -538,10 +538,19 @@
     return session.kind === "formal" ? ensureFormalSessionFolder(session) : ensureTemporarySessionFolder(session);
   }
 
-  function changeDeviceName() {
+  async function changeDeviceName() {
     const current = getDeviceName();
-    const next = window.prompt("この端末の名前を入力してください", current);
-    if (next === null || !String(next).trim()) return;
+    const next = await AppDialog.input({
+      title: "端末名",
+      message: "この端末の名前を入力してください。",
+      value: current,
+      okLabel: "変更",
+      cancelLabel: "キャンセル"
+    });
+    if (next === null || !String(next).trim()) {
+      if (next !== null) showErrorToast("端末名を入力してください");
+      return;
+    }
     const saved = setDeviceName(next);
     if (typeof showToast === "function") showToast(`端末名を ${saved} にしました。次の新規案件から反映します`);
   }

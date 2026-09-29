@@ -154,9 +154,15 @@
       panelMainButtons.forEach((button) => button.classList.remove("active"));
     }
 
-    function promptRoomNo() {
+    async function promptRoomNo() {
       const label = boardMode === "sampling" ? "採取箇所" : "部屋No.";
-      const next = window.prompt(`${label}を入力してください`, roomNoInput.value || "");
+      const next = await AppDialog.input({
+        title: label,
+        message: `${label}を入力してください。`,
+        value: roomNoInput.value || "",
+        okLabel: "決定",
+        cancelLabel: "キャンセル"
+      });
       if (next === null) return;
       roomNoInput.value = next.trim();
       samplingLocationTargetIndex = 0;
@@ -166,8 +172,14 @@
       showToast(`${label}を変更しました`);
     }
 
-    function promptSampleNo() {
-      const next = window.prompt("試料No.を入力してください", sampleNoInput.value || POINT_DISPLAY_DEFAULT);
+    async function promptSampleNo() {
+      const next = await AppDialog.input({
+        title: "試料No.",
+        message: "試料No.を入力してください。",
+        value: sampleNoInput.value || POINT_DISPLAY_DEFAULT,
+        okLabel: "決定",
+        cancelLabel: "キャンセル"
+      });
       if (next === null) return;
       sampleNoInput.value = next.trim() || POINT_DISPLAY_DEFAULT;
       saveBoardForm();

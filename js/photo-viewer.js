@@ -32,7 +32,8 @@
       // v61: セッション内に写真があれば再読込を省略し、表示ボタンの待ち時間を短縮する。
       if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
 
-      selectedCaseKey = getLatestCaseKey();
+      const activeCaseId = String(window.CaseSession?.getCurrentSession?.()?.id || "");
+      selectedCaseKey = activeCaseId ? `case:${activeCaseId}` : getLatestCaseKey();
       const photos = getPreviewPhotos();
       previewIndex = Math.max(0, photos.length - 1);
       setPreviewListMode(false);
@@ -164,6 +165,15 @@
       previewOverlay.classList.remove("board-correction-selecting");
       previewOverlay.classList.remove("show");
       setPreviewListMode(false);
+
+      // 閲覧だけでは現在案件を変えないが、看板修正は案件別看板状態へ書き込むため
+      // 修正対象写真のcaseIdへ切り替えてから編集を開始する。
+      const photoCaseId = String(photo.caseId || "");
+      const activeCaseId = String(window.CaseSession?.getCurrentSession?.()?.id || "");
+      if (photoCaseId && photoCaseId !== activeCaseId && window.CaseSession?.activateSession) {
+        CaseSession.activateSession(photoCaseId, photo.subjectName || "");
+      }
+
       await openPhotoBoardCorrectionMode(photo.id);
     }
 

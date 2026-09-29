@@ -555,7 +555,14 @@
         return;
       }
 
-      const ok = window.confirm(`選択した画像 ${selectedPhotos.length}枚を削除しますか？`);
+      const hasUploaded = selectedPhotos.some((photo) =>
+        String(photo.originalUploadStatus || "") === "uploaded" ||
+        String(photo.completedUploadStatus || "") === "uploaded"
+      );
+      const message = hasUploaded
+        ? `選択した画像 ${selectedPhotos.length}枚を端末内から削除しますか？\n\nOneDriveに保存済みの写真は削除されません。`
+        : `選択した画像 ${selectedPhotos.length}枚を削除しますか？`;
+      const ok = window.confirm(message);
       if (!ok) return;
 
       const deleteResult = await PhotoState.deleteMany(selectedPhotos);

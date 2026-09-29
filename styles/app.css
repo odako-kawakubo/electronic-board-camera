@@ -1230,6 +1230,38 @@
       font-weight: 900;
     }
 
+    .case-picker-cloud-area { margin-bottom: 8px; }
+    .case-picker-search {
+      width: 100%;
+      min-height: 42px;
+      padding: 8px 11px;
+      border: 2px solid #cfd5dd;
+      border-radius: 10px;
+      background: #fff;
+      color: #111;
+      font: 800 14px/1.2 inherit;
+    }
+    .case-picker-search:focus {
+      outline: none;
+      border-color: #2f80ed;
+      box-shadow: 0 0 0 2px rgba(47,128,237,.13);
+    }
+    .case-picker-status {
+      margin: 8px 2px 4px;
+      color: #5d6570;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .case-picker-section-title {
+      margin: 14px 2px 5px;
+      padding-top: 10px;
+      border-top: 1px solid #e1e4e8;
+      color: #555;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .case-item-remote .case-name { font-size: 15px; }
+
     .case-item {
       width: 100%;
       border: 2px solid #ddd;
@@ -2249,17 +2281,19 @@
       overflow: hidden;
     }
     .launch-home-label { color: #aebccc; font-size: 12px; font-weight: 800; }
-    .launch-home-case-id {
+    .launch-home-case-subject {
       width: 100%;
       margin-top: 3px;
+      color: #fff;
       font-size: clamp(17px, 3vw, 23px);
       font-weight: 900;
-      letter-spacing: .035em;
+      letter-spacing: .01em;
+      line-height: 1.2;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .launch-home-case-subject {
+    .launch-home-case-id {
       width: 100%;
       margin-top: 2px;
       color: #e7edf5;
@@ -2342,8 +2376,8 @@
       .launch-home-case, .launch-home-button { min-height: 56px; border-radius: 12px; }
       .launch-home-case { padding: 6px 10px; }
       .launch-home-label { font-size: 10px; }
-      .launch-home-case-id { font-size: 16px; }
-      .launch-home-case-subject { font-size: 11px; }
+      .launch-home-case-subject { font-size: 16px; }
+      .launch-home-case-id { font-size: 11px; }
       .launch-home-button { font-size: 14px; }
       .launch-resume-panel { margin-top: 7px; padding: 7px 9px; }
       .launch-resume-title { font-size: 12px; }
@@ -2522,7 +2556,7 @@
 .update-modal {
   position: fixed;
   inset: 0;
-  z-index: 22000;
+  z-index: 42000;
   display: none;
   align-items: center;
   justify-content: center;

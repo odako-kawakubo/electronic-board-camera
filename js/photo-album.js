@@ -17,6 +17,11 @@
     const caseSelectButton = document.getElementById("caseSelectButton");
     const casePickerOverlay = document.getElementById("casePickerOverlay");
     const casePickerList = document.getElementById("casePickerList");
+    const casePickerCloudArea = document.getElementById("casePickerCloudArea");
+    const casePickerSearchInput = document.getElementById("casePickerSearchInput");
+    const casePickerCloudStatus = document.getElementById("casePickerCloudStatus");
+    const casePickerRemoteList = document.getElementById("casePickerRemoteList");
+    const casePickerLocalTitle = document.getElementById("casePickerLocalTitle");
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
     const previewSortButton = document.getElementById("previewSortButton");
@@ -26,6 +31,9 @@
     let previewSortMode = "shooting";
     let selectedCaseKey = "";
     let casePickerOpenedFromTop = false;
+    let formalProjects = [];
+    let formalProjectsLoading = false;
+    let formalProjectsError = "";
 
     function getPhotoSubject(photo) {
       return String(photo.subjectName || photo.subject || APP_DATA.subject || "無題案件").trim() || "無題案件";
@@ -143,11 +151,12 @@
     }
 
     function openCasePickerFromTop() {
-      // トップ画面は端末の縦横をそのまま使う。
       casePickerOpenedFromTop = true;
       casePickerOverlay.classList.remove("app-oriented-modal");
+      if (casePickerSearchInput) casePickerSearchInput.value = "";
       renderCasePicker();
       casePickerOverlay.classList.add("show");
+      void loadFormalProjects();
     }
 
     function closeCasePicker() {
@@ -155,10 +164,88 @@
       casePickerOpenedFromTop = false;
     }
 
+    function projectMatchesSearch(item, query) {
+      if (!query) return true;
+      const haystack = `${item.projectNo || ""} ${item.projectName || ""} ${item.name || ""}`.toLocaleLowerCase("ja");
+      return haystack.includes(query.toLocaleLowerCase("ja"));
+    }
+
+    async function loadFormalProjects() {
+      if (!casePickerOpenedFromTop || formalProjectsLoading) return;
+      formalProjectsLoading = true;
+      formalProjectsError = "";
+      renderCasePicker();
+      try {
+        if (!window.OneDriveConnection?.getState?.().connected) {
+          await OneDriveConnection.refresh({ force: true });
+        }
+        if (!OneDriveConnection.getState().connected) {
+          throw new Error(OneDriveConnection.getState().error || "OneDriveへ接続できません。");
+        }
+        formalProjects = await OneDriveRoot.listProjectFolders({ force: false });
+      } catch (error) {
+        formalProjects = [];
+        formalProjectsError = error?.message || "OneDrive案件を取得できませんでした。";
+      } finally {
+        formalProjectsLoading = false;
+        if (casePickerOpenedFromTop) renderCasePicker();
+      }
+    }
+
+    async function selectFormalProject(project) {
+      try {
+        await CaseSession.activateFormalProject(project);
+        selectedCaseKey = `case:${project.projectNo}`;
+        previewIndex = 0;
+        closeCasePicker();
+      } catch (error) {
+        console.error("正式案件の選択に失敗しました", error);
+        showErrorToast("案件を選択できませんでした");
+      }
+    }
+
     function renderCasePicker() {
       casePickerList.innerHTML = "";
+      const query = String(casePickerSearchInput?.value || "").trim();
+      if (casePickerCloudArea) casePickerCloudArea.hidden = !casePickerOpenedFromTop;
 
-      getCaseSummaries().forEach((item) => {
+      if (casePickerOpenedFromTop && casePickerRemoteList && casePickerCloudStatus) {
+        casePickerRemoteList.innerHTML = "";
+        if (formalProjectsLoading) {
+          casePickerCloudStatus.textContent = "OneDrive案件を確認しています...";
+        } else if (formalProjectsError) {
+          casePickerCloudStatus.textContent = formalProjectsError;
+        } else {
+          const visibleProjects = formalProjects.filter((item) => projectMatchesSearch(item, query));
+          casePickerCloudStatus.textContent = formalProjects.length
+            ? `OneDrive案件 ${visibleProjects.length} / ${formalProjects.length}件`
+            : "条件に一致する正式案件はありません";
+
+          visibleProjects.forEach((project) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "case-item case-item-remote";
+            button.onclick = () => void selectFormalProject(project);
+            const name = document.createElement("div");
+            name.className = "case-name";
+            name.textContent = project.projectName;
+            const number = document.createElement("div");
+            number.className = "case-count";
+            number.textContent = project.projectNo;
+            button.appendChild(name);
+            button.appendChild(number);
+            casePickerRemoteList.appendChild(button);
+          });
+        }
+      }
+
+      const localCases = getCaseSummaries().filter((item) => {
+        if (!query || !casePickerOpenedFromTop) return true;
+        return projectMatchesSearch({ projectNo:item.caseId, projectName:item.subject }, query);
+      });
+      if (casePickerLocalTitle) casePickerLocalTitle.hidden = !casePickerOpenedFromTop || localCases.length === 0;
+
+      localCases.forEach((item) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "case-item";
@@ -188,6 +275,13 @@
         button.appendChild(name);
         button.appendChild(count);
         casePickerList.appendChild(button);
+      });
+    }
+
+    if (casePickerSearchInput && casePickerSearchInput.dataset.bound !== "1") {
+      casePickerSearchInput.dataset.bound = "1";
+      casePickerSearchInput.addEventListener("input", () => {
+        if (casePickerOpenedFromTop) renderCasePicker();
       });
     }
 

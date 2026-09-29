@@ -11,6 +11,7 @@
   "use strict";
 
   const PHOTO_ROOT_NAME = "サンプリング写真";
+  const FORMAL_PROJECT_NAME_PATTERN = /^(\d{9})　(.+)$/;
   let samplingRootCache = null;
   let samplingPhotoRootCache = null;
 
@@ -81,10 +82,16 @@
   async function listProjectFolders({ force = false } = {}) {
     const projectRoot = await getProjectRoot({ force });
     const children = await OneDriveClient.listDriveChildren(projectRoot);
-    return children.filter((item) => {
-      if (!item?.folder) return false;
-      return String(item.name || "").trim() !== PHOTO_ROOT_NAME;
-    });
+    return children
+      .filter((item) => item?.folder)
+      .map((item) => {
+        const name = String(item.name || "").trim();
+        const match = name.match(FORMAL_PROJECT_NAME_PATTERN);
+        if (!match) return null;
+        return { ...item, projectNo: match[1], projectName: match[2].trim() };
+      })
+      .filter(Boolean)
+      .sort((a, b) => String(b.projectNo).localeCompare(String(a.projectNo), "ja"));
   }
 
   function clearSamplingRoot() {

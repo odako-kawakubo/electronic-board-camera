@@ -40,8 +40,8 @@
       <div class="launch-home-grid">
         <div class="launch-home-case" aria-label="選択中の案件">
           <div class="launch-home-label">選択中の案件</div>
-          <div id="launchCurrentCaseId" class="launch-home-case-id"></div>
           <div id="launchCurrentCaseSubject" class="launch-home-case-subject"></div>
+          <div id="launchCurrentCaseId" class="launch-home-case-id"></div>
         </div>
         <button class="launch-home-button launch-settings-button" type="button" onclick="openSettings()">⚙ 設定</button>
 
@@ -394,6 +394,12 @@
   <div id="casePickerOverlay">
     <div class="case-picker-panel">
       <h2 class="case-picker-title">案件を選択</h2>
+      <div id="casePickerCloudArea" class="case-picker-cloud-area" hidden>
+        <input id="casePickerSearchInput" class="case-picker-search" type="search" placeholder="案件番号・案件名で検索" autocomplete="off" />
+        <div id="casePickerCloudStatus" class="case-picker-status">OneDrive案件を確認しています...</div>
+        <div id="casePickerRemoteList"></div>
+        <div id="casePickerLocalTitle" class="case-picker-section-title">この端末の案件</div>
+      </div>
       <div id="casePickerList"></div>
       <button class="settings-close" type="button" onclick="closeCasePicker()">閉じる</button>
     </div>
@@ -406,7 +412,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.38</strong>
+        現在：<strong id="settingsVersionText">v65.39</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="showUpdatePrompt()">バージョン確認</button>
 

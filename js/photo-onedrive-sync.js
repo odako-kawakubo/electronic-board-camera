@@ -312,7 +312,7 @@
     if (!connection?.connected) return { ok:false, reason:"onedrive-unavailable", uploaded:0 };
 
     const session = CaseSession.getCurrentSession();
-    if (!session?.id || session.kind !== "temporary") return { ok:false, reason:"no-temporary-case", uploaded:0 };
+    if (!session?.id) return { ok:false, reason:"no-active-case", uploaded:0 };
 
     const sessionFolder = await CaseSession.ensureCurrentSessionFolder();
     if (!sessionFolder?.driveId || !sessionFolder?.itemId || !sessionFolder?.originalFolder?.itemId) {

@@ -265,11 +265,35 @@
 
   async function readFormalProjectAddress(projectFolder, projectNo) {
     if (!window.OneDriveProjectFile?.readProjectExcelInfo) return "";
+
+    // 住所情報の正本は、しらべと同じ「04 調査」の案件Excel。
+    // 04側を参照できない環境では、従来どおり03側案件フォルダも確認する。
+    try {
+      const surveyProject = await OneDriveRoot.findSurveyProjectFolder(projectNo);
+      if (surveyProject) {
+        try {
+          const info = await OneDriveProjectFile.readProjectExcelInfo(surveyProject, projectNo);
+          const address = String(info?.address || "").trim();
+          if (address) return address;
+        } catch (error) {
+          console.warn("04 調査の案件Excelから住所を読めませんでした。03 サンプリング側を確認します。", {
+            projectNo,
+            message: error?.message || String(error)
+          });
+        }
+      }
+    } catch (error) {
+      console.warn("04 調査の案件フォルダを確認できませんでした。03 サンプリング側を確認します。", {
+        projectNo,
+        message: error?.message || String(error)
+      });
+    }
+
     try {
       const info = await OneDriveProjectFile.readProjectExcelInfo(projectFolder, projectNo);
       return String(info?.address || "").trim();
     } catch (error) {
-      console.warn("案件Excelから住所を読めないため、案件フォルダ情報で続行します。", {
+      console.warn("案件Excelから住所を補完できないため、住所未入力のまま案件を開きます。", {
         projectNo,
         message: error?.message || String(error)
       });

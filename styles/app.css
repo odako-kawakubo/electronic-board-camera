@@ -2611,3 +2611,13 @@
   background: #2f80ed;
   color: #fff;
 }
+
+
+/* v65.43 撮影前の看板情報確認 */
+.board-info-warning-modal {
+  z-index: 43000;
+}
+
+.board-info-warning-message {
+  white-space: pre-line;
+}

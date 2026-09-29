@@ -21,8 +21,11 @@
     const sectionButton = document.getElementById("sectionButton");
     const shootButton = document.getElementById("shootButton");
     const sectionModeBadge = document.getElementById("sectionModeBadge");
+    const boardInfoWarningModal = document.getElementById("boardInfoWarningModal");
+    const boardInfoWarningMessage = document.getElementById("boardInfoWarningMessage");
     let isTakingPhoto = false;
     let captureReviewResolver = null;
+    let boardInfoWarningResolver = null;
     let currentStream = null;
 
 
@@ -157,6 +160,47 @@
 
      */
 
+    function missingBoardInfoLabels() {
+      const missing = [];
+      const subject = String(subjectText?.value || "").trim();
+      const address = String(addressText?.value || "").trim();
+      if (!subject || subject === APP_DATA.subject) missing.push("案件名");
+      if (!address || address === APP_DATA.address) missing.push("住所");
+      return missing;
+    }
+
+    function confirmBoardInfoBeforeCapture() {
+      const missing = missingBoardInfoLabels();
+      if (!missing.length) return Promise.resolve(true);
+
+      if (!boardInfoWarningModal || !boardInfoWarningMessage) {
+        return Promise.resolve(window.confirm("看板情報が入力されていません。\nこのまま撮影しますか？"));
+      }
+
+      boardInfoWarningMessage.textContent =
+        `看板情報（${missing.join("・")}）が入力されていません。\nこのまま撮影しますか？`;
+      boardInfoWarningModal.classList.add("show");
+
+      return new Promise((resolve) => {
+        boardInfoWarningResolver = resolve;
+      });
+    }
+
+    function closeBoardInfoWarning(continueCapture) {
+      boardInfoWarningModal?.classList.remove("show");
+      const resolver = boardInfoWarningResolver;
+      boardInfoWarningResolver = null;
+      if (resolver) resolver(Boolean(continueCapture));
+    }
+
+    function continueBoardInfoWarning() {
+      closeBoardInfoWarning(true);
+    }
+
+    function cancelBoardInfoWarning() {
+      closeBoardInfoWarning(false);
+    }
+
     async function takePhoto() {
       if (isTakingPhoto) return;
 
@@ -164,6 +208,9 @@
         showToast("先にカメラを起動してください");
         return;
       }
+
+      const continueCapture = await confirmBoardInfoBeforeCapture();
+      if (!continueCapture) return;
 
       isTakingPhoto = true;
       shootButton.disabled = true;

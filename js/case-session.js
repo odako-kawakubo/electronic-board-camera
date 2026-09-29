@@ -250,7 +250,8 @@
     let saved = null;
     if (window.BoardPersistence?.loadSavedBoardForm) saved = BoardPersistence.loadSavedBoardForm();
     if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
-    if (subject && !saved?.subject) {
+    const savedSubject = String(saved?.subject || "").trim();
+    if (subject && (!savedSubject || savedSubject === APP_DATA.subject)) {
       const input = document.getElementById("subjectText");
       if (input) input.value = subject;
       if (typeof saveBoardForm === "function") saveBoardForm();
@@ -275,10 +276,12 @@
     const value = String(address || "").trim();
     if (!value) return;
     const saved = window.BoardPersistence?.loadSavedBoardForm?.() || null;
-    if (String(saved?.address || "").trim()) return;
+    const savedAddress = String(saved?.address || "").trim();
+    if (savedAddress && savedAddress !== APP_DATA.address) return;
 
     const input = document.getElementById("addressText");
-    if (!input || String(input.value || "").trim()) return;
+    const currentAddress = String(input?.value || "").trim();
+    if (!input || (currentAddress && currentAddress !== APP_DATA.address)) return;
     input.value = value;
     if (typeof saveBoardForm === "function") saveBoardForm();
   }

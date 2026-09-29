@@ -267,6 +267,17 @@
 
   <datalist id="samplingNameHistoryList"></datalist>
 
+  <div id="boardInfoWarningModal" class="update-modal board-info-warning-modal" aria-modal="true" role="dialog" aria-labelledby="boardInfoWarningTitle">
+    <div class="update-card">
+      <h3 id="boardInfoWarningTitle">看板情報の確認</h3>
+      <div id="boardInfoWarningMessage" class="update-message board-info-warning-message"></div>
+      <div class="update-actions">
+        <button type="button" onclick="cancelBoardInfoWarning()">キャンセル</button>
+        <button class="primary" type="button" onclick="continueBoardInfoWarning()">続ける</button>
+      </div>
+    </div>
+  </div>
+
   <div id="captureReviewOverlay" aria-modal="true" role="dialog">
     <div class="capture-review-panel">
       <img id="captureReviewImage" alt="撮影確認" />
@@ -412,7 +423,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.42</strong>
+        現在：<strong id="settingsVersionText">v65.43</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="showUpdatePrompt()">バージョン確認</button>
 

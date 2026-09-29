@@ -69,8 +69,11 @@
 
     async function startImportSession(files) {
       const now = new Date().toISOString();
+      const caseSession = window.CaseSession?.getCurrentSession?.() || null;
       activeImportSession = {
         id: ACTIVE_IMPORT_SESSION_ID,
+        caseId: String(caseSession?.id || ""),
+        caseSubject: typeof getCurrentSubjectName === "function" ? getCurrentSubjectName() : "",
         currentIndex: 0,
         createdAt: now,
         updatedAt: now,
@@ -92,12 +95,31 @@
 
      */
 
+    async function ensureImportSessionCase(session) {
+      if (!session) return;
+      const current = window.CaseSession?.getCurrentSession?.() || null;
+
+      // v65.42以前の途中セッションは、初回再開時の案件へ固定して以後の誤所属を防ぐ。
+      if (!session.caseId) {
+        session.caseId = String(current?.id || "");
+        session.caseSubject = typeof getCurrentSubjectName === "function" ? getCurrentSubjectName() : "";
+        session.updatedAt = new Date().toISOString();
+        await PhotoStore.saveImportSession(session);
+        return;
+      }
+
+      if (current?.id !== session.caseId && window.CaseSession?.activateSession) {
+        CaseSession.activateSession(session.caseId, session.caseSubject || "");
+      }
+    }
+
     async function resumeImportSession() {
       const session = await PhotoStore.loadImportSession();
       if (!session || !session.items || session.currentIndex >= session.items.length) {
         await discardImportSession();
         return;
       }
+      await ensureImportSessionCase(session);
       activeImportSession = session;
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
       await openCurrentImportedPhoto();
@@ -173,6 +195,7 @@
       }
 
       try {
+        await ensureImportSessionCase(session);
         saveBoardForm();
         if (document.fonts && document.fonts.ready) await document.fonts.ready;
 

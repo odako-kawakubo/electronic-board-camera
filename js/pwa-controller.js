@@ -15,6 +15,7 @@
   const FIRST_CONTROL_RELOAD_KEY = "boardCameraPwaFirstControlReloaded";
   const UPDATE_VERIFY_KEY = "boardCameraExpectedRevisionAfterReload";
   let registrationPromise = null;
+  let reopenSettingsAfterUpdatePrompt = false;
 
   const settingsVersionText = document.getElementById("settingsVersionText");
   const updateModal = document.getElementById("updateModal");
@@ -167,11 +168,21 @@
   }
 
   function openUpdatePrompt() {
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    if (settingsOverlay?.classList.contains("show")) {
+      reopenSettingsAfterUpdatePrompt = true;
+      if (typeof closeSettings === "function") closeSettings();
+      else settingsOverlay.classList.remove("show");
+    }
     updateModal?.classList.add("show");
   }
 
   function closeUpdatePrompt() {
     updateModal?.classList.remove("show");
+    if (reopenSettingsAfterUpdatePrompt) {
+      reopenSettingsAfterUpdatePrompt = false;
+      if (typeof openSettings === "function") openSettings();
+    }
   }
 
   async function showUpdatePrompt() {

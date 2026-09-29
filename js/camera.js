@@ -174,7 +174,9 @@
       if (!missing.length) return Promise.resolve(true);
 
       if (!boardInfoWarningModal || !boardInfoWarningMessage) {
-        return Promise.resolve(window.confirm("看板情報が入力されていません。\nこのまま撮影しますか？"));
+        console.error("看板情報確認ダイアログを初期化できませんでした");
+        showErrorToast("看板情報を確認できないため撮影を中止しました");
+        return Promise.resolve(false);
       }
 
       boardInfoWarningMessage.textContent =

@@ -425,7 +425,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.55</strong>
+        現在：<strong id="settingsVersionText">v65.56</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="showUpdatePrompt()">バージョン確認</button>
 
@@ -476,77 +476,102 @@
     <div class="help-panel">
       <div class="help-header">
         <div>
-          <div class="help-title">看板カメラ 操作ガイド</div>
-          <div class="help-subtitle">基本操作は「案件を選ぶ → 看板を確認 → 撮る → 緑●を確認」です。</div>
+          <div class="help-title">操作方法</div>
+          <div class="help-subtitle">確認したい項目を選んでください。</div>
         </div>
         <button class="help-close-top" type="button" onclick="closeHelp()" aria-label="閉じる">×</button>
       </div>
 
-      <section class="help-section help-quick">
-        <h3>まずはこの4つ</h3>
-        <ol>
-          <li><strong>案件選択</strong>で対象案件を選びます。</li>
-          <li><strong>カメラ起動</strong>後、案件名・住所・部屋No.・試料No.を確認します。</li>
-          <li>写真区分を確認して撮影します。</li>
-          <li>写真一覧のOneDrive状態が<strong>緑●</strong>になれば保存・共有完了です。</li>
-        </ol>
+      <div id="helpMenu" class="help-menu">
+        <button type="button" onclick="openHelpPage('start')"><span class="help-menu-icon">▶</span><span><strong>まず使う</strong><small>最初に見る基本の流れ</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('case')"><span class="help-menu-icon">📁</span><span><strong>案件</strong><small>案件選択・新規案件</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('camera')"><span class="help-menu-icon">📷</span><span><strong>撮影</strong><small>調査・サンプリング・部屋・検体</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('board')"><span class="help-menu-icon">▣</span><span><strong>看板</strong><small>看板編集・文字サイズ・位置</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('photo')"><span class="help-menu-icon">🖼</span><span><strong>写真</strong><small>写真確認・看板添付・看板修正</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('sync')"><span class="help-menu-icon">☁</span><span><strong>保存・再送</strong><small>OneDriveの●表示・圏外時</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('settings')"><span class="help-menu-icon">⚙</span><span><strong>設定・更新</strong><small>端末名・画質・アプリ更新</small></span><span class="help-menu-arrow">›</span></button>
+      </div>
+
+      <section class="help-page" data-help-page="start" hidden>
+        <h3>まず使う</h3>
+        <div class="help-step"><b>1</b><span><strong>案件選択</strong>で対象案件を選びます。</span></div>
+        <div class="help-step"><b>2</b><span><strong>カメラ起動</strong>を押します。</span></div>
+        <div class="help-step"><b>3</b><span>看板の案件名・住所・部屋No.・試料No.を確認して撮影します。</span></div>
+        <div class="help-step"><b>4</b><span>写真一覧の●が<strong>緑</strong>になればOneDrive保存完了です。</span></div>
+        <div class="help-note">Microsoft / OneDriveが未接続の場合は、トップ画面の「再接続」を押してください。</div>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
 
-      <section class="help-section">
+      <section class="help-page" data-help-page="case" hidden>
         <h3>案件</h3>
-        <p><strong>案件選択</strong>：OneDriveの正式案件、またはこの端末の仮案件を選びます。</p>
-        <p><strong>新規案件</strong>：現場で仮案件を作成します。仮案件IDは日付＋枝番で発番されます。</p>
-        <p>正式案件では案件名を看板へ反映し、住所が未入力の場合は案件Excelから住所を補完します。</p>
+        <h4>案件選択</h4>
+        <p>トップ画面の<strong>案件選択</strong>を押し、案件番号または案件名で検索して選択します。</p>
+        <p>OneDriveの正式案件と、この端末で作成した案件が表示されます。</p>
+        <h4>新規案件</h4>
+        <p>正式案件がまだない場合などは、<strong>新規案件</strong>から仮案件を作成して撮影できます。</p>
+        <div class="help-note">案件を切り替えると、看板内容と写真一覧も選択した案件へ切り替わります。</div>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
 
-      <section class="help-section">
+      <section class="help-page" data-help-page="camera" hidden>
         <h3>撮影</h3>
-        <p><strong>調査 / サンプリング</strong>を切り替えて使用します。</p>
-        <p><strong>部屋</strong>：階・部屋No.、またはサンプリング時の採取箇所を変更します。</p>
-        <p><strong>検体</strong>：試料No.と箇所No.を変更します。</p>
-        <p><strong>看板</strong>：看板サイズ・位置を調整できます。看板をダブルタップすると詳細編集を開けます。</p>
+        <h4>調査 / サンプリング</h4>
+        <p>撮影する内容に合わせてモードを切り替えます。</p>
+        <h4>部屋</h4>
+        <p>調査では<strong>階・部屋No.</strong>、サンプリングでは<strong>採取箇所</strong>を変更できます。</p>
+        <h4>検体</h4>
+        <p><strong>試料No.・箇所No.</strong>を上下ボタンまたは中央ボタンから変更できます。</p>
+        <h4>看板</h4>
+        <p>看板のサイズや位置を調整できます。看板をダブルタップすると詳細編集を開きます。</p>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
 
-      <section class="help-section">
-        <h3>看板編集</h3>
-        <p>件名、住所、部屋No./採取箇所、試料No.、日付、写真区分、看板種類を編集できます。</p>
-        <p><strong>A- / A+</strong>で選択項目の文字サイズを変更できます。</p>
+      <section class="help-page" data-help-page="board" hidden>
+        <h3>看板</h3>
+        <p>看板編集では、案件名、住所、部屋No./採取箇所、試料No.、日付、写真区分、看板種類を変更できます。</p>
+        <p>変更したい項目を選び、<strong>A- / A+</strong>で文字サイズを調整できます。</p>
         <p>編集が終わったら右側の<strong>完了</strong>を押します。</p>
+        <div class="help-note">看板編集画面の↶ / ↷は編集内容の「戻る / 進む」です。</div>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
 
-      <section class="help-section">
-        <h3>看板添付</h3>
-        <p>端末内の写真を複数選択し、1枚ずつ看板を確認・編集して保存できます。</p>
-        <p>途中でアプリを閉じても、未完了の編集があればトップ画面から再開できます。</p>
+      <section class="help-page" data-help-page="photo" hidden>
+        <h3>写真</h3>
+        <h4>写真確認</h4>
+        <p>写真一覧から撮影した写真を確認できます。写真をタップすると大きく表示できます。</p>
+        <h4>看板修正</h4>
+        <p>撮影済み写真を選び、元画像を使って看板だけ修正できます。</p>
+        <h4>看板添付</h4>
+        <p>トップ画面の<strong>看板添付</strong>から端末内の写真を複数選択し、1枚ずつ看板を付けて保存できます。</p>
+        <p>途中で閉じても、未完了の編集はトップ画面から再開できます。</p>
+        <div class="help-note">端末から写真を削除しても、OneDriveへ保存済みの写真は削除されません。</div>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
 
-      <section class="help-section">
-        <h3>写真確認・看板修正</h3>
-        <p>写真一覧では、選択・全選択・削除・撮影不足チェックができます。</p>
-        <p><strong>看板修正</strong>では、撮影済み写真の元画像を使って看板だけ修正できます。</p>
-        <p>端末から写真を削除しても、OneDriveへ保存済みの写真は削除されません。</p>
-      </section>
-
-      <section class="help-section">
-        <h3>OneDriveの●表示</h3>
-        <div class="help-status-row"><span class="help-dot green"></span><strong>緑</strong><span>元画像・完成画像とも保存確認済み</span></div>
-        <div class="help-status-row"><span class="help-dot yellow"></span><strong>黄</strong><span>送信中 / 保存確認中</span></div>
+      <section class="help-page" data-help-page="sync" hidden>
+        <h3>保存・再送</h3>
+        <div class="help-status-row"><span class="help-dot green"></span><strong>緑</strong><span>OneDrive保存完了</span></div>
+        <div class="help-status-row"><span class="help-dot yellow"></span><strong>黄</strong><span>送信中 / 確認中</span></div>
         <div class="help-status-row"><span class="help-dot red"></span><strong>赤</strong><span>未送信 / 再送待ち</span></div>
-        <p>赤のままの場合は、トップまたは設定の<strong>再接続</strong>を押してください。設定の<strong>今すぐ再送</strong>でも再確認できます。</p>
+        <h4>赤のままの場合</h4>
+        <p>トップまたは設定の<strong>再接続</strong>を押します。それでも残る場合は、設定の<strong>今すぐ再送</strong>を押してください。</p>
+        <h4>圏外で使う場合</h4>
+        <p>圏外でも撮影と端末保存は続けられます。通信が戻るとOneDrive送信を再確認します。</p>
+        <div class="help-note">緑になる前の写真は端末から削除しないでください。</div>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
 
-      <section class="help-section">
-        <h3>圏外で使うとき</h3>
-        <p>圏外でも起動済みアプリでは撮影・端末保存を続けられます。通信復帰後にOneDrive送信を再判定します。</p>
-        <p>送信完了前は、写真を端末から削除しないでください。</p>
+      <section class="help-page" data-help-page="settings" hidden>
+        <h3>設定・更新</h3>
+        <h4>端末名</h4>
+        <p>設定からこの端末の名前を変更できます。</p>
+        <h4>写真画質</h4>
+        <p><strong>標準 / 高画質</strong>を選択できます。</p>
+        <h4>アプリ更新</h4>
+        <p><strong>設定 → バージョン確認</strong>から最新版を確認して更新します。</p>
+        <div class="help-note">アプリを更新しても、案件・看板・端末内写真は削除されません。</div>
+        <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作方法へ戻る</button>
       </section>
-
-      <section class="help-section">
-        <h3>アプリ更新</h3>
-        <p><strong>設定 → バージョン確認</strong>から更新します。更新しても案件・看板・端末内写真は削除しません。</p>
-      </section>
-
-      <button class="help-close-bottom" type="button" onclick="closeHelp()">閉じる</button>
     </div>
   </div>
 

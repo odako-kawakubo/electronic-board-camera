@@ -2285,7 +2285,7 @@
       .launch-home-case, .launch-home-button { min-height: 72px; }
     }
 
-    /* v65.22 アルバムからトップ画面へ戻る。撮影画面には表示しない。 */
+    /* アルバムからトップ画面へ戻るボタン。撮影画面には表示しない。 */
     .preview-top-button {
       min-width: 72px;
       height: 38px;
@@ -2568,89 +2568,176 @@
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 10px;
   background: rgba(0,0,0,.72);
 }
 
-#helpOverlay.show {
-  display: flex;
-}
+#helpOverlay.show { display: flex; }
 
 .help-panel {
-  width: min(94vw, 760px);
-  max-height: min(90vh, 860px);
+  width: min(100%, 520px);
+  max-height: min(94vh, 860px);
   overflow-y: auto;
   border-radius: 18px;
   background: #f7f9fc;
   color: #111827;
-  padding: 20px;
+  padding: 14px;
   box-shadow: 0 18px 60px rgba(0,0,0,.45);
   font-family: inherit;
 }
 
 .help-header {
   position: sticky;
-  top: -20px;
-  z-index: 2;
+  top: -14px;
+  z-index: 3;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin: -20px -20px 16px;
-  padding: 18px 20px 14px;
+  gap: 10px;
+  margin: -14px -14px 12px;
+  padding: 15px 14px 12px;
   border-bottom: 1px solid #dfe6ef;
   background: rgba(247,249,252,.98);
 }
 
 .help-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
 }
 
 .help-subtitle {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #52606d;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.45;
   font-weight: 700;
 }
 
 .help-close-top {
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border: 0;
   border-radius: 999px;
   background: #e8edf4;
   color: #111;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 900;
   cursor: pointer;
 }
 
-.help-section {
-  margin: 12px 0;
-  padding: 14px 16px;
-  border: 1px solid #dfe6ef;
+.help-menu {
+  display: grid;
+  gap: 8px;
+}
+
+.help-menu[hidden],
+.help-page[hidden] {
+  display: none !important;
+}
+
+.help-menu button {
+  display: grid;
+  grid-template-columns: 34px 1fr 22px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 12px;
+  border: 1px solid #dbe3ed;
   border-radius: 14px;
   background: #fff;
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
 }
 
-.help-section h3 {
-  margin: 0 0 8px;
-  font-size: 17px;
-}
-
-.help-section p,
-.help-section li {
-  margin: 6px 0;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.help-quick {
-  border-color: #c9dbf8;
+.help-menu button:active {
   background: #eef5ff;
+}
+
+.help-menu-icon {
+  font-size: 20px;
+  text-align: center;
+}
+
+.help-menu button strong {
+  display: block;
+  font-size: 16px;
+}
+
+.help-menu button small {
+  display: block;
+  margin-top: 2px;
+  color: #697586;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.help-menu-arrow {
+  color: #8a96a6;
+  font-size: 28px;
+  line-height: 1;
+  text-align: right;
+}
+
+.help-page {
+  padding-bottom: 62px;
+}
+
+.help-page h3 {
+  margin: 2px 0 14px;
+  font-size: 21px;
+}
+
+.help-page h4 {
+  margin: 16px 0 6px;
+  font-size: 16px;
+}
+
+.help-page p {
+  margin: 7px 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.help-step {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: start;
+  gap: 10px;
+  margin: 9px 0;
+  padding: 11px;
+  border: 1px solid #d9e5f5;
+  border-radius: 12px;
+  background: #eef5ff;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.help-step b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #2f80ed;
+  color: #fff;
+  font-size: 15px;
+}
+
+.help-note {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-left: 4px solid #f2c94c;
+  border-radius: 8px;
+  background: #fff8dc;
+  color: #473d13;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 700;
 }
 
 .help-status-row {
@@ -2658,7 +2745,11 @@
   grid-template-columns: 18px 34px 1fr;
   align-items: center;
   gap: 8px;
-  margin: 8px 0;
+  margin: 9px 0;
+  padding: 10px;
+  border: 1px solid #e0e6ee;
+  border-radius: 10px;
+  background: #fff;
   font-size: 14px;
 }
 
@@ -2668,22 +2759,24 @@
   border-radius: 50%;
   display: inline-block;
 }
-
 .help-dot.green { background: #27ae60; }
 .help-dot.yellow { background: #f2c94c; }
 .help-dot.red { background: #eb5757; }
 
-.help-close-bottom {
+.help-back-button {
+  position: sticky;
+  bottom: 0;
   width: 100%;
-  min-height: 46px;
-  margin-top: 10px;
+  min-height: 48px;
+  margin-top: 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 12px;
   background: #374151;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 900;
   cursor: pointer;
+  box-shadow: 0 -6px 18px rgba(247,249,252,.95);
 }
 
 @media (orientation: portrait) {
@@ -2700,4 +2793,21 @@
   body.landscape-flipped #helpOverlay.app-oriented-modal {
     transform: translate(-50%, -50%) rotate(-90deg);
   }
+}
+
+@media (max-width: 430px) {
+  #helpOverlay { padding: 6px; }
+  .help-panel {
+    width: 100%;
+    max-height: 97vh;
+    border-radius: 14px;
+    padding: 12px;
+  }
+  .help-header {
+    top: -12px;
+    margin: -12px -12px 10px;
+    padding: 13px 12px 10px;
+  }
+  .help-title { font-size: 18px; }
+  .help-menu button { min-height: 58px; }
 }

@@ -1,8 +1,8 @@
 /*
- * v65.41 Service Worker
+ * v65.42 Service Worker
  * 最新版優先 + 圏外時は直近キャッシュから起動する。
  */
-const APP_CACHE = "electronic-board-camera-v65.41-stable";
+const APP_CACHE = "electronic-board-camera-v65.42-stable";
 const APP_CACHE_PREFIX = "electronic-board-camera-";
 
 const APP_FILES = [
@@ -16,6 +16,8 @@ const APP_FILES = [
   "./js/graph-session.js",
   "./js/microsoft-auth-ui.js",
   "./js/onedrive-client.js",
+  "./js/openxml-workbook-reader.js",
+  "./js/onedrive-project-file.js",
   "./js/onedrive-root.js",
   "./js/onedrive-connection.js",
   "./js/onedrive-status-ui.js",

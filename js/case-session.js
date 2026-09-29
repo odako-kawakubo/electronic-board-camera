@@ -257,6 +257,32 @@
     }
   }
 
+  async function readFormalProjectAddress(projectFolder, projectNo) {
+    if (!window.OneDriveProjectFile?.readProjectExcelInfo) return "";
+    try {
+      const info = await OneDriveProjectFile.readProjectExcelInfo(projectFolder, projectNo);
+      return String(info?.address || "").trim();
+    } catch (error) {
+      console.warn("案件Excelから住所を読めないため、案件フォルダ情報で続行します。", {
+        projectNo,
+        message: error?.message || String(error)
+      });
+      return "";
+    }
+  }
+
+  function applyFormalProjectAddressIfEmpty(address) {
+    const value = String(address || "").trim();
+    if (!value) return;
+    const saved = window.BoardPersistence?.loadSavedBoardForm?.() || null;
+    if (String(saved?.address || "").trim()) return;
+
+    const input = document.getElementById("addressText");
+    if (!input || String(input.value || "").trim()) return;
+    input.value = value;
+    if (typeof saveBoardForm === "function") saveBoardForm();
+  }
+
   async function activateFormalProject(project) {
     const projectNo = String(project?.projectNo || "").trim();
     const projectName = String(project?.projectName || "").trim();
@@ -292,6 +318,16 @@
     restoreCaseBoard(projectName);
     renderSessionPanel();
     notify("activate", session);
+
+    const address = await readFormalProjectAddress({
+      driveId,
+      itemId,
+      id: itemId,
+      name: folderName,
+      folder: {}
+    }, projectNo);
+    applyFormalProjectAddressIfEmpty(address);
+
     await ensureFormalSessionFolder(session);
     if (typeof showToast === "function") showToast(`案件 ${projectNo} を選択しました`);
     return loadRememberedSession(projectNo) || session;

@@ -163,23 +163,8 @@
     }
 
     async function reconnectCloudFromSettings() {
-      try {
-        const graph = GraphSession.getState();
-        if (!graph.account) {
-          await loginMicrosoftGraph();
-          return;
-        }
-        await GraphSession.getAccessToken({ allowInteractive: true });
-        await OneDriveConnection.refresh({ force: true });
-        renderCloudSettings();
-        if (OneDriveConnection.getState().connected) {
-          showToast("Microsoft / OneDriveへ再接続しました");
-          PhotoOneDriveSync.requestSync();
-        }
-      } catch (error) {
-        console.error("Microsoft / OneDrive再接続失敗", error);
-        showErrorToast("再接続できませんでした");
-      }
+      await reconnectMicrosoftOneDrive();
+      renderCloudSettings();
     }
 
     async function retryOneDriveUploadsFromSettings() {

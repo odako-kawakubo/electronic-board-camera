@@ -47,6 +47,45 @@
     }
   }
 
+  async function reconnectMicrosoftOneDrive() {
+    const button = document.getElementById("topReconnectButton");
+    if (button) {
+      button.disabled = true;
+      button.textContent = "接続中";
+    }
+
+    try {
+      if (navigator.onLine === false) throw new Error("オフラインです。");
+
+      await GraphSession.initialize();
+      const state = GraphSession.getState();
+
+      // アカウント自体が無い場合はMSALログインへ。redirect後に接続確認を続ける。
+      if (!state.account) {
+        await GraphSession.login();
+        return;
+      }
+
+      // 既存セッションのtokenを取り直し、その後03 サンプリングまで実アクセス確認する。
+      await GraphSession.getAccessToken({ allowInteractive: true });
+      await OneDriveConnection.refresh({ force: true });
+
+      const connected = OneDriveConnection.getState().connected;
+      if (!connected) throw new Error(OneDriveConnection.getState().error || "OneDriveへ接続できませんでした。");
+
+      if (window.PhotoOneDriveSync?.requestSync) PhotoOneDriveSync.requestSync();
+      if (typeof showToast === "function") showToast("Microsoft / OneDriveへ再接続しました");
+    } catch (error) {
+      console.error("Microsoft / OneDrive再接続失敗", error);
+      if (typeof showErrorToast === "function") showErrorToast("再接続できませんでした");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "再接続";
+      }
+    }
+  }
+
   async function verifyMicrosoftGraphSession() {
     try {
       await GraphSession.initialize();
@@ -63,6 +102,7 @@
 
   window.loginMicrosoftGraph = loginMicrosoftGraph;
   window.logoutMicrosoftGraph = logoutMicrosoftGraph;
+  window.reconnectMicrosoftOneDrive = reconnectMicrosoftOneDrive;
   window.verifyMicrosoftGraphSession = verifyMicrosoftGraphSession;
 
   document.addEventListener("DOMContentLoaded", () => {

@@ -174,9 +174,14 @@
     return session;
   }
 
-  function startNewSession() {
+  async function startNewSession() {
     const current = getCurrentSession();
-    const ok = window.confirm(`現在：${current.id}\n\n同日の別案件として新しい撮影セッションを開始しますか？`);
+    const ok = await AppDialog.confirm({
+      title: "新規案件",
+      message: `現在：${current.id}\n\n同日の別案件として新しい撮影セッションを開始しますか？`,
+      okLabel: "開始",
+      cancelLabel: "キャンセル"
+    });
     if (!ok) return current;
     const next = createSession();
     if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();

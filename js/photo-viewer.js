@@ -209,7 +209,10 @@
         boardEditOriginalDataUrl = await loadOriginalForBoardEdit(photo);
       } catch (error) {
         console.error("看板修正用元画像の取得に失敗しました", error);
-        window.alert("看板修正用の元画像を取得できませんでした。\nOneDrive接続を確認して、もう一度お試しください。");
+        await AppDialog.notice({
+          title: "看板修正を続けられません",
+          message: "看板修正用の元画像を取得できませんでした。\nOneDrive接続を確認して、もう一度お試しください。"
+        });
         boardEditOriginalDataUrl = "";
         return;
       }
@@ -244,7 +247,10 @@
 
       if (!boardEditOriginalDataUrl) {
         boardEditTargetPhotoId = null;
-        window.alert("看板修正用の元画像がありません。");
+        await AppDialog.notice({
+          title: "看板修正を続けられません",
+          message: "看板修正用の元画像がありません。"
+        });
         return;
       }
 

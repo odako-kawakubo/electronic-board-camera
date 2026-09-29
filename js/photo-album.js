@@ -321,11 +321,17 @@
       });
 
       if (!missingLines.length) {
-        window.alert("撮影不足はありません。");
+        void AppDialog.notice({
+          title: "撮影チェック",
+          message: "撮影不足はありません。"
+        });
         return;
       }
 
-      window.alert(`撮影不足\n\n${missingLines.join("\n")}`);
+      void AppDialog.notice({
+        title: "撮影不足",
+        message: missingLines.join("\n")
+      });
     }
 
     function formatSamplePointLabel(key) {
@@ -562,7 +568,12 @@
       const message = hasUploaded
         ? `選択した画像 ${selectedPhotos.length}枚を端末内から削除しますか？\n\nOneDriveに保存済みの写真は削除されません。`
         : `選択した画像 ${selectedPhotos.length}枚を削除しますか？`;
-      const ok = window.confirm(message);
+      const ok = await AppDialog.confirm({
+        title: "写真を削除",
+        message,
+        okLabel: "削除",
+        cancelLabel: "キャンセル"
+      });
       if (!ok) return;
 
       const deleteResult = await PhotoState.deleteMany(selectedPhotos);

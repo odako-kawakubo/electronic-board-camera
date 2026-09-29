@@ -2621,3 +2621,13 @@
 .board-info-warning-message {
   white-space: pre-line;
 }
+
+
+/* 共通ダイアログ */
+.app-dialog-modal {
+  z-index: 44000;
+}
+
+.app-dialog-message {
+  white-space: pre-line;
+}

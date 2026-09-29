@@ -1,8 +1,8 @@
 /*
- * v65.44 Service Worker
+ * v65.45 Service Worker
  * 最新版優先 + 圏外時は直近キャッシュから起動する。
  */
-const APP_CACHE = "electronic-board-camera-v65.44-stable";
+const APP_CACHE = "electronic-board-camera-v65.45-stable";
 const APP_CACHE_PREFIX = "electronic-board-camera-";
 
 const APP_FILES = [
@@ -22,6 +22,7 @@ const APP_FILES = [
   "./js/onedrive-connection.js",
   "./js/onedrive-status-ui.js",
   "./assets/microsoft-symbol.svg",
+  "./js/ui-dialog.js",
   "./js/photo-store.js",
   "./js/photo-state.js",
   "./js/case-session.js",

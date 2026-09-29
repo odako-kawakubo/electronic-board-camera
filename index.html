@@ -423,7 +423,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.44</strong>
+        現在：<strong id="settingsVersionText">v65.45</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="showUpdatePrompt()">バージョン確認</button>
 
@@ -462,11 +462,18 @@
         <span>高画質（3264×2448）</span>
       </button>
 
-      <div class="settings-note">
-        今後追加予定：ライト、ズーム、位置情報、グリッド表示、シャッター音など。
-      </div>
-
       <button class="settings-close" type="button" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+
+  <div id="appDialogModal" class="update-modal app-dialog-modal" aria-modal="true" role="dialog" aria-labelledby="appDialogTitle">
+    <div class="update-card">
+      <h3 id="appDialogTitle">確認</h3>
+      <div id="appDialogMessage" class="update-message app-dialog-message"></div>
+      <div class="update-actions">
+        <button id="appDialogCancelButton" type="button" onclick="cancelAppDialog()">キャンセル</button>
+        <button id="appDialogOkButton" class="primary" type="button" onclick="confirmAppDialog()">閉じる</button>
+      </div>
     </div>
   </div>
 
@@ -491,6 +498,7 @@
   <script src="./js/onedrive-root.js"></script>
   <script src="./js/onedrive-connection.js"></script>
   <script src="./js/onedrive-status-ui.js"></script>
+  <script src="./js/ui-dialog.js"></script>
   <script src="./js/photo-store.js"></script>
   <script src="./js/photo-state.js"></script>
   <script src="./js/case-session.js"></script>

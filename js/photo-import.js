@@ -36,10 +36,13 @@
       startCamera();
     }
 
-    function chooseImportMode() {
+    async function chooseImportMode() {
       if (!importPhotoInput) return;
       if (launchResumePanel && launchResumePanel.classList.contains("show")) {
-        window.alert("編集中の写真があります。\n\n先に「編集を続ける」または「破棄する」を選択してください。");
+        await AppDialog.notice({
+          title: "編集中の写真があります",
+          message: "先に「編集を続ける」または「破棄する」を選択してください。"
+        });
         return;
       }
       importPhotoInput.value = "";

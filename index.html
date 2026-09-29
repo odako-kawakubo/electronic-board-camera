@@ -52,6 +52,8 @@
         <button class="launch-home-button launch-import-button" type="button" onclick="chooseImportMode()">🖼 看板添付</button>
       </div>
 
+      <button class="launch-help-button" type="button" onclick="openHelp()">？ 操作方法</button>
+
       <div id="launchResumePanel" class="launch-resume-panel">
         <div class="launch-resume-title">編集中の写真があります</div>
         <div id="launchResumeMeta" class="launch-resume-meta"></div>
@@ -423,7 +425,7 @@
 
       <div class="settings-section-title">🔄 アプリ更新</div>
       <div class="settings-version-box">
-        現在：<strong id="settingsVersionText">v65.54</strong>
+        現在：<strong id="settingsVersionText">v65.55</strong>
       </div>
       <button class="settings-update-button" type="button" onclick="showUpdatePrompt()">バージョン確認</button>
 
@@ -450,6 +452,9 @@
       </div>
       <button class="settings-update-button" type="button" onclick="CaseSession.changeDeviceName()">端末名を変更</button>
 
+      <div class="settings-section-title">📖 操作方法</div>
+      <button class="settings-update-button" type="button" onclick="openHelp()">操作ガイドを開く</button>
+
       <div class="settings-section-title">📷 写真画質</div>
 
       <button id="qualityStandardButton" class="quality-option" type="button" onclick="setPhotoQuality('standard')">
@@ -463,6 +468,85 @@
       </button>
 
       <button class="settings-close" type="button" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+
+
+  <div id="helpOverlay" onclick="if(event.target===this) closeHelp()">
+    <div class="help-panel">
+      <div class="help-header">
+        <div>
+          <div class="help-title">看板カメラ 操作ガイド</div>
+          <div class="help-subtitle">基本操作は「案件を選ぶ → 看板を確認 → 撮る → 緑●を確認」です。</div>
+        </div>
+        <button class="help-close-top" type="button" onclick="closeHelp()" aria-label="閉じる">×</button>
+      </div>
+
+      <section class="help-section help-quick">
+        <h3>まずはこの4つ</h3>
+        <ol>
+          <li><strong>案件選択</strong>で対象案件を選びます。</li>
+          <li><strong>カメラ起動</strong>後、案件名・住所・部屋No.・試料No.を確認します。</li>
+          <li>写真区分を確認して撮影します。</li>
+          <li>写真一覧のOneDrive状態が<strong>緑●</strong>になれば保存・共有完了です。</li>
+        </ol>
+      </section>
+
+      <section class="help-section">
+        <h3>案件</h3>
+        <p><strong>案件選択</strong>：OneDriveの正式案件、またはこの端末の仮案件を選びます。</p>
+        <p><strong>新規案件</strong>：現場で仮案件を作成します。仮案件IDは日付＋枝番で発番されます。</p>
+        <p>正式案件では案件名を看板へ反映し、住所が未入力の場合は案件Excelから住所を補完します。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>撮影</h3>
+        <p><strong>調査 / サンプリング</strong>を切り替えて使用します。</p>
+        <p><strong>部屋</strong>：階・部屋No.、またはサンプリング時の採取箇所を変更します。</p>
+        <p><strong>検体</strong>：試料No.と箇所No.を変更します。</p>
+        <p><strong>看板</strong>：看板サイズ・位置を調整できます。看板をダブルタップすると詳細編集を開けます。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>看板編集</h3>
+        <p>件名、住所、部屋No./採取箇所、試料No.、日付、写真区分、看板種類を編集できます。</p>
+        <p><strong>A- / A+</strong>で選択項目の文字サイズを変更できます。</p>
+        <p>編集が終わったら右側の<strong>完了</strong>を押します。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>看板添付</h3>
+        <p>端末内の写真を複数選択し、1枚ずつ看板を確認・編集して保存できます。</p>
+        <p>途中でアプリを閉じても、未完了の編集があればトップ画面から再開できます。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>写真確認・看板修正</h3>
+        <p>写真一覧では、選択・全選択・削除・撮影不足チェックができます。</p>
+        <p><strong>看板修正</strong>では、撮影済み写真の元画像を使って看板だけ修正できます。</p>
+        <p>端末から写真を削除しても、OneDriveへ保存済みの写真は削除されません。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>OneDriveの●表示</h3>
+        <div class="help-status-row"><span class="help-dot green"></span><strong>緑</strong><span>元画像・完成画像とも保存確認済み</span></div>
+        <div class="help-status-row"><span class="help-dot yellow"></span><strong>黄</strong><span>送信中 / 保存確認中</span></div>
+        <div class="help-status-row"><span class="help-dot red"></span><strong>赤</strong><span>未送信 / 再送待ち</span></div>
+        <p>赤のままの場合は、トップまたは設定の<strong>再接続</strong>を押してください。設定の<strong>今すぐ再送</strong>でも再確認できます。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>圏外で使うとき</h3>
+        <p>圏外でも起動済みアプリでは撮影・端末保存を続けられます。通信復帰後にOneDrive送信を再判定します。</p>
+        <p>送信完了前は、写真を端末から削除しないでください。</p>
+      </section>
+
+      <section class="help-section">
+        <h3>アプリ更新</h3>
+        <p><strong>設定 → バージョン確認</strong>から更新します。更新しても案件・看板・端末内写真は削除しません。</p>
+      </section>
+
+      <button class="help-close-bottom" type="button" onclick="closeHelp()">閉じる</button>
     </div>
   </div>
 
@@ -502,6 +586,7 @@
   <script src="./js/onedrive-connection.js"></script>
   <script src="./js/onedrive-status-ui.js"></script>
   <script src="./js/ui-dialog.js"></script>
+  <script src="./js/help.js"></script>
   <script src="./js/photo-store.js"></script>
   <script src="./js/photo-state.js"></script>
   <script src="./js/case-session.js"></script>

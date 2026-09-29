@@ -37,7 +37,6 @@
     const roomValueCell = document.getElementById("roomValueCell");
     const visualStatusButton = document.getElementById("visualStatusButton");
     let hasInitializedBoard = false;
-    let lastBoardTapAt = 0;
     let isBoardEditMode = false;
     let boardEditHistory = [];
     let boardEditHistoryIndex = -1;

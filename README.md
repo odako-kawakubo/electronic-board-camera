@@ -1,4 +1,4 @@
-# 看板カメラ v65.47
+# 看板カメラ v65.48
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -436,3 +436,9 @@
 - 参照のない看板修正ラッパー applyCurrentBoardToPreviewPhoto() を削除
 - 看板修正の正本導線は startBoardCorrectionSelectMode() / selectPhotoForBoardCorrection() に一本化
 - 旧案件復元・旧送信状態正規化など既存端末データ保護に必要な互換処理は維持
+
+
+## v65.48 完全未使用状態の整理
+- app.js の未使用 boardLayer DOM参照を削除
+- board.js の未使用 lastBoardTapAt 状態を削除
+- classic scriptで別ファイル参照される共有状態は横断確認のうえ維持

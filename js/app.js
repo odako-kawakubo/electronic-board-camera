@@ -14,7 +14,6 @@
     // 他モジュールから参照しないものだけをここに残す。
     // ============================================================
     const cameraScreen = document.getElementById("cameraScreen");
-    const boardLayer = document.querySelector(".board-layer");
     const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
     const boardEditHost = document.getElementById("boardEditHost");
     const toast = document.getElementById("toast");

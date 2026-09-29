@@ -739,7 +739,10 @@
         await closeBoardEditMode({ data: boardEditDraft });
       } catch (error) {
         console.error("強制完了処理に失敗しました", error);
-        window.alert(`完了処理エラー: ${error && error.message ? error.message : error}`);
+        await AppDialog.notice({
+          title: "看板編集を完了できません",
+          message: `完了処理エラー: ${error && error.message ? error.message : error}`
+        });
       }
 
       return false;

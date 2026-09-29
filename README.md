@@ -1,4 +1,4 @@
-# 看板カメラ v65.46
+# 看板カメラ v65.47
 
 ## v65.1 内部整理
 - `main` の v64 を維持したままレビュー枝で整理開始
@@ -430,3 +430,9 @@
 ## v65.46 標準confirmフォールバック廃止
 - 撮影前の看板情報確認モーダルが初期化できない場合、ブラウザ標準confirmへ逃がさず安全側で撮影を中止
 - 業務UIからwindow.alert / window.confirmへの依存を除去
+
+
+## v65.47 未使用処理の整理
+- 参照のない看板修正ラッパー applyCurrentBoardToPreviewPhoto() を削除
+- 看板修正の正本導線は startBoardCorrectionSelectMode() / selectPhotoForBoardCorrection() に一本化
+- 旧案件復元・旧送信状態正規化など既存端末データ保護に必要な互換処理は維持

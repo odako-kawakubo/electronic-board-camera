@@ -317,10 +317,6 @@
       }
     }
 
-    async function applyCurrentBoardToPreviewPhoto() {
-      startBoardCorrectionSelectMode();
-    }
-
     async function saveCurrentPreviewPhoto() {
       if (!capturedPhotos.length) {
         showToast("撮影した写真がありません");

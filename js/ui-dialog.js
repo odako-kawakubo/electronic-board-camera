@@ -26,6 +26,7 @@
 
   function open(options = {}) {
     if (!overlay || !titleNode || !messageNode || !cancelButton || !okButton) {
+      if (options.kind === "input") return Promise.resolve(null);
       return Promise.resolve(options.kind === "confirm" ? false : true);
     }
 

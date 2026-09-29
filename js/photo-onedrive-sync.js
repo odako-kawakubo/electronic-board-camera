@@ -3,7 +3,7 @@
  * photo-onedrive-sync.js - 写真本体のOneDrive送信
  * ============================================================
  * - 現在案件のpendingだけを1件ずつ直列送信する
- * - originalは「元画像」、completedは案件フォルダ直下へ保存する
+ * - 仮案件は案件フォルダ直下、正式案件は「採取写真」へcompletedを保存し、originalは各保存先配下の「元画像」へ保存する
  * - yellow(uploading/verifying)はメモリ上だけ。DBはpending/uploadedを保持する
  * - upload後にitemIdで実在確認してからuploadedへ進める
  * - original/completed両方確認後、端末内の元画像(baseDataUrl)だけ解放する

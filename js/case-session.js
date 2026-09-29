@@ -20,6 +20,7 @@
   const SESSION_MAP_KEY = "electronic-board-camera-case-session-map-v1";
   const COUNTER_PREFIX = "electronic-board-camera-case-session-counter-v1-";
   const DEVICE_NAME_KEY = "electronic-board-camera-device-name-v1";
+  const FORMAL_PHOTO_FOLDER_NAME = "採取写真";
   const ORIGINAL_FOLDER_NAME = "元画像";
   const folderEnsurePromises = new Map();
   const listeners = [];
@@ -275,10 +276,16 @@
       folderName,
       deviceName: remembered?.deviceName || getDeviceName(),
       createdAt: remembered?.createdAt || new Date().toISOString(),
-      oneDriveFolderDriveId: driveId,
-      oneDriveFolderItemId: itemId,
-      oneDriveOriginalFolderItemId: remembered?.oneDriveOriginalFolderItemId || "",
-      oneDriveFolderStatus: remembered?.oneDriveOriginalFolderItemId ? "ready" : "pending",
+      oneDriveProjectFolderDriveId: driveId,
+      oneDriveProjectFolderItemId: itemId,
+      oneDriveFolderDriveId: remembered?.oneDriveProjectFolderItemId === itemId ? (remembered?.oneDriveFolderDriveId || "") : "",
+      oneDriveFolderItemId: remembered?.oneDriveProjectFolderItemId === itemId ? (remembered?.oneDriveFolderItemId || "") : "",
+      oneDriveOriginalFolderItemId: remembered?.oneDriveProjectFolderItemId === itemId ? (remembered?.oneDriveOriginalFolderItemId || "") : "",
+      oneDriveFolderStatus: (
+        remembered?.oneDriveProjectFolderItemId === itemId &&
+        remembered?.oneDriveFolderItemId &&
+        remembered?.oneDriveOriginalFolderItemId
+      ) ? "ready" : "pending",
       oneDriveFolderError: ""
     };
     saveActiveSession(session);
@@ -372,41 +379,83 @@
     const connection = window.OneDriveConnection?.getState?.();
     if (!connection?.connected) return null;
 
-    const folderRef = {
-      driveId: latest.oneDriveFolderDriveId,
-      itemId: latest.oneDriveFolderItemId,
-      id: latest.oneDriveFolderItemId,
+    const projectFolderRef = {
+      driveId: latest.oneDriveProjectFolderDriveId || latest.oneDriveFolderDriveId,
+      itemId: latest.oneDriveProjectFolderItemId || latest.oneDriveFolderItemId,
+      id: latest.oneDriveProjectFolderItemId || latest.oneDriveFolderItemId,
       name: latest.folderName,
       folder: {}
     };
-    if (!folderRef.driveId || !folderRef.itemId) return null;
-    const key = `${folderRef.driveId}:${folderRef.itemId}:formal`;
+    if (!projectFolderRef.driveId || !projectFolderRef.itemId) return null;
+
+    if (
+      latest.oneDriveFolderStatus === "ready" &&
+      latest.oneDriveProjectFolderItemId &&
+      latest.oneDriveFolderItemId &&
+      latest.oneDriveOriginalFolderItemId
+    ) {
+      return {
+        driveId: latest.oneDriveFolderDriveId || projectFolderRef.driveId,
+        itemId: latest.oneDriveFolderItemId,
+        id: latest.oneDriveFolderItemId,
+        name: FORMAL_PHOTO_FOLDER_NAME,
+        folder: {},
+        originalFolder: {
+          driveId: latest.oneDriveFolderDriveId || projectFolderRef.driveId,
+          itemId: latest.oneDriveOriginalFolderItemId,
+          id: latest.oneDriveOriginalFolderItemId,
+          name: ORIGINAL_FOLDER_NAME,
+          folder: {}
+        }
+      };
+    }
+
+    const key = `${projectFolderRef.driveId}:${projectFolderRef.itemId}:formal-photo-root`;
     if (folderEnsurePromises.has(key)) return folderEnsurePromises.get(key);
 
     const promise = (async () => {
-      const verified = await OneDriveClient.getDriveItem(folderRef);
-      if (!verified?.folder || !verified.driveId || !verified.itemId) {
+      const projectFolder = await OneDriveClient.getDriveItem(projectFolderRef);
+      if (!projectFolder?.folder || !projectFolder.driveId || !projectFolder.itemId) {
         throw new Error("正式案件のOneDriveフォルダを確認できませんでした。");
       }
-      let originalFolder = null;
-      if (latest.oneDriveOriginalFolderItemId) {
-        originalFolder = await OneDriveClient.getDriveItem({
-          driveId: verified.driveId,
-          itemId: latest.oneDriveOriginalFolderItemId
-        }).catch(() => null);
+
+      let photoFolder = await OneDriveClient.ensureChildFolder(projectFolder, FORMAL_PHOTO_FOLDER_NAME);
+      photoFolder = await OneDriveClient.getDriveItem(photoFolder);
+      if (!photoFolder?.folder || !photoFolder.driveId || !photoFolder.itemId) {
+        throw new Error("正式案件の採取写真フォルダを確認できませんでした。");
       }
-      if (!originalFolder?.folder) {
-        originalFolder = await OneDriveClient.ensureChildFolder(verified, ORIGINAL_FOLDER_NAME);
-        originalFolder = await OneDriveClient.getDriveItem(originalFolder);
-      }
+
+      let originalFolder = await OneDriveClient.ensureChildFolder(photoFolder, ORIGINAL_FOLDER_NAME);
+      originalFolder = await OneDriveClient.getDriveItem(originalFolder);
       if (!originalFolder?.folder || !originalFolder.driveId || !originalFolder.itemId) {
         throw new Error("正式案件の元画像フォルダを確認できませんでした。");
       }
-      applyRemoteFolderState(latest, verified, originalFolder, "ready");
-      return { ...verified, originalFolder };
+
+      const current = loadRememberedSession(latest.id) || { ...latest };
+      current.oneDriveProjectFolderDriveId = projectFolder.driveId;
+      current.oneDriveProjectFolderItemId = projectFolder.itemId;
+      current.oneDriveFolderDriveId = photoFolder.driveId;
+      current.oneDriveFolderItemId = photoFolder.itemId;
+      current.oneDriveOriginalFolderItemId = originalFolder.itemId;
+      current.oneDriveFolderStatus = "ready";
+      current.oneDriveFolderError = "";
+      rememberSession(current);
+      if (isSameActiveSession(current)) {
+        try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(current)); } catch (storageError) {}
+      }
+
+      return { ...photoFolder, originalFolder };
     })()
       .catch((error) => {
-        applyRemoteFolderState(latest, folderRef, null, "error", error?.message || "正式案件フォルダの確認に失敗しました。");
+        const current = loadRememberedSession(latest.id) || { ...latest };
+        current.oneDriveProjectFolderDriveId = projectFolderRef.driveId;
+        current.oneDriveProjectFolderItemId = projectFolderRef.itemId;
+        current.oneDriveFolderStatus = "error";
+        current.oneDriveFolderError = error?.message || "正式案件フォルダの確認に失敗しました。";
+        rememberSession(current);
+        if (isSameActiveSession(current)) {
+          try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(current)); } catch (storageError) {}
+        }
         console.warn("正式案件OneDriveフォルダの確認に失敗しました", error);
         return null;
       })

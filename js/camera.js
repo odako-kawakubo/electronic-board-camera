@@ -9,7 +9,7 @@
  * ============================================================
  */
 
-    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    // このモジュール専用の定数・DOM参照・実行状態。
     const video = document.getElementById("video");
     const captureFreezeImage = document.getElementById("captureFreezeImage");
     const cameraFlash = document.getElementById("cameraFlash");
@@ -216,7 +216,7 @@
 
       isTakingPhoto = true;
       shootButton.disabled = true;
-      // v61: 撮影開始時の区分を固定し、レビュー中の状態変化を受けない。
+      // 撮影開始時の区分を固定し、確認画面中の状態変化が保存結果へ混入しないようにする。
       const lockedPhotoType = { ...getCurrentPhotoType() };
 
       try {
@@ -471,7 +471,7 @@
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       if (options.useImageRelativeBoardLayout) {
-        // v63: ファイル読み込み写真は編集プレビューと完全に同じ4隅・サイズ比率で保存する。
+        // 読み込み写真は編集プレビューと同じ4隅・サイズ比率で保存する。
         const rect = getFixedBoardRectForImageRect({ x: 0, y: 0, w: canvas.width, h: canvas.height });
         drawBoardOnCanvas(ctx, rect.x, rect.y, rect.w, rect.h, options.sourceData || getCurrentBoardData());
       } else {

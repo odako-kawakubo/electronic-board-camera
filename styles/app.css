@@ -413,7 +413,7 @@
     }
 
 
-    /* v50: 表示看板と保存看板を同一Canvas描画に統一する */
+    /* 表示看板と保存看板は同じCanvas描画ロジックを使う */
     #boardCanvasPreview {
       position: absolute;
       left: 0;
@@ -489,7 +489,7 @@
     }
 
 
-    /* v45: 入れ子表の外周罫線を消して、内容欄だけ太線に見えるのを防ぐ */
+    /* 入れ子表の外周罫線を消し、内容欄だけ太線に見えるのを防ぐ */
     .inner-table tr:first-child td { border-top: none; }
     .inner-table tr:last-child td { border-bottom: none; }
     .inner-table td:first-child { border-left: none; }
@@ -605,7 +605,7 @@
       align-items: center;
     }
 
-    /* v45: 件名・採取場所のtextareaを同じ仕組みで上下中央に見せる */
+    /* 件名・採取場所のtextareaは同じ仕組みで上下中央に見せる */
     .subject-textarea,
     .address-textarea {
       display: block;
@@ -1428,7 +1428,7 @@
       display: flex;
     }
 
-    /* v65.25: body直下へ出した共通モーダルを、撮影/アルバム起点時だけ
+    /* body直下の共通モーダルは、撮影/アルバム起点時だけ
      * appOrientationShellと同じ向きへ合わせる。トップ起点時は無回転。 */
     @media (orientation: portrait) {
       #casePickerOverlay.app-oriented-modal,
@@ -1541,7 +1541,7 @@
 
 
 
-    /* v50: 看板文字中央寄せ調整 */
+    /* 看板文字の中央寄せ調整 */
     #previewOverlay.board-correction-selecting #previewMeta {
       color: #f2c94c;
       font-weight: 900;
@@ -1700,7 +1700,7 @@
 
 
 
-    /* v44: 通常時は看板内を直接編集させない。編集は看板編集モードのみ */
+    /* 通常時は看板内を直接編集させず、編集は看板編集モードに限定する */
     body:not(.board-editing) #photoBoard textarea,
     body:not(.board-editing) #photoBoard input,
     body:not(.board-editing) #photoBoard .date-text,
@@ -1772,7 +1772,7 @@
 
 
 
-    /* v52.1: 編集時も看板文字を上下左右中央寄せに近づける */
+    /* 編集時も看板文字を上下左右中央寄せに近づける */
     #boardEditHost .value-cell,
     #boardEditHost .board-value-cell,
     #boardEditHost .inner-value,
@@ -1847,7 +1847,7 @@
       white-space: nowrap;
     }
 
-    /* v52.3: 看板編集は通常フォーム + Canvasプレビュー */
+    /* 看板編集はフォーム入力 + Canvasプレビューで行う */
     #boardEditOverlay {
       grid-template-columns: minmax(280px, 420px) minmax(0, 1fr) 84px;
       gap: 14px;
@@ -2005,7 +2005,7 @@
     }
 
 
-    /* v53.1: 回転表示中でも編集操作を確実にタップ可能にする */
+    /* 回転表示中でも編集操作を確実にタップできるようにする */
     .board-edit-history-preview {
       width: 100%;
       flex: 0 0 auto;
@@ -2057,7 +2057,7 @@
     }
 
 
-    /* v53.7: 表示写真のダブルタップ拡大 */
+    /* 表示写真のダブルタップ拡大 */
     #photoZoomOverlay {
       position: fixed;
       inset: 0;
@@ -2084,7 +2084,7 @@
       -webkit-user-drag: none;
     }
 
-    /* v53.7: 編集中の看板種類を明示 */
+    /* 編集中の看板種類を明示 */
     .board-edit-mode-badge {
       display: inline-flex;
       align-items: center;

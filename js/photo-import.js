@@ -11,7 +11,7 @@
  * ============================================================
  */
 
-    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    // このモジュール専用の定数・DOM参照・実行状態。
     const launchModeOverlay = document.getElementById("launchModeOverlay");
     const launchResumePanel = document.getElementById("launchResumePanel");
     const launchResumeMeta = document.getElementById("launchResumeMeta");

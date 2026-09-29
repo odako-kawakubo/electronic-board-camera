@@ -29,7 +29,7 @@
      * 保存写真の閲覧画面を開き、現在の案件と写真位置に合わせて表示を構築する。
      */
     async function openPreview() {
-      // v61: セッション内に写真があれば再読込を省略し、表示ボタンの待ち時間を短縮する。
+      // セッション内に写真がある場合は再読込を省略し、表示開始を待たせない。
       if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
 
       const activeCaseId = String(window.CaseSession?.getCurrentSession?.()?.id || "");

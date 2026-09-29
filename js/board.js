@@ -9,7 +9,7 @@
  * ============================================================
  */
 
-    // v65.13: このモジュールだけが所有する定数・DOM参照・実行状態。
+    // このモジュール専用の定数・DOM参照・実行状態。
     const samplingNameHistoryList = document.getElementById("samplingNameHistoryList");
     const boardCanvasPreview = document.getElementById("boardCanvasPreview");
     const boardEditCanvas = document.getElementById("boardEditCanvas");
@@ -523,7 +523,7 @@
       });
     }
 
-    // v63: 写真編集時は「看板だけ」ではなく、実写真 + 看板を同じCanvasに描画する。
+    // 写真編集時は、保存結果に近い見た目を確認できるよう実写真と看板を同じCanvasへ描画する。
     // 読み込み写真・撮影済み写真の看板修正どちらでも、保存結果に近い状態を常時確認できる。
     async function renderBoardEditCanvas() {
       if (!boardEditCanvas || !boardEditDraft) return;
@@ -624,7 +624,7 @@
         const syncDraftFromControl = () => {
           readBoardEditForm();
           if (control === boardEditModeSelect) {
-            // v63: 調査 / サンプリング切替を下書きへ即反映してから再描画する。
+            // 調査 / サンプリング切替は下書きへ即反映してから再描画する。
             boardEditDraft.boardMode = boardEditModeSelect.value === "sampling" ? "sampling" : "survey";
             renderBoardEditStatusOptions(boardEditDraft.status);
             updateBoardEditModeLabels();
@@ -1431,7 +1431,7 @@
 
       ctx.lineWidth = innerLine;
 
-      // v45: 罫線は二重枠の内側だけに描く。内容欄の太線・下側の飛び出しを防ぐ。
+      // 罫線は二重枠の内側だけに描き、内容欄の太線化や下側への飛び出しを防ぐ。
       const gridTop = y + innerLine;
       const gridBottom = y + h - innerLine;
       const gridLeft = x + innerLine;

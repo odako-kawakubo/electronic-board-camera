@@ -3,6 +3,6 @@
  * 公開最新版は version.json、実行中判定はこの値を使う。
  */
 window.AppVersion = Object.freeze({
-  version: "65.68",
+  version: "65.69",
   revision: ""
 });

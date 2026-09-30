@@ -32,6 +32,7 @@
   let currentStep = null;
   let manualBubblePosition = null;
   let dragState = null;
+  let dynamicTargetObserver = null;
 
   function loadState() {
     try {
@@ -54,6 +55,10 @@
     return isRunning() && state.route === "new" && state.stepIndex === 0;
   }
 
+  function shouldShowTutorialCase() {
+    return isRunning() && state.route === "existing" && state.stepIndex === 1;
+  }
+
   function getCommonTail() {
     return [
       { id:"done", target:"#boardEditDoneButton", position:"top-left", title:"看板編集を完了", text:"入力内容を確認したら「完了」を押します。", action:"click", waitForHidden:"#boardEditOverlay.show" },
@@ -69,7 +74,7 @@
       return [
         { id:"new", target:".launch-new-case-button", position:"top-left", title:"新規案件から撮影", text:"「新規案件」を押します。確認画面が出たら「新しい案件を開始」を選びます。", action:"external" },
         { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
-        { id:"board", target:"#photoBoard", position:"top-left", title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。看板をダブルタップしてください。", action:"wait-board-edit" },
+        { id:"board", target:"#photoBoard", position:"top-left", spotlight:true, title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。明るく表示されている看板をダブルタップしてください。", action:"wait-board-edit" },
         { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"案件名を入力してください。", action:"input" },
         { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
         { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
@@ -82,9 +87,9 @@
 
     return [
       { id:"select", target:".launch-case-select-button", position:"top-left", title:"既存案件から撮影", text:"まず「案件選択」を押します。", action:"click", waitFor:"#casePickerOverlay.show" },
-      { id:"tutorial-case", target:"#tutorialCaseButton", position:"top-right", title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択してください。", action:"external" },
+      { id:"tutorial-case", target:"#tutorialCaseButton", position:"top-right", dynamicTarget:true, title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択してください。", action:"external" },
       { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
-      { id:"board", target:"#photoBoard", position:"top-left", title:"看板情報を設定", text:"案件名と住所は入っています。採取箇所を設定するため、看板をダブルタップしてください。", action:"wait-board-edit" },
+      { id:"board", target:"#photoBoard", position:"top-left", spotlight:true, title:"看板情報を設定", text:"案件名と住所は入っています。明るく表示されている看板をダブルタップして、採取箇所を設定します。", action:"wait-board-edit" },
       { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
       { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
       { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"実際に採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
@@ -236,9 +241,13 @@
     if (typeof closeHelp === "function") closeHelp();
 
     const step = getSteps(state.route)[state.stepIndex];
-    const session = window.CaseSession?.getCurrentSession?.();
 
-    if (step?.id === "permission" && TUTORIAL_CASE_IDS.has(String(session?.id || ""))) {
+    // 中断時に破棄した一時チュートリアル案件を、再開時だけメモリ上へ作り直す。
+    if (!["select", "tutorial-case", "new"].includes(step?.id || "")) {
+      activateTutorialCase(state.route);
+    }
+
+    if (step?.id === "permission") {
       if (typeof chooseCameraMode === "function") chooseCameraMode();
       return true;
     }
@@ -269,8 +278,14 @@
     state.active = false;
     state.paused = true;
     saveState();
+
+    window.CaseSession?.endTutorialSession?.();
+
+    if (typeof returnToTopScreen === "function") returnToTopScreen();
     if (typeof showToast === "function") {
-      showToast("チュートリアルを中断しました。操作方法から続きから再開できます");
+      window.setTimeout(() => {
+        showToast("チュートリアルを中断しました。操作方法から続きから再開できます");
+      }, 80);
     }
   }
 
@@ -293,6 +308,7 @@
 
     state = { active:false, paused:false, route:"", stepIndex:0, completed:true };
     saveState();
+    window.CaseSession?.endTutorialSession?.();
 
     await AppDialog.notice({
       title: "チュートリアル完了",
@@ -313,6 +329,10 @@
     if (activeTarget) {
       activeTarget.classList.remove("tutorial-active-target");
       activeTarget = null;
+    }
+    if (dynamicTargetObserver) {
+      dynamicTargetObserver.disconnect();
+      dynamicTargetObserver = null;
     }
     document.body.classList.remove("tutorial-no-dim");
     clearTimeout(renderTimer);
@@ -364,6 +384,25 @@
 
     bubble.style.left = clamp(desired.left, 10, maxLeft) + "px";
     bubble.style.top = clamp(desired.top, 10, maxTop) + "px";
+  }
+
+  function observeDynamicTarget(step) {
+    if (!step?.dynamicTarget || !step?.target) return;
+
+    dynamicTargetObserver?.disconnect();
+    dynamicTargetObserver = new MutationObserver(() => {
+      if (!isRunning() || currentStep?.id !== step.id) return;
+
+      const freshTarget = document.querySelector(step.target);
+      if (!freshTarget || freshTarget === activeTarget) return;
+
+      if (activeTarget) activeTarget.classList.remove("tutorial-active-target");
+      activeTarget = freshTarget;
+      activeTarget.classList.add("tutorial-active-target");
+      requestAnimationFrame(() => placeBubble(step));
+    });
+
+    dynamicTargetObserver.observe(document.body, { childList:true, subtree:true });
   }
 
   function waitForSelector(selector, callback, tries = 60) {
@@ -542,6 +581,7 @@
       document.body.classList.toggle("tutorial-no-dim", Boolean(step.noDim));
       showLayer();
       requestAnimationFrame(() => placeBubble(step));
+      observeDynamicTarget(step);
       bindAction(step, target);
     });
   }
@@ -625,6 +665,7 @@
     shouldUseTutorialNewCase,
     startTutorialNewCase,
     selectExistingTutorialCase,
+    shouldShowTutorialCase,
     onCameraModeEntered
   });
 })();

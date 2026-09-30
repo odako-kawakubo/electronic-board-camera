@@ -50,12 +50,22 @@
       return String(photo.caseId || "").trim();
     }
 
+    function isTutorialCaseId(caseId) {
+      return ["TUTORIAL_EXISTING", "TUTORIAL_NEW"].includes(String(caseId || ""));
+    }
+
+    function tutorialIsRunning() {
+      return Boolean(window.Tutorial?.isRunning?.());
+    }
+
     function getCaseSummaries() {
       const map = new Map();
 
       capturedPhotos.forEach((photo) => {
-        const key = getPhotoCaseKey(photo);
         const caseId = getPhotoCaseId(photo);
+        if (isTutorialCaseId(caseId) && !tutorialIsRunning()) return;
+
+        const key = getPhotoCaseKey(photo);
         const subject = getPhotoSubject(photo);
         const photoTime = new Date(photo.createdAt || 0).getTime();
         const current = map.get(key) || { key, caseId, subject, count: 0, latest: 0 };
@@ -98,9 +108,14 @@
     }
 
     function getPreviewPhotos() {
+      const activeSession = window.CaseSession?.getCurrentSession?.() || null;
       let photos = capturedPhotos.slice();
 
-      if (selectedCaseKey) {
+      if (!tutorialIsRunning()) {
+        photos = photos.filter((photo) => !isTutorialCaseId(getPhotoCaseId(photo)));
+      } else if (activeSession?.kind === "tutorial") {
+        photos = photos.filter((photo) => getPhotoCaseId(photo) === activeSession.id);
+      } else if (selectedCaseKey) {
         photos = photos.filter((photo) => getPhotoCaseKey(photo) === selectedCaseKey);
       }
 
@@ -241,7 +256,7 @@
         }
       }
 
-      if (casePickerOpenedFromTop) {
+      if (casePickerOpenedFromTop && window.Tutorial?.shouldShowTutorialCase?.()) {
         const tutorialButton = document.createElement("button");
         tutorialButton.id = "tutorialCaseButton";
         tutorialButton.type = "button";

@@ -24,6 +24,8 @@
   const ORIGINAL_FOLDER_NAME = "元画像";
   const folderEnsurePromises = new Map();
   const listeners = [];
+  let tutorialSession = null;
+  const TUTORIAL_PREVIOUS_CASE_KEY = "electronic-board-camera-tutorial-previous-case-v1";
 
   function pad2(value) { return String(value).padStart(2, "0"); }
 
@@ -102,7 +104,20 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(ACTIVE_KEY) || "null");
       if (!parsed || !parsed.id) return null;
-      if (parsed.kind === "formal" || parsed.kind === "tutorial") return parsed;
+
+      // 旧版で永続化されていたチュートリアル案件は通常案件として復元しない。
+      if (parsed.kind === "tutorial") {
+        let previous = null;
+        try { previous = JSON.parse(localStorage.getItem(TUTORIAL_PREVIOUS_CASE_KEY) || "null"); } catch (_) {}
+        if (previous?.id && previous.kind !== "tutorial") {
+          try { localStorage.setItem(ACTIVE_KEY, JSON.stringify(previous)); } catch (_) {}
+          return previous;
+        }
+        try { localStorage.removeItem(ACTIVE_KEY); } catch (_) {}
+        return null;
+      }
+
+      if (parsed.kind === "formal") return parsed;
       if (!parsed.dateCode || !parsed.branch) return null;
       return parsed;
     } catch (error) {
@@ -168,6 +183,8 @@
   }
 
   function getCurrentSession() {
+    if (tutorialSession) return { ...tutorialSession };
+
     let session = loadActiveSession();
     if (!session) session = createSession();
     else rememberSession(session);
@@ -195,7 +212,7 @@
 
   function activateTutorialSession(route = "existing") {
     const isNew = route === "new";
-    const session = {
+    tutorialSession = {
       id: isNew ? "TUTORIAL_NEW" : "TUTORIAL_EXISTING",
       kind: "tutorial",
       tutorialRoute: isNew ? "new" : "existing",
@@ -205,11 +222,20 @@
       createdAt: new Date().toISOString(),
       oneDriveFolderStatus: "disabled"
     };
-    saveActiveSession(session);
+
     if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
     renderSessionPanel();
+    notify("activate", tutorialSession);
+    return { ...tutorialSession };
+  }
+
+  function endTutorialSession() {
+    if (!tutorialSession) return getCurrentSession();
+    tutorialSession = null;
+    const session = loadActiveSession() || createSession();
+    renderSessionPanel();
     notify("activate", session);
-    return session;
+    return { ...session };
   }
 
   function legacySessionHints(caseId) {
@@ -622,6 +648,7 @@
     activateSession,
     activateFormalProject,
     activateTutorialSession,
+    endTutorialSession,
     renderSessionPanel,
     getDeviceName,
     setDeviceName,

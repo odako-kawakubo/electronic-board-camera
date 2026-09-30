@@ -2901,3 +2901,21 @@
   font-size: 10px;
   font-weight: 800;
 }
+
+
+/* チュートリアル吹き出しは各ステップの既定位置から手動移動できる */
+.tutorial-bubble {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.tutorial-bubble:active {
+  cursor: grabbing;
+}
+.tutorial-bubble button {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}

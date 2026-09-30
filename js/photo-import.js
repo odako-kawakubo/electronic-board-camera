@@ -33,6 +33,11 @@
 
     function chooseCameraMode() {
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
+
+      // チュートリアル中は、撮影画面を先に見せてから
+      // カメラ権限の説明を行う。通常利用時だけ従来どおり即起動する。
+      if (window.Tutorial?.onCameraModeEntered?.()) return;
+
       startCamera();
     }
 

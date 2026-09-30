@@ -3,9 +3,10 @@
  * tutorial.js - 実画面チュートリアル
  * ============================================================
  * 責務:
- * - 実際の画面要素をハイライトし、撮影操作を順番に案内する
- * - 既存案件 / 新規案件の2ルートを管理する
- * - チュートリアル専用案件をOneDriveへ送らず、途中位置を端末内に保持する
+ * - 既存案件 / 新規案件の撮影ルートを独立して案内する
+ * - 実画面の対象をハイライトし、画面構成に合わせて吹き出しを配置する
+ * - OS権限 / 共通ダイアログ表示中はチュートリアルUIを退避する
+ * - 中断位置を端末内に保持し、再開できるようにする
  * ============================================================
  */
 (function () {
@@ -27,10 +28,14 @@
   let activeTarget = null;
   let cleanupAction = null;
   let renderTimer = null;
+  let currentStep = null;
+  let manualBubblePosition = null;
+  let dragState = null;
 
   function loadState() {
     try {
-      return JSON.parse(localStorage.getItem(STATE_KEY) || "null") || { active:false, paused:false, route:"", stepIndex:0 };
+      return JSON.parse(localStorage.getItem(STATE_KEY) || "null") ||
+        { active:false, paused:false, route:"", stepIndex:0 };
     } catch (_) {
       return { active:false, paused:false, route:"", stepIndex:0 };
     }
@@ -48,40 +53,44 @@
     return isRunning() && state.route === "new" && state.stepIndex === 0;
   }
 
-  function getSteps(route) {
-    const commonTail = [
-      { id:"done", target:"#boardEditDoneButton", title:"看板編集を完了", text:"入力内容を確認したら「完了」を押します。", action:"click" },
-      { id:"shoot", target:"#shootButton", title:"撮影", text:"構図と看板を確認して「撮影」を押します。", action:"click", waitFor:"#captureReviewOverlay.show" },
-      { id:"review", target:".capture-review-ok", title:"撮影確認", text:"問題なければ「OK」。撮り直したい場合は左の「撮り直し」を使います。", action:"click", waitFor:"#viewButton:not(.hidden-control)" },
-      { id:"saved", target:"#viewButton", title:"アプリ内に保存", text:"OKにすると写真はまずこのアプリ内へ保存されます。「表示」を押して確認します。", action:"click", waitFor:"#previewOverlay.show" },
-      { id:"list", target:"#previewImageWrap", title:"写真一覧", text:"撮影した写真を確認できます。チュートリアル案件はOneDriveへ送信しません。通常案件では緑の●がOneDrive保存完了です。", action:"next" }
+  function getCommonTail() {
+    return [
+      { id:"done", target:"#boardEditDoneButton", position:"top-left", title:"看板編集を完了", text:"入力内容を確認したら「完了」を押します。", action:"click", waitForHidden:"#boardEditOverlay.show" },
+      { id:"shoot", target:"#shootButton", position:"top-left", title:"撮影", text:"構図と看板を確認して「撮影」を押します。", action:"click", waitFor:"#captureReviewOverlay.show" },
+      { id:"review", target:".capture-review-ok", position:"top-center", title:"撮影確認", text:"問題なければ「OK」。撮り直したい場合は「撮り直し」を使います。", action:"click", waitForHidden:"#captureReviewOverlay.show" },
+      { id:"saved", target:"#viewButton", position:"top-left", title:"アプリ内に保存", text:"OKにすると写真はまずアプリ内へ保存されます。「表示」を押して確認します。", action:"click", waitFor:"#previewOverlay.show" },
+      { id:"list", target:"#previewImageWrap", position:"left-center", title:"写真一覧", text:"撮影した写真を確認できます。チュートリアル案件はOneDriveへ送信しません。通常案件では緑の●がOneDrive保存完了です。", action:"next" }
     ];
+  }
 
+  function getSteps(route) {
     if (route === "new") {
       return [
-        { id:"new", target:".launch-new-case-button", title:"新規案件から撮影", text:"「新規案件」を押します。練習用の新規案件へ移動します。カメラの使用確認が表示されたら許可してください。", action:"click" },
-        { id:"board", target:"#photoBoard", title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
-        { id:"subject", target:"#boardEditSubject", title:"案件名", text:"練習用の案件名を入力してください。", action:"input" },
-        { id:"address", target:"#boardEditAddress", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
-        { id:"room", target:"#boardEditRoom", title:"採取箇所", text:"採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
-        { id:"sample", target:"#boardEditSample", title:"試料No.", text:"試料No.を確認します。必要に応じて変更できます。", action:"next" },
-        { id:"mode", target:"#editBoardModeButton", title:"サンプリングモード", text:"採取写真ではサンプリングを使います。初期状態もサンプリングです。", action:"next" },
-        { id:"status", target:"#boardEditStatus", title:"写真区分", text:"施工前・施工中・施工後から撮影する区分を選びます。", action:"next" },
-        ...commonTail
+        { id:"new", target:".launch-new-case-button", position:"top-left", title:"新規案件から撮影", text:"「新規案件」を押します。確認画面が出たら「新しい案件を開始」を選びます。", action:"external" },
+        { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
+        { id:"board", target:"#photoBoard", position:"top-left", title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
+        { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"案件名を入力してください。", action:"input" },
+        { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
+        { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
+        { id:"sample", target:"#boardEditSample", position:"top-right", title:"試料No.", text:"試料No.を確認します。必要に応じて変更できます。", action:"next" },
+        { id:"mode", target:"#editBoardModeButton", position:"top-left", title:"サンプリングモード", text:"採取写真ではサンプリングを使います。初期状態もサンプリングです。", action:"next" },
+        { id:"status", target:"#boardEditStatus", position:"top-right", title:"写真区分", text:"施工前・施工中・施工後から撮影する区分を選びます。", action:"next" },
+        ...getCommonTail()
       ];
     }
 
     return [
-      { id:"select", target:".launch-case-select-button", title:"既存案件から撮影", text:"まず「案件選択」を押します。", action:"click" },
-      { id:"tutorial-case", target:"#tutorialCaseButton", title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択すると撮影画面へ移動します。カメラの使用確認が表示されたら許可してください。", action:"click" },
-      { id:"board", target:"#photoBoard", title:"看板情報を設定", text:"既存案件では案件名と住所は入っています。採取箇所を設定するため、看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
-      { id:"subject", target:"#boardEditSubject", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
-      { id:"address", target:"#boardEditAddress", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
-      { id:"room", target:"#boardEditRoom", title:"採取箇所", text:"実際に採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
-      { id:"sample", target:"#boardEditSample", title:"試料No.", text:"試料No.を確認します。必要に応じて変更できます。", action:"next" },
-      { id:"mode", target:"#editBoardModeButton", title:"サンプリングモード", text:"採取写真ではサンプリングを使います。", action:"next" },
-      { id:"status", target:"#boardEditStatus", title:"写真区分", text:"施工前・施工中・施工後から撮影する区分を選びます。", action:"next" },
-      ...commonTail
+      { id:"select", target:".launch-case-select-button", position:"top-left", title:"既存案件から撮影", text:"まず「案件選択」を押します。", action:"click", waitFor:"#casePickerOverlay.show" },
+      { id:"tutorial-case", target:"#tutorialCaseButton", position:"top-right", title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択してください。", action:"external" },
+      { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
+      { id:"board", target:"#photoBoard", position:"top-left", title:"看板情報を設定", text:"案件名と住所は入っています。採取箇所を設定するため、看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
+      { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
+      { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
+      { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"実際に採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
+      { id:"sample", target:"#boardEditSample", position:"top-right", title:"試料No.", text:"試料No.を確認します。必要に応じて変更できます。", action:"next" },
+      { id:"mode", target:"#editBoardModeButton", position:"top-left", title:"サンプリングモード", text:"採取写真ではサンプリングを使います。", action:"next" },
+      { id:"status", target:"#boardEditStatus", position:"top-right", title:"写真区分", text:"施工前・施工中・施工後から撮影する区分を選びます。", action:"next" },
+      ...getCommonTail()
     ];
   }
 
@@ -92,9 +101,7 @@
   }
 
   function clearTutorialBoard(caseId) {
-    try {
-      localStorage.removeItem("electronic-board-camera-board-form-v2:" + caseId);
-    } catch (_) {}
+    try { localStorage.removeItem("electronic-board-camera-board-form-v2:" + caseId); } catch (_) {}
   }
 
   function configureTutorialBoard(route) {
@@ -118,29 +125,73 @@
     return session;
   }
 
+  function setStep(index) {
+    state.stepIndex = Math.max(0, Number(index) || 0);
+    saveState();
+  }
+
+  function showLayer() {
+    layer?.classList.add("show");
+  }
+
+  function hideLayer() {
+    layer?.classList.remove("show");
+  }
+
   function selectExistingTutorialCase() {
-    if (!isRunning() || state.route !== "existing") return;
+    if (!isRunning() || state.route !== "existing" || currentStep?.id !== "tutorial-case") return;
+    cleanupCurrent();
+    hideLayer();
     activateTutorialCase("existing");
     if (typeof closeCasePicker === "function") closeCasePicker();
+    setStep(2);
     if (typeof chooseCameraMode === "function") chooseCameraMode();
-    waitForCameraReadyThenAdvance();
   }
 
   async function startTutorialNewCase(current) {
+    if (!isRunning() || state.route !== "new" || currentStep?.id !== "new") return current;
+
+    cleanupCurrent();
+    hideLayer();
     const ok = await AppDialog.confirm({
       title: "新規案件",
       message: "現在の案件から切り替えて、新しい案件を開始しますか？",
       okLabel: "新しい案件を開始",
       cancelLabel: "キャンセル"
     });
-    if (!ok) return current;
+
+    if (!ok) {
+      window.setTimeout(render, 80);
+      return current;
+    }
+
     const session = activateTutorialCase("new");
+    setStep(1);
     if (typeof chooseCameraMode === "function") chooseCameraMode();
-    waitForCameraReadyThenAdvance();
     return session;
   }
 
-  function waitForCameraReadyThenAdvance() {
+  function onCameraModeEntered() {
+    if (!isRunning()) return false;
+    const step = getSteps(state.route)[state.stepIndex];
+    if (!step || step.id !== "permission") return false;
+    window.setTimeout(render, 100);
+    return true;
+  }
+
+  async function requestTutorialCameraPermission() {
+    if (!isRunning() || currentStep?.id !== "permission") return;
+    cleanupCurrent();
+    hideLayer();
+
+    try {
+      if (typeof startCamera === "function") await startCamera();
+    } finally {
+      waitForCameraReady();
+    }
+  }
+
+  function waitForCameraReady() {
     let attempts = 0;
     const check = () => {
       if (!isRunning()) return;
@@ -150,9 +201,13 @@
         return;
       }
       attempts += 1;
-      if (attempts < 200) window.setTimeout(check, 100);
+      if (attempts >= 200) {
+        window.setTimeout(render, 80);
+        return;
+      }
+      window.setTimeout(check, 100);
     };
-    window.setTimeout(check, 120);
+    window.setTimeout(check, 100);
   }
 
   function start(route) {
@@ -160,6 +215,7 @@
     rememberPreviousCase();
     state = { active:true, paused:false, route, stepIndex:0 };
     saveState();
+    manualBubblePosition = null;
     if (typeof closeHelp === "function") closeHelp();
     if (typeof returnToTopScreen === "function") returnToTopScreen();
     window.setTimeout(render, 120);
@@ -171,10 +227,21 @@
       if (typeof showToast === "function") showToast("再開できるチュートリアルはありません");
       return false;
     }
+
     state.active = true;
     state.paused = false;
     saveState();
+    manualBubblePosition = null;
     if (typeof closeHelp === "function") closeHelp();
+
+    const step = getSteps(state.route)[state.stepIndex];
+    const session = window.CaseSession?.getCurrentSession?.();
+
+    if (step?.id === "permission" && TUTORIAL_CASE_IDS.has(String(session?.id || ""))) {
+      if (typeof chooseCameraMode === "function") chooseCameraMode();
+      return true;
+    }
+
     render();
     return true;
   }
@@ -183,31 +250,38 @@
     if (!isRunning()) return;
     state.stepIndex += 1;
     saveState();
+    manualBubblePosition = null;
     window.setTimeout(render, 140);
   }
 
   function stop() {
     cleanupCurrent();
-    if (layer) layer.classList.remove("show");
+    hideLayer();
     state.active = false;
     state.paused = true;
     saveState();
-    showToast("チュートリアルを中断しました。操作方法から続きから再開できます");
+    if (typeof showToast === "function") {
+      showToast("チュートリアルを中断しました。操作方法から続きから再開できます");
+    }
   }
 
   async function complete() {
     cleanupCurrent();
-    if (layer) layer.classList.remove("show");
-    const tutorialPhotos = (window.PhotoState?.items || []).filter((photo) => TUTORIAL_CASE_IDS.has(String(photo.caseId || "")));
+    hideLayer();
+
+    const tutorialPhotos = (window.PhotoState?.items || [])
+      .filter((photo) => TUTORIAL_CASE_IDS.has(String(photo.caseId || "")));
     if (tutorialPhotos.length && window.PhotoState?.deleteMany) {
       await PhotoState.deleteMany(tutorialPhotos);
     }
+
     clearTutorialBoard("TUTORIAL_EXISTING");
     clearTutorialBoard("TUTORIAL_NEW");
 
     let previous = null;
     try { previous = JSON.parse(localStorage.getItem(PREVIOUS_CASE_KEY) || "null"); } catch (_) {}
     try { localStorage.removeItem(PREVIOUS_CASE_KEY); } catch (_) {}
+
     state = { active:false, paused:false, route:"", stepIndex:0, completed:true };
     saveState();
 
@@ -232,18 +306,56 @@
       activeTarget = null;
     }
     clearTimeout(renderTimer);
+    currentStep = null;
   }
 
-  function placeBubble() {
-    if (!bubble) return;
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getPresetPosition(position, width, height) {
+    const margin = 10;
     const vw = window.innerWidth;
-    const width = Math.min(270, vw - 24);
-    bubble.style.width = width + "px";
-    bubble.style.left = Math.max(12, (vw - width) / 2) + "px";
-    bubble.style.top = "10px";
+    const vh = window.innerHeight;
+    const top = margin;
+    const bottom = Math.max(margin, vh - height - margin);
+    const left = margin;
+    const right = Math.max(margin, vw - width - margin);
+    const centerX = Math.max(margin, (vw - width) / 2);
+    const centerY = Math.max(margin, (vh - height) / 2);
+
+    switch (position) {
+      case "top-left": return { left, top };
+      case "top-right": return { left:right, top };
+      case "bottom-left": return { left, top:bottom };
+      case "bottom-center": return { left:centerX, top:bottom };
+      case "left-center": return { left, top:centerY };
+      case "right-center": return { left:right, top:centerY };
+      case "top-center":
+      default: return { left:centerX, top };
+    }
   }
 
-  function waitForSelector(selector, callback, tries = 50) {
+  function placeBubble(step = currentStep) {
+    if (!bubble) return;
+
+    const width = Math.min(270, window.innerWidth - 20);
+    bubble.style.width = width + "px";
+    bubble.style.left = "10px";
+    bubble.style.top = "10px";
+
+    const rect = bubble.getBoundingClientRect();
+    const height = Math.max(80, rect.height || 120);
+    const preset = getPresetPosition(step?.position || "top-center", width, height);
+    const desired = manualBubblePosition || preset;
+    const maxLeft = Math.max(10, window.innerWidth - width - 10);
+    const maxTop = Math.max(10, window.innerHeight - height - 10);
+
+    bubble.style.left = clamp(desired.left, 10, maxLeft) + "px";
+    bubble.style.top = clamp(desired.top, 10, maxTop) + "px";
+  }
+
+  function waitForSelector(selector, callback, tries = 60) {
     const found = document.querySelector(selector);
     if (found) {
       callback(found);
@@ -256,23 +368,62 @@
     renderTimer = window.setTimeout(() => waitForSelector(selector, callback, tries - 1), 100);
   }
 
+  function waitForConditionThenAdvance(step) {
+    let attempts = 0;
+
+    const check = () => {
+      if (!isRunning()) return;
+
+      if (step.waitFor && document.querySelector(step.waitFor)) {
+        advance();
+        return;
+      }
+
+      if (step.waitForHidden && !document.querySelector(step.waitForHidden)) {
+        advance();
+        return;
+      }
+
+      if (!step.waitFor && !step.waitForHidden) {
+        advance();
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < 100) window.setTimeout(check, 100);
+    };
+
+    window.setTimeout(check, 120);
+  }
+
   function bindAction(step, target) {
     if (!target) return;
+
+    nextButton.hidden = true;
+    nextButton.textContent = "次へ";
+    nextButton.onclick = null;
+
+    if (step.action === "external") return;
+
     if (step.action === "next") {
       nextButton.hidden = false;
       nextButton.onclick = advance;
       return;
     }
 
-    nextButton.hidden = true;
+    if (step.action === "permission") {
+      nextButton.hidden = false;
+      nextButton.textContent = "カメラを許可する";
+      nextButton.onclick = requestTutorialCameraPermission;
+      return;
+    }
 
     if (step.action === "input") {
       const handler = () => {
-        if (String(target.value || "").trim()) {
-          target.removeEventListener("change", handler);
-          target.removeEventListener("blur", handler);
-          advance();
-        }
+        if (!String(target.value || "").trim()) return;
+        target.removeEventListener("change", handler);
+        target.removeEventListener("blur", handler);
+        advance();
       };
       target.addEventListener("change", handler);
       target.addEventListener("blur", handler);
@@ -306,23 +457,6 @@
     cleanupAction = () => target.removeEventListener("click", handler, true);
   }
 
-  function waitForConditionThenAdvance(step) {
-    if (!step.waitFor) {
-      window.setTimeout(advance, 180);
-      return;
-    }
-    let attempts = 0;
-    const check = () => {
-      if (document.querySelector(step.waitFor)) {
-        advance();
-        return;
-      }
-      attempts += 1;
-      if (attempts < 80) window.setTimeout(check, 100);
-    };
-    window.setTimeout(check, 120);
-  }
-
   function render() {
     cleanupCurrent();
     if (!isRunning()) return;
@@ -332,12 +466,14 @@
       void complete();
       return;
     }
+
     const step = steps[state.stepIndex];
+    currentStep = step;
 
     waitForSelector(step.target, (target) => {
       if (!isRunning()) return;
       if (!target) {
-        showErrorToast("チュートリアルの対象を表示できませんでした");
+        if (typeof showErrorToast === "function") showErrorToast("チュートリアルの対象を表示できませんでした");
         return;
       }
 
@@ -349,12 +485,58 @@
       if (text) text.textContent = step.text;
       if (progress) progress.textContent = `${state.stepIndex + 1} / ${steps.length}`;
       if (stopButton) stopButton.onclick = stop;
-      if (layer) layer.classList.add("show");
 
-      placeBubble(target);
+      showLayer();
+      requestAnimationFrame(() => placeBubble(step));
       bindAction(step, target);
     });
   }
+
+  function beginBubbleDrag(event) {
+    if (!bubble || !isRunning()) return;
+    if (event.target.closest("button")) return;
+
+    const rect = bubble.getBoundingClientRect();
+    dragState = {
+      pointerId:event.pointerId,
+      offsetX:event.clientX - rect.left,
+      offsetY:event.clientY - rect.top
+    };
+    bubble.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function moveBubbleDrag(event) {
+    if (!dragState || event.pointerId !== dragState.pointerId || !bubble) return;
+
+    const rect = bubble.getBoundingClientRect();
+    const left = clamp(
+      event.clientX - dragState.offsetX,
+      10,
+      Math.max(10, window.innerWidth - rect.width - 10)
+    );
+    const top = clamp(
+      event.clientY - dragState.offsetY,
+      10,
+      Math.max(10, window.innerHeight - rect.height - 10)
+    );
+
+    manualBubblePosition = { left, top };
+    bubble.style.left = left + "px";
+    bubble.style.top = top + "px";
+    event.preventDefault();
+  }
+
+  function endBubbleDrag(event) {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    bubble?.releasePointerCapture?.(event.pointerId);
+    dragState = null;
+  }
+
+  bubble?.addEventListener("pointerdown", beginBubbleDrag);
+  bubble?.addEventListener("pointermove", moveBubbleDrag);
+  bubble?.addEventListener("pointerup", endBubbleDrag);
+  bubble?.addEventListener("pointercancel", endBubbleDrag);
 
   document.addEventListener("DOMContentLoaded", () => {
     state = loadState();
@@ -362,13 +544,23 @@
       window.setTimeout(() => {
         const session = window.CaseSession?.getCurrentSession?.();
         const expectedId = state.route === "new" ? "TUTORIAL_NEW" : "TUTORIAL_EXISTING";
-        if (session?.id === expectedId || state.stepIndex < 2) render();
+        const step = getSteps(state.route)[state.stepIndex];
+
+        if (step?.id === "permission" && session?.id === expectedId) {
+          if (typeof chooseCameraMode === "function") chooseCameraMode();
+          return;
+        }
+
+        render();
       }, 300);
     }
   });
 
   window.addEventListener("resize", () => {
-    if (isRunning() && activeTarget) placeBubble();
+    if (isRunning() && currentStep) {
+      manualBubblePosition = null;
+      requestAnimationFrame(() => placeBubble(currentStep));
+    }
   });
 
   window.Tutorial = Object.freeze({
@@ -378,6 +570,7 @@
     isRunning,
     shouldUseTutorialNewCase,
     startTutorialNewCase,
-    selectExistingTutorialCase
+    selectExistingTutorialCase,
+    onCameraModeEntered
   });
 })();

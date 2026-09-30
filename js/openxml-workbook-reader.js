@@ -127,7 +127,10 @@
   function readSharedStrings(doc) {
     if (!doc) return [];
     return Array.from(doc.getElementsByTagNameNS("*", "si")).map((si) => (
-      Array.from(si.getElementsByTagNameNS("*", "t")).map((node) => node.textContent || "").join("")
+      Array.from(si.getElementsByTagNameNS("*", "t"))
+        .filter((node) => !node.closest("rPh"))
+        .map((node) => node.textContent || "")
+        .join("")
     ));
   }
 

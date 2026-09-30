@@ -178,14 +178,15 @@
     const current = getCurrentSession();
     const ok = await AppDialog.confirm({
       title: "新規案件",
-      message: `現在：${current.id}\n\n同日の別案件として新しい撮影セッションを開始しますか？`,
-      okLabel: "開始",
+      message: "現在の案件から切り替えて、新しい案件を開始しますか？",
+      okLabel: "新しい案件を開始",
       cancelLabel: "キャンセル"
     });
     if (!ok) return current;
     const next = createSession();
     if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
-    if (typeof showToast === "function") showToast(`撮影セッション ${next.id} を開始しました`);
+    if (typeof showToast === "function") showToast(`案件 ${next.id} を開始しました`);
+    if (typeof chooseCameraMode === "function") chooseCameraMode();
     return next;
   }
 

@@ -194,10 +194,12 @@
 
     async function selectFormalProject(project) {
       try {
+        const openedFromTop = casePickerOpenedFromTop;
         await CaseSession.activateFormalProject(project);
         selectedCaseKey = `case:${project.projectNo}`;
         previewIndex = 0;
         closeCasePicker();
+        if (openedFromTop && typeof chooseCameraMode === "function") chooseCameraMode();
       } catch (error) {
         console.error("正式案件の選択に失敗しました", error);
         showErrorToast("案件を選択できませんでした");
@@ -259,6 +261,7 @@
 
           if (openedFromTop && item.caseId && window.CaseSession) {
             CaseSession.activateSession(item.caseId, item.subject);
+            if (typeof chooseCameraMode === "function") chooseCameraMode();
             return;
           }
           renderPreview();

@@ -71,14 +71,14 @@
     // 共有実行状態
     // 変数名を維持し、既存モジュールの参照方法は変更しない。
     // ============================================================
-    let selectedStatus = "visual";
+    let selectedStatus = "before";
     let isSectionMode = false;
     let previewIndex = 0;
     let boardEditTargetPhotoId = null;
     let photoQuality = loadPhotoQuality();
     let boardTextSize = loadBoardTextSize();
     const boardFieldTextSize = loadBoardFieldTextSizes();
-    let boardMode = "survey";
+    let boardMode = "sampling";
     let isDateManuallyEdited = false;
 
     const boardState = {

@@ -86,8 +86,8 @@
       updateCurrentDate();
     }
 
-    boardMode = savedBoard.boardMode === "sampling" ? "sampling" : "survey";
-    selectedStatus = savedBoard.selectedStatus || "visual";
+    boardMode = savedBoard.boardMode === "survey" ? "survey" : "sampling";
+    selectedStatus = savedBoard.selectedStatus || (boardMode === "sampling" ? "before" : "visual");
 
     syncBoardTextAreaVerticalCenter();
     syncBoardTextareas();

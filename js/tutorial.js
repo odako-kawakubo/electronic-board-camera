@@ -71,9 +71,10 @@
         position:"top-center",
         noDim:true,
         title:"採取箇所",
-        text:"「部屋」を押して開きます。「入力」から採取箇所名を入力できます。入力後は中央の対象を切り替え、上下で階数や方角などを変更できます。",
-        action:"panel",
+        text:"「部屋」を押して採取箇所パネルを開き、中央の「入力」から採取箇所名を入力してください。入力した内容が看板に反映されると次へ進みます。",
+        action:"room-input",
         panel:"#roomPanel",
+        input:"#roomNoInput",
         closePanelOnAdvance:true
       },
       {
@@ -620,6 +621,43 @@
           activeTarget = null;
         }
         hideLayer();
+      };
+      return;
+    }
+
+    if (step.action === "room-input") {
+      const panel = document.querySelector(step.panel || "");
+      const input = document.querySelector(step.input || "");
+      let opened = panel?.classList.contains("show");
+
+      const finishIfEntered = () => {
+        if (!isRunning() || currentStep?.id !== step.id) return;
+        if (!opened || !String(input?.value || "").trim()) return;
+        window.clearInterval(poll);
+        advance();
+      };
+
+      const showPanelGuide = () => {
+        opened = Boolean(panel?.classList.contains("show"));
+        if (!opened) return;
+
+        if (activeTarget) activeTarget.classList.remove("tutorial-active-target");
+        activeTarget = panel;
+        panel.classList.add("tutorial-active-target");
+        nextButton.hidden = true;
+        requestAnimationFrame(() => placeBubble(step));
+        finishIfEntered();
+      };
+
+      const handler = () => window.setTimeout(showPanelGuide, 40);
+      const poll = window.setInterval(finishIfEntered, 100);
+      target.addEventListener("click", handler, true);
+
+      if (opened) showPanelGuide();
+
+      cleanupAction = () => {
+        target.removeEventListener("click", handler, true);
+        window.clearInterval(poll);
       };
       return;
     }

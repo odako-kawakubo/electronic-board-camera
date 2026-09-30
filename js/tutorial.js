@@ -649,15 +649,34 @@
         finishIfEntered();
       };
 
+      const dialog = document.getElementById("appDialogModal");
+      const syncDialogVisibility = () => {
+        if (!isRunning() || currentStep?.id !== step.id) return;
+        if (dialog?.classList.contains("show")) {
+          hideLayer();
+          return;
+        }
+        showLayer();
+        requestAnimationFrame(() => placeBubble(step));
+        finishIfEntered();
+      };
+      const dialogObserver = dialog ? new MutationObserver(syncDialogVisibility) : null;
+      if (dialogObserver && dialog) {
+        dialogObserver.observe(dialog, { attributes:true, attributeFilter:["class"] });
+      }
+
       const handler = () => window.setTimeout(showPanelGuide, 40);
       const poll = window.setInterval(finishIfEntered, 100);
       target.addEventListener("click", handler, true);
 
       if (opened) showPanelGuide();
+      syncDialogVisibility();
 
       cleanupAction = () => {
         target.removeEventListener("click", handler, true);
         window.clearInterval(poll);
+        dialogObserver?.disconnect();
+        if (isRunning()) showLayer();
       };
       return;
     }

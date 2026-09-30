@@ -108,7 +108,7 @@
       { id:"shoot", target:"#shootButton", position:"top-left", noDim:true, title:"撮影", text:"撮影画面と看板を確認して、実際に1枚撮影してみましょう。説明を閉じたあと「撮影」を押してください。", action:"practice", practiceLabel:"やってみる", waitFor:"#captureReviewOverlay.show" },
       { id:"review", target:".capture-review-ok", position:"top-left", noDim:true, title:"撮影確認", text:"撮影した写真を確認します。問題なければ「OK」、やり直す場合は「撮り直し」です。", action:"practice", practiceLabel:"確認する", waitForHidden:"#captureReviewOverlay.show" },
       { id:"saved", target:"#viewButton", position:"top-left", title:"アプリ内に保存", text:"OKにすると写真はまずアプリ内へ保存されます。「表示」を押して確認します。", action:"click", waitFor:"#previewOverlay.show" },
-      { id:"list", target:"#previewThumbnails", position:"bottom-right", noDim:true, title:"写真一覧と保存状態", text:"下の写真一覧から撮影写真を選べます。通常案件では写真の●が緑になればOneDrive保存完了です。チュートリアル案件はOneDriveへ送信しません。", action:"next" }
+      { id:"list", target:"#previewImageWrap", position:"bottom-right", noDim:true, title:"写真一覧・プレビュー", text:"下の写真一覧から画像を選ぶと、選択した写真が上のプレビューに表示されます。上の写真をダブルタップすると拡大して確認できます。通常案件では一覧の●が緑になればOneDrive保存完了です。チュートリアル案件はOneDriveへ送信しません。", action:"next" }
     ];
   }
 

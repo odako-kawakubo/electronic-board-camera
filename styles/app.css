@@ -1212,6 +1212,7 @@
     }
 
     .case-picker-panel {
+      position: relative;
       width: min(92vw, 520px);
       max-height: min(80dvh, 560px);
       overflow-y: auto;
@@ -1228,6 +1229,66 @@
       text-align: center;
       font-size: 18px;
       font-weight: 900;
+    }
+
+    .case-picker-loading {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      min-height: 240px;
+      padding: 28px 20px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.98);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .case-picker-loading.show {
+      display: flex;
+    }
+
+    .case-picker-loading-spinner {
+      width: 38px;
+      height: 38px;
+      margin-bottom: 16px;
+      border: 4px solid #d9e2ef;
+      border-top-color: #2f80ed;
+      border-radius: 50%;
+      animation: case-picker-spin .8s linear infinite;
+    }
+
+    @keyframes case-picker-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .case-picker-loading-title {
+      font-size: 17px;
+      font-weight: 900;
+      color: #111;
+    }
+
+    .case-picker-loading-project {
+      max-width: 100%;
+      margin: 9px 0 18px;
+      color: #4d5660;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .case-picker-loading-cancel {
+      min-width: 120px;
+      min-height: 42px;
+      border: none;
+      border-radius: 999px;
+      background: #555;
+      color: #fff;
+      font: 900 14px/1 inherit;
+      cursor: pointer;
     }
 
     .case-picker-cloud-area { margin-bottom: 8px; }

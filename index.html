@@ -407,6 +407,12 @@
   <div id="casePickerOverlay">
     <div class="case-picker-panel">
       <h2 class="case-picker-title">案件を選択</h2>
+      <div id="casePickerLoading" class="case-picker-loading" aria-live="polite">
+        <div class="case-picker-loading-spinner" aria-hidden="true"></div>
+        <div class="case-picker-loading-title">案件情報を読み込み中…</div>
+        <div id="casePickerLoadingProject" class="case-picker-loading-project"></div>
+        <button class="case-picker-loading-cancel" type="button" onclick="cancelFormalProjectSelection()">キャンセル</button>
+      </div>
       <div id="casePickerCloudArea" class="case-picker-cloud-area" hidden>
         <input id="casePickerSearchInput" class="case-picker-search" type="search" placeholder="案件番号・案件名で検索" autocomplete="off" />
         <div id="casePickerCloudStatus" class="case-picker-status">OneDrive案件を確認しています...</div>

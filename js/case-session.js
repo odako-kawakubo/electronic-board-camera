@@ -196,6 +196,8 @@
     if (window.Tutorial?.shouldUseTutorialNewCase?.()) {
       return Tutorial.startTutorialNewCase(current);
     }
+    if (tutorialSession) endTutorialSession();
+
     const ok = await AppDialog.confirm({
       title: "新規案件",
       message: "現在の案件から切り替えて、新しい案件を開始しますか？",
@@ -254,6 +256,7 @@
   }
 
   function activateSession(caseId, subjectName = "") {
+    if (tutorialSession) endTutorialSession();
     const id = String(caseId || "").trim();
     let session = loadRememberedSession(id);
 
@@ -304,10 +307,25 @@
     let saved = null;
     if (window.BoardPersistence?.loadSavedBoardForm) saved = BoardPersistence.loadSavedBoardForm();
     if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
+
+    const tutorialSubjects = new Set(["チュートリアル案件", "新規案件チュートリアル"]);
     const savedSubject = String(saved?.subject || "").trim();
-    if (subject && (!savedSubject || savedSubject === APP_DATA.subject)) {
+    const hasTutorialResidue = tutorialSubjects.has(savedSubject);
+
+    if (subject && (!savedSubject || savedSubject === APP_DATA.subject || hasTutorialResidue)) {
       const input = document.getElementById("subjectText");
       if (input) input.value = subject;
+    }
+
+    // 過去版で通常案件側へ残った練習用住所だけは消し、正式住所の補完を可能にする。
+    if (hasTutorialResidue) {
+      const addressInput = document.getElementById("addressText");
+      if (addressInput && String(addressInput.value || "").trim() === "神奈川県小田原市○○町1-1") {
+        addressInput.value = "";
+      }
+    }
+
+    if (subject && (!savedSubject || savedSubject === APP_DATA.subject || hasTutorialResidue)) {
       if (typeof saveBoardForm === "function") saveBoardForm();
     }
   }
@@ -364,7 +382,14 @@
     if (typeof saveBoardForm === "function") saveBoardForm();
   }
 
-  async function activateFormalProject(project) {
+  async function activateFormalProject(project, options = {}) {
+    const isCancelled = typeof options.isCancelled === "function"
+      ? options.isCancelled
+      : () => false;
+
+    if (tutorialSession) endTutorialSession();
+    if (isCancelled()) return null;
+
     const projectNo = String(project?.projectNo || "").trim();
     const projectName = String(project?.projectName || "").trim();
     const driveId = String(project?.driveId || "").trim();
@@ -395,6 +420,8 @@
       ) ? "ready" : "pending",
       oneDriveFolderError: ""
     };
+
+    if (isCancelled()) return null;
     saveActiveSession(session);
     restoreCaseBoard(projectName);
     renderSessionPanel();
@@ -407,9 +434,15 @@
       name: folderName,
       folder: {}
     }, projectNo);
+
+    if (isCancelled()) return null;
     applyFormalProjectAddressIfEmpty(address);
 
-    await ensureFormalSessionFolder(session);
+    // 写真フォルダの確認/作成はカメラ開始を待たせない。
+    // 同期処理側でも必要時に再確認するため、ここではバックグラウンド準備だけ行う。
+    void ensureFormalSessionFolder(session);
+
+    if (isCancelled()) return null;
     if (typeof showToast === "function") showToast(`案件 ${projectNo} を選択しました`);
     return loadRememberedSession(projectNo) || session;
   }

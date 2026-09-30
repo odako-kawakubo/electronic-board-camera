@@ -22,6 +22,8 @@
     const casePickerCloudStatus = document.getElementById("casePickerCloudStatus");
     const casePickerRemoteList = document.getElementById("casePickerRemoteList");
     const casePickerLocalTitle = document.getElementById("casePickerLocalTitle");
+    const casePickerLoading = document.getElementById("casePickerLoading");
+    const casePickerLoadingProject = document.getElementById("casePickerLoadingProject");
     const previewThumbnails = document.getElementById("previewThumbnails");
     const previewList = document.getElementById("previewList");
     const previewSortButton = document.getElementById("previewSortButton");
@@ -34,6 +36,9 @@
     let formalProjects = [];
     let formalProjectsLoading = false;
     let formalProjectsError = "";
+    let casePickerTutorialMode = false;
+    let formalProjectSelection = null;
+    let formalProjectSelectionSerial = 0;
 
     function getPhotoSubject(photo) {
       return String(photo.subjectName || photo.subject || APP_DATA.subject || "無題案件").trim() || "無題案件";
@@ -63,7 +68,7 @@
 
       capturedPhotos.forEach((photo) => {
         const caseId = getPhotoCaseId(photo);
-        if (isTutorialCaseId(caseId) && !tutorialIsRunning()) return;
+        if (isTutorialCaseId(caseId)) return;
 
         const key = getPhotoCaseKey(photo);
         const subject = getPhotoSubject(photo);
@@ -80,7 +85,7 @@
 
       if (window.CaseSession) {
         const active = CaseSession.getCurrentSession();
-        if (active && active.id) {
+        if (active && active.id && !isTutorialCaseId(active.id) && active.kind !== "tutorial") {
           const key = `case:${active.id}`;
           if (!map.has(key)) {
             const currentSubject = typeof getCurrentSubjectName === "function" ? getCurrentSubjectName() : "無題案件";
@@ -111,12 +116,13 @@
       const activeSession = window.CaseSession?.getCurrentSession?.() || null;
       let photos = capturedPhotos.slice();
 
-      if (!tutorialIsRunning()) {
-        photos = photos.filter((photo) => !isTutorialCaseId(getPhotoCaseId(photo)));
-      } else if (activeSession?.kind === "tutorial") {
+      if (tutorialIsRunning() && activeSession?.kind === "tutorial") {
         photos = photos.filter((photo) => getPhotoCaseId(photo) === activeSession.id);
-      } else if (selectedCaseKey) {
-        photos = photos.filter((photo) => getPhotoCaseKey(photo) === selectedCaseKey);
+      } else {
+        photos = photos.filter((photo) => !isTutorialCaseId(getPhotoCaseId(photo)));
+        if (selectedCaseKey) {
+          photos = photos.filter((photo) => getPhotoCaseKey(photo) === selectedCaseKey);
+        }
       }
 
       if (previewSortMode === "sample") {
@@ -167,6 +173,7 @@
 
     function openCasePickerFromTop() {
       casePickerOpenedFromTop = true;
+      casePickerTutorialMode = Boolean(window.Tutorial?.shouldOpenTutorialCasePicker?.());
       casePickerOverlay.classList.remove("app-oriented-modal");
       if (casePickerSearchInput) casePickerSearchInput.value = "";
       renderCasePicker();
@@ -175,8 +182,48 @@
     }
 
     function closeCasePicker() {
+      if (formalProjectSelection) {
+        cancelFormalProjectSelection();
+        return;
+      }
       casePickerOverlay.classList.remove("show", "app-oriented-modal");
       casePickerOpenedFromTop = false;
+      casePickerTutorialMode = false;
+    }
+
+    function setFormalProjectSelectionLoading(project, visible) {
+      if (!casePickerLoading) return;
+      casePickerLoading.classList.toggle("show", Boolean(visible));
+      if (casePickerLoadingProject) {
+        const projectNo = String(project?.projectNo || "").trim();
+        const projectName = String(project?.projectName || "").trim();
+        casePickerLoadingProject.textContent = visible
+          ? [projectNo, projectName].filter(Boolean).join("　")
+          : "";
+      }
+    }
+
+    function restoreSelectionSession(previousSession) {
+      if (!previousSession?.id || !window.CaseSession) return;
+      CaseSession.activateSession(
+        previousSession.id,
+        previousSession.projectName || ""
+      );
+    }
+
+    function cancelFormalProjectSelection() {
+      const selection = formalProjectSelection;
+      if (!selection) return;
+
+      selection.cancelled = true;
+      formalProjectSelection = null;
+      setFormalProjectSelectionLoading(null, false);
+      restoreSelectionSession(selection.previousSession);
+      renderCasePicker();
+
+      if (typeof showToast === "function") {
+        showToast("案件の読み込みをキャンセルしました");
+      }
     }
 
     function projectMatchesSearch(item, query) {
@@ -208,15 +255,48 @@
     }
 
     async function selectFormalProject(project) {
+      if (formalProjectSelection) return;
+
+      // 通常案件選択へ入る時点で、残っているチュートリアル一時セッションを必ず解除する。
+      window.CaseSession?.endTutorialSession?.();
+      const previousSession = window.CaseSession?.getCurrentSession?.() || null;
+      const selection = {
+        id: ++formalProjectSelectionSerial,
+        cancelled: false,
+        previousSession
+      };
+      formalProjectSelection = selection;
+      setFormalProjectSelectionLoading(project, true);
+
       try {
         const openedFromTop = casePickerOpenedFromTop;
-        await CaseSession.activateFormalProject(project);
+        await CaseSession.activateFormalProject(project, {
+          isCancelled: () => selection.cancelled || formalProjectSelection !== selection
+        });
+
+        if (selection.cancelled || formalProjectSelection !== selection) return;
+
         selectedCaseKey = `case:${project.projectNo}`;
         previewIndex = 0;
-        closeCasePicker();
-        if (openedFromTop && typeof chooseCameraMode === "function") chooseCameraMode();
+
+        // 成功時だけロックを外して案件選択を閉じ、カメラ起動は1回だけ行う。
+        formalProjectSelection = null;
+        setFormalProjectSelectionLoading(null, false);
+        casePickerOverlay.classList.remove("show", "app-oriented-modal");
+        casePickerOpenedFromTop = false;
+        casePickerTutorialMode = false;
+
+        if (openedFromTop && typeof chooseCameraMode === "function") {
+          chooseCameraMode();
+        }
       } catch (error) {
+        if (selection.cancelled || formalProjectSelection !== selection) return;
+
         console.error("正式案件の選択に失敗しました", error);
+        formalProjectSelection = null;
+        setFormalProjectSelectionLoading(null, false);
+        restoreSelectionSession(previousSession);
+        renderCasePicker();
         showErrorToast("案件を選択できませんでした");
       }
     }
@@ -256,7 +336,7 @@
         }
       }
 
-      if (casePickerOpenedFromTop && window.Tutorial?.shouldShowTutorialCase?.()) {
+      if (casePickerOpenedFromTop && casePickerTutorialMode) {
         const tutorialButton = document.createElement("button");
         tutorialButton.id = "tutorialCaseButton";
         tutorialButton.type = "button";
@@ -289,6 +369,7 @@
         button.className = "case-item";
         button.classList.toggle("active", item.key === selectedCaseKey);
         button.onclick = () => {
+          if (formalProjectSelection) return;
           selectedCaseKey = item.key;
           previewIndex = 0;
           const openedFromTop = casePickerOpenedFromTop;
@@ -296,6 +377,7 @@
           closeCasePicker();
 
           if (openedFromTop && item.caseId && window.CaseSession) {
+            CaseSession.endTutorialSession?.();
             CaseSession.activateSession(item.caseId, item.subject);
             if (typeof chooseCameraMode === "function") chooseCameraMode();
             return;
@@ -639,3 +721,6 @@
     window.addEventListener("photo-upload-state-changed", (event) => {
       refreshOneDrivePhotoDots(event?.detail?.photoId);
     });
+
+
+    window.cancelFormalProjectSelection = cancelFormalProjectSelection;

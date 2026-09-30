@@ -1,8 +1,8 @@
 /*
- * v65.64 Service Worker
+ * v65.65 Service Worker
  * 最新版優先 + 圏外時は直近キャッシュから起動する。
  */
-const APP_CACHE = "electronic-board-camera-v65.64-stable";
+const APP_CACHE = "electronic-board-camera-v65.65-stable";
 const APP_CACHE_PREFIX = "electronic-board-camera-";
 
 const APP_FILES = [

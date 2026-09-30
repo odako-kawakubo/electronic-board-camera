@@ -59,6 +59,10 @@
     return isRunning() && state.route === "existing" && state.stepIndex === 1;
   }
 
+  function shouldOpenTutorialCasePicker() {
+    return isRunning() && state.route === "existing" && state.stepIndex === 0;
+  }
+
   function getCommonTail() {
     return [
       {
@@ -842,6 +846,7 @@
     startTutorialNewCase,
     selectExistingTutorialCase,
     shouldShowTutorialCase,
+    shouldOpenTutorialCasePicker,
     onCameraModeEntered
   });
 })();

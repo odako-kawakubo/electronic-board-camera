@@ -68,7 +68,7 @@
       return [
         { id:"new", target:".launch-new-case-button", position:"top-left", title:"新規案件から撮影", text:"「新規案件」を押します。確認画面が出たら「新しい案件を開始」を選びます。", action:"external" },
         { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
-        { id:"board", target:"#photoBoard", position:"top-left", title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
+        { id:"board", target:"#photoBoard", position:"top-left", title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。看板をダブルタップしてください。", action:"wait-board-edit" },
         { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"案件名を入力してください。", action:"input" },
         { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
         { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
@@ -83,7 +83,7 @@
       { id:"select", target:".launch-case-select-button", position:"top-left", title:"既存案件から撮影", text:"まず「案件選択」を押します。", action:"click", waitFor:"#casePickerOverlay.show" },
       { id:"tutorial-case", target:"#tutorialCaseButton", position:"top-right", title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択してください。", action:"external" },
       { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
-      { id:"board", target:"#photoBoard", position:"top-left", title:"看板情報を設定", text:"案件名と住所は入っています。採取箇所を設定するため、看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
+      { id:"board", target:"#photoBoard", position:"top-left", title:"看板情報を設定", text:"案件名と住所は入っています。採取箇所を設定するため、看板をダブルタップしてください。", action:"wait-board-edit" },
       { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
       { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
       { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"実際に採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
@@ -418,6 +418,38 @@
       return;
     }
 
+    if (step.action === "wait-board-edit") {
+      const overlay = document.getElementById("boardEditOverlay");
+      let finished = false;
+
+      const finishIfOpen = () => {
+        if (finished || !isRunning() || currentStep?.id !== "board") return;
+        if (!overlay?.classList.contains("show")) return;
+        finished = true;
+        observer?.disconnect();
+        cleanupAction = null;
+        advance();
+      };
+
+      const observer = overlay
+        ? new MutationObserver(finishIfOpen)
+        : null;
+
+      if (observer && overlay) {
+        observer.observe(overlay, { attributes:true, attributeFilter:["class"] });
+      }
+
+      const poll = window.setInterval(finishIfOpen, 80);
+      finishIfOpen();
+
+      cleanupAction = () => {
+        finished = true;
+        observer?.disconnect();
+        window.clearInterval(poll);
+      };
+      return;
+    }
+
     if (step.action === "input") {
       const handler = () => {
         if (!String(target.value || "").trim()) return;
@@ -431,21 +463,6 @@
         target.removeEventListener("change", handler);
         target.removeEventListener("blur", handler);
       };
-      return;
-    }
-
-    if (step.action === "double") {
-      let last = 0;
-      const handler = () => {
-        const now = Date.now();
-        if (now - last < 420) {
-          target.removeEventListener("pointerup", handler, true);
-          waitForConditionThenAdvance(step);
-        }
-        last = now;
-      };
-      target.addEventListener("pointerup", handler, true);
-      cleanupAction = () => target.removeEventListener("pointerup", handler, true);
       return;
     }
 

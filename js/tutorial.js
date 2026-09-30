@@ -30,9 +30,9 @@
 
   function loadState() {
     try {
-      return JSON.parse(localStorage.getItem(STATE_KEY) || "null") || { active:false, route:"", stepIndex:0 };
+      return JSON.parse(localStorage.getItem(STATE_KEY) || "null") || { active:false, paused:false, route:"", stepIndex:0 };
     } catch (_) {
-      return { active:false, route:"", stepIndex:0 };
+      return { active:false, paused:false, route:"", stepIndex:0 };
     }
   }
 
@@ -51,7 +51,6 @@
   function getSteps(route) {
     const commonTail = [
       { id:"done", target:"#boardEditDoneButton", title:"看板編集を完了", text:"入力内容を確認したら「完了」を押します。", action:"click" },
-      { id:"camera", target:"#startButton", title:"カメラを起動", text:"「カメラ起動」を押して撮影を始めます。", action:"click", waitFor:"#shootButton:not(.hidden-control)" },
       { id:"shoot", target:"#shootButton", title:"撮影", text:"構図と看板を確認して「撮影」を押します。", action:"click", waitFor:"#captureReviewOverlay.show" },
       { id:"review", target:".capture-review-ok", title:"撮影確認", text:"問題なければ「OK」。撮り直したい場合は左の「撮り直し」を使います。", action:"click", waitFor:"#viewButton:not(.hidden-control)" },
       { id:"saved", target:"#viewButton", title:"アプリ内に保存", text:"OKにすると写真はまずこのアプリ内へ保存されます。「表示」を押して確認します。", action:"click", waitFor:"#previewOverlay.show" },
@@ -60,7 +59,7 @@
 
     if (route === "new") {
       return [
-        { id:"new", target:".launch-new-case-button", title:"新規案件から撮影", text:"「新規案件」を押します。チュートリアル中は実案件ではなく練習用の新規案件を作ります。", action:"click" },
+        { id:"new", target:".launch-new-case-button", title:"新規案件から撮影", text:"「新規案件」を押します。練習用の新規案件へ移動します。カメラの使用確認が表示されたら許可してください。", action:"click" },
         { id:"board", target:"#photoBoard", title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
         { id:"subject", target:"#boardEditSubject", title:"案件名", text:"練習用の案件名を入力してください。", action:"input" },
         { id:"address", target:"#boardEditAddress", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
@@ -74,7 +73,7 @@
 
     return [
       { id:"select", target:".launch-case-select-button", title:"既存案件から撮影", text:"まず「案件選択」を押します。", action:"click" },
-      { id:"tutorial-case", target:"#tutorialCaseButton", title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。これを選択してください。", action:"click" },
+      { id:"tutorial-case", target:"#tutorialCaseButton", title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択すると撮影画面へ移動します。カメラの使用確認が表示されたら許可してください。", action:"click" },
       { id:"board", target:"#photoBoard", title:"看板情報を設定", text:"既存案件では案件名と住所は入っています。採取箇所を設定するため、看板をダブルタップしてください。", action:"double", waitFor:"#boardEditOverlay.show" },
       { id:"subject", target:"#boardEditSubject", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
       { id:"address", target:"#boardEditAddress", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
@@ -124,7 +123,7 @@
     activateTutorialCase("existing");
     if (typeof closeCasePicker === "function") closeCasePicker();
     if (typeof chooseCameraMode === "function") chooseCameraMode();
-    advance();
+    waitForCameraReadyThenAdvance();
   }
 
   async function startTutorialNewCase(current) {
@@ -137,14 +136,29 @@
     if (!ok) return current;
     const session = activateTutorialCase("new");
     if (typeof chooseCameraMode === "function") chooseCameraMode();
-    advance();
+    waitForCameraReadyThenAdvance();
     return session;
+  }
+
+  function waitForCameraReadyThenAdvance() {
+    let attempts = 0;
+    const check = () => {
+      if (!isRunning()) return;
+      const shoot = document.querySelector("#shootButton:not(.hidden-control)");
+      if (shoot) {
+        advance();
+        return;
+      }
+      attempts += 1;
+      if (attempts < 200) window.setTimeout(check, 100);
+    };
+    window.setTimeout(check, 120);
   }
 
   function start(route) {
     if (!["existing","new"].includes(route)) return;
     rememberPreviousCase();
-    state = { active:true, route, stepIndex:0 };
+    state = { active:true, paused:false, route, stepIndex:0 };
     saveState();
     if (typeof closeHelp === "function") closeHelp();
     if (typeof returnToTopScreen === "function") returnToTopScreen();
@@ -153,7 +167,13 @@
 
   function resume() {
     state = loadState();
-    if (!state.active || !state.route) return false;
+    if ((!state.active && !state.paused) || !state.route) {
+      if (typeof showToast === "function") showToast("再開できるチュートリアルはありません");
+      return false;
+    }
+    state.active = true;
+    state.paused = false;
+    saveState();
     if (typeof closeHelp === "function") closeHelp();
     render();
     return true;
@@ -170,6 +190,7 @@
     cleanupCurrent();
     if (layer) layer.classList.remove("show");
     state.active = false;
+    state.paused = true;
     saveState();
     showToast("チュートリアルを中断しました。操作方法から続きから再開できます");
   }
@@ -187,7 +208,7 @@
     let previous = null;
     try { previous = JSON.parse(localStorage.getItem(PREVIOUS_CASE_KEY) || "null"); } catch (_) {}
     try { localStorage.removeItem(PREVIOUS_CASE_KEY); } catch (_) {}
-    state = { active:false, route:"", stepIndex:0, completed:true };
+    state = { active:false, paused:false, route:"", stepIndex:0, completed:true };
     saveState();
 
     await AppDialog.notice({
@@ -213,24 +234,13 @@
     clearTimeout(renderTimer);
   }
 
-  function placeBubble(target) {
+  function placeBubble() {
     if (!bubble) return;
-    const rect = target?.getBoundingClientRect?.();
-    const margin = 12;
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const width = Math.min(340, vw - 20);
+    const width = Math.min(270, vw - 24);
     bubble.style.width = width + "px";
-
-    let left = rect ? Math.max(10, Math.min(vw - width - 10, rect.left + rect.width / 2 - width / 2)) : Math.max(10, (vw - width) / 2);
-    let top = rect ? rect.bottom + margin : Math.max(10, vh * 0.2);
-
-    const estimatedHeight = 190;
-    if (top + estimatedHeight > vh - 10 && rect) {
-      top = Math.max(10, rect.top - estimatedHeight - margin);
-    }
-    bubble.style.left = Math.round(left) + "px";
-    bubble.style.top = Math.round(top) + "px";
+    bubble.style.left = Math.max(12, (vw - width) / 2) + "px";
+    bubble.style.top = "10px";
   }
 
   function waitForSelector(selector, callback, tries = 50) {
@@ -358,7 +368,7 @@
   });
 
   window.addEventListener("resize", () => {
-    if (isRunning() && activeTarget) placeBubble(activeTarget);
+    if (isRunning() && activeTarget) placeBubble();
   });
 
   window.Tutorial = Object.freeze({

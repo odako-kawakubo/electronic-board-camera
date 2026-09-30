@@ -2836,13 +2836,13 @@
   position: fixed;
   z-index: 52003;
   pointer-events: auto;
-  max-width: calc(100vw - 20px);
-  padding: 13px;
+  max-width: calc(100vw - 24px);
+  padding: 9px 10px;
   border: 1px solid rgba(255,255,255,.18);
-  border-radius: 14px;
+  border-radius: 11px;
   background: #101827;
   color: #fff;
-  box-shadow: 0 14px 44px rgba(0,0,0,.48);
+  box-shadow: 0 10px 30px rgba(0,0,0,.42);
   font-family: inherit;
 }
 .tutorial-bubble-top {
@@ -2852,7 +2852,7 @@
   gap: 8px;
 }
 #tutorialTitle {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
 }
 #tutorialProgress {
@@ -2862,8 +2862,8 @@
   font-weight: 900;
 }
 .tutorial-text {
-  margin-top: 7px;
-  font-size: 13px;
+  margin-top: 5px;
+  font-size: 11px;
   line-height: 1.55;
   font-weight: 700;
 }
@@ -2874,8 +2874,8 @@
   margin-top: 11px;
 }
 .tutorial-actions button {
-  min-width: 72px;
-  min-height: 36px;
+  min-width: 58px;
+  min-height: 30px;
   border: 1px solid #5d6878;
   border-radius: 9px;
   background: #273244;
@@ -2889,4 +2889,15 @@
 .tutorial-case-item {
   border-color: #75aef7 !important;
   background: #eef6ff !important;
+}
+
+#tutorialStopButton {
+  min-width: 0;
+  min-height: 26px;
+  padding: 4px 7px;
+  border-color: rgba(255,255,255,.16);
+  background: transparent;
+  color: #b9c2cf;
+  font-size: 10px;
+  font-weight: 800;
 }

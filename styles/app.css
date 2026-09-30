@@ -2919,3 +2919,22 @@
   -webkit-user-select: none;
   cursor: pointer;
 }
+
+
+/* 実操作ステップでは撮影/確認/アルバム画面を暗くしない */
+body.tutorial-no-dim .tutorial-active-target {
+  box-shadow: 0 0 0 7px rgba(77,163,255,.28) !important;
+}
+
+.tutorial-action-spacer {
+  flex: 1 1 auto;
+}
+
+#tutorialBackButton {
+  min-width: 48px;
+  min-height: 28px;
+  padding: 4px 8px;
+  background: #374151;
+  color: #fff;
+  font-size: 11px;
+}

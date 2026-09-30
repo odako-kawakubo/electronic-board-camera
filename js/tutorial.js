@@ -21,6 +21,7 @@
   const title = document.getElementById("tutorialTitle");
   const text = document.getElementById("tutorialText");
   const progress = document.getElementById("tutorialProgress");
+  const backButton = document.getElementById("tutorialBackButton");
   const nextButton = document.getElementById("tutorialNextButton");
   const stopButton = document.getElementById("tutorialStopButton");
 
@@ -56,10 +57,10 @@
   function getCommonTail() {
     return [
       { id:"done", target:"#boardEditDoneButton", position:"top-left", title:"看板編集を完了", text:"入力内容を確認したら「完了」を押します。", action:"click", waitForHidden:"#boardEditOverlay.show" },
-      { id:"shoot", target:"#shootButton", position:"top-left", title:"撮影", text:"構図と看板を確認して「撮影」を押します。", action:"click", waitFor:"#captureReviewOverlay.show" },
-      { id:"review", target:".capture-review-ok", position:"top-center", title:"撮影確認", text:"問題なければ「OK」。撮り直したい場合は「撮り直し」を使います。", action:"click", waitForHidden:"#captureReviewOverlay.show" },
+      { id:"shoot", target:"#shootButton", position:"top-left", noDim:true, title:"撮影", text:"撮影画面と看板を確認して、実際に1枚撮影してみましょう。説明を閉じたあと「撮影」を押してください。", action:"practice", practiceLabel:"やってみる", waitFor:"#captureReviewOverlay.show" },
+      { id:"review", target:".capture-review-ok", position:"top-left", noDim:true, title:"撮影確認", text:"撮影した写真を確認します。問題なければ「OK」、やり直す場合は「撮り直し」です。", action:"practice", practiceLabel:"確認する", waitForHidden:"#captureReviewOverlay.show" },
       { id:"saved", target:"#viewButton", position:"top-left", title:"アプリ内に保存", text:"OKにすると写真はまずアプリ内へ保存されます。「表示」を押して確認します。", action:"click", waitFor:"#previewOverlay.show" },
-      { id:"list", target:"#previewImageWrap", position:"left-center", title:"写真一覧", text:"撮影した写真を確認できます。チュートリアル案件はOneDriveへ送信しません。通常案件では緑の●がOneDrive保存完了です。", action:"next" }
+      { id:"list", target:"#previewThumbnails", position:"bottom-right", noDim:true, title:"写真一覧と保存状態", text:"下の写真一覧から撮影写真を選べます。通常案件では写真の●が緑になればOneDrive保存完了です。チュートリアル案件はOneDriveへ送信しません。", action:"next" }
     ];
   }
 
@@ -254,6 +255,14 @@
     window.setTimeout(render, 140);
   }
 
+  function goBack() {
+    if (!isRunning() || state.stepIndex <= 0) return;
+    state.stepIndex -= 1;
+    saveState();
+    manualBubblePosition = null;
+    window.setTimeout(render, 100);
+  }
+
   function stop() {
     cleanupCurrent();
     hideLayer();
@@ -305,6 +314,7 @@
       activeTarget.classList.remove("tutorial-active-target");
       activeTarget = null;
     }
+    document.body.classList.remove("tutorial-no-dim");
     clearTimeout(renderTimer);
     currentStep = null;
   }
@@ -328,6 +338,7 @@
       case "top-left": return { left, top };
       case "top-right": return { left:right, top };
       case "bottom-left": return { left, top:bottom };
+      case "bottom-right": return { left:right, top:bottom };
       case "bottom-center": return { left:centerX, top:bottom };
       case "left-center": return { left, top:centerY };
       case "right-center": return { left:right, top:centerY };
@@ -418,6 +429,27 @@
       return;
     }
 
+    if (step.action === "practice") {
+      const handler = () => {
+        target.removeEventListener("click", handler, true);
+        cleanupAction = null;
+        waitForConditionThenAdvance(step);
+      };
+      target.addEventListener("click", handler, true);
+      cleanupAction = () => target.removeEventListener("click", handler, true);
+
+      nextButton.hidden = false;
+      nextButton.textContent = step.practiceLabel || "やってみる";
+      nextButton.onclick = () => {
+        if (activeTarget) {
+          activeTarget.classList.remove("tutorial-active-target");
+          activeTarget = null;
+        }
+        hideLayer();
+      };
+      return;
+    }
+
     if (step.action === "wait-board-edit") {
       const overlay = document.getElementById("boardEditOverlay");
       let finished = false;
@@ -501,8 +533,13 @@
       if (title) title.textContent = step.title;
       if (text) text.textContent = step.text;
       if (progress) progress.textContent = `${state.stepIndex + 1} / ${steps.length}`;
+      if (backButton) {
+        backButton.hidden = state.stepIndex <= 0;
+        backButton.onclick = goBack;
+      }
       if (stopButton) stopButton.onclick = stop;
 
+      document.body.classList.toggle("tutorial-no-dim", Boolean(step.noDim));
       showLayer();
       requestAnimationFrame(() => placeBubble(step));
       bindAction(step, target);

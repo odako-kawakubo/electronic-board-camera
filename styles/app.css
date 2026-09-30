@@ -2811,3 +2811,82 @@
   .help-title { font-size: 18px; }
   .help-menu button { min-height: 58px; }
 }
+
+
+/* 実画面チュートリアル */
+#tutorialLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 52000;
+  display: none;
+  pointer-events: none;
+}
+#tutorialLayer.show { display: block; }
+
+.tutorial-active-target {
+  position: relative !important;
+  z-index: 52001 !important;
+  outline: 4px solid #4da3ff !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,.72), 0 0 0 7px rgba(77,163,255,.28) !important;
+  border-radius: 10px;
+}
+
+.tutorial-bubble {
+  position: fixed;
+  z-index: 52003;
+  pointer-events: auto;
+  max-width: calc(100vw - 20px);
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 14px;
+  background: #101827;
+  color: #fff;
+  box-shadow: 0 14px 44px rgba(0,0,0,.48);
+  font-family: inherit;
+}
+.tutorial-bubble-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#tutorialTitle {
+  font-size: 16px;
+  font-weight: 900;
+}
+#tutorialProgress {
+  flex: 0 0 auto;
+  color: #a9cfff;
+  font-size: 11px;
+  font-weight: 900;
+}
+.tutorial-text {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 700;
+}
+.tutorial-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 11px;
+}
+.tutorial-actions button {
+  min-width: 72px;
+  min-height: 36px;
+  border: 1px solid #5d6878;
+  border-radius: 9px;
+  background: #273244;
+  color: #fff;
+  font: 900 12px/1 inherit;
+}
+.tutorial-actions button.primary {
+  border-color: #2f80ed;
+  background: #2f80ed;
+}
+.tutorial-case-item {
+  border-color: #75aef7 !important;
+  background: #eef6ff !important;
+}

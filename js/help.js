@@ -12,14 +12,39 @@
   "use strict";
 
   const overlay = document.getElementById("helpOverlay");
+  const rootMenu = document.getElementById("helpRootMenu");
+  const tutorialMenu = document.getElementById("tutorialMenu");
   const menu = document.getElementById("helpMenu");
   const pages = Array.from(document.querySelectorAll("[data-help-page]"));
   const panel = overlay?.querySelector(".help-panel");
 
+  function hideAllMenus() {
+    if (rootMenu) rootMenu.hidden = true;
+    if (tutorialMenu) tutorialMenu.hidden = true;
+    if (menu) menu.hidden = true;
+    pages.forEach((page) => { page.hidden = true; });
+  }
+
+  function showRootMenu() {
+    if (!overlay) return;
+    hideAllMenus();
+    if (rootMenu) rootMenu.hidden = false;
+    panel?.classList.remove("show-page");
+    if (panel) panel.scrollTop = 0;
+  }
+
+  function showTutorialMenu() {
+    if (!overlay) return;
+    hideAllMenus();
+    if (tutorialMenu) tutorialMenu.hidden = false;
+    panel?.classList.remove("show-page");
+    if (panel) panel.scrollTop = 0;
+  }
+
   function showMenu() {
     if (!overlay || !menu) return;
+    hideAllMenus();
     menu.hidden = false;
-    pages.forEach((page) => { page.hidden = true; });
     panel?.classList.remove("show-page");
     if (panel) panel.scrollTop = 0;
   }
@@ -28,8 +53,8 @@
     if (!overlay || !menu) return;
     const target = pages.find((page) => page.dataset.helpPage === String(pageId || ""));
     if (!target) return;
-    menu.hidden = true;
-    pages.forEach((page) => { page.hidden = page !== target; });
+    hideAllMenus();
+    target.hidden = false;
     panel?.classList.add("show-page");
     if (panel) panel.scrollTop = 0;
   }
@@ -50,16 +75,18 @@
 
     overlay.classList.toggle("app-oriented-modal", !topVisible);
     overlay.classList.add("show");
-    showMenu();
+    showRootMenu();
   }
 
   function closeHelp() {
     overlay?.classList.remove("show", "app-oriented-modal");
-    showMenu();
+    showRootMenu();
   }
 
   window.openHelp = openHelp;
   window.closeHelp = closeHelp;
   window.openHelpPage = openHelpPage;
+  window.showHelpRootMenu = showRootMenu;
+  window.showTutorialMenu = showTutorialMenu;
   window.showHelpMenu = showMenu;
 })();

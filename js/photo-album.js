@@ -241,11 +241,32 @@
         }
       }
 
+      if (casePickerOpenedFromTop) {
+        const tutorialButton = document.createElement("button");
+        tutorialButton.id = "tutorialCaseButton";
+        tutorialButton.type = "button";
+        tutorialButton.className = "case-item tutorial-case-item";
+        tutorialButton.onclick = () => {
+          if (window.Tutorial?.selectExistingTutorialCase) {
+            Tutorial.selectExistingTutorialCase();
+          }
+        };
+        const tutorialName = document.createElement("div");
+        tutorialName.className = "case-name";
+        tutorialName.textContent = "チュートリアル案件";
+        const tutorialMeta = document.createElement("div");
+        tutorialMeta.className = "case-count";
+        tutorialMeta.textContent = "練習用";
+        tutorialButton.appendChild(tutorialName);
+        tutorialButton.appendChild(tutorialMeta);
+        casePickerList.appendChild(tutorialButton);
+      }
+
       const localCases = getCaseSummaries().filter((item) => {
         if (!query || !casePickerOpenedFromTop) return true;
         return projectMatchesSearch({ projectNo:item.caseId, projectName:item.subject }, query);
       });
-      if (casePickerLocalTitle) casePickerLocalTitle.hidden = !casePickerOpenedFromTop || localCases.length === 0;
+      if (casePickerLocalTitle) casePickerLocalTitle.hidden = !casePickerOpenedFromTop;
 
       localCases.forEach((item) => {
         const button = document.createElement("button");

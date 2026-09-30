@@ -102,7 +102,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(ACTIVE_KEY) || "null");
       if (!parsed || !parsed.id) return null;
-      if (parsed.kind === "formal") return parsed;
+      if (parsed.kind === "formal" || parsed.kind === "tutorial") return parsed;
       if (!parsed.dateCode || !parsed.branch) return null;
       return parsed;
     } catch (error) {
@@ -176,6 +176,9 @@
 
   async function startNewSession() {
     const current = getCurrentSession();
+    if (window.Tutorial?.shouldUseTutorialNewCase?.()) {
+      return Tutorial.startTutorialNewCase(current);
+    }
     const ok = await AppDialog.confirm({
       title: "新規案件",
       message: "現在の案件から切り替えて、新しい案件を開始しますか？",
@@ -188,6 +191,25 @@
     if (typeof showToast === "function") showToast(`案件 ${next.id} を開始しました`);
     if (typeof chooseCameraMode === "function") chooseCameraMode();
     return next;
+  }
+
+  function activateTutorialSession(route = "existing") {
+    const isNew = route === "new";
+    const session = {
+      id: isNew ? "TUTORIAL_NEW" : "TUTORIAL_EXISTING",
+      kind: "tutorial",
+      tutorialRoute: isNew ? "new" : "existing",
+      projectName: isNew ? "新規案件チュートリアル" : "チュートリアル案件",
+      folderName: "",
+      deviceName: getDeviceName(),
+      createdAt: new Date().toISOString(),
+      oneDriveFolderStatus: "disabled"
+    };
+    saveActiveSession(session);
+    if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
+    renderSessionPanel();
+    notify("activate", session);
+    return session;
   }
 
   function legacySessionHints(caseId) {
@@ -536,6 +558,7 @@
 
   async function ensureCurrentSessionFolder() {
     const session = getCurrentSession();
+    if (session.kind === "tutorial") return null;
     return session.kind === "formal" ? ensureFormalSessionFolder(session) : ensureTemporarySessionFolder(session);
   }
 
@@ -567,7 +590,7 @@
     const subject = document.getElementById("launchCurrentCaseSubject");
     const device = document.getElementById("settingsDeviceNameText");
     if (id) id.textContent = session.id;
-    if (subject) subject.textContent = session.kind === "formal"
+    if (subject) subject.textContent = (session.kind === "formal" || session.kind === "tutorial")
       ? (session.projectName || getCurrentSubject())
       : getCurrentSubject();
     if (device) device.textContent = getDeviceName();
@@ -598,6 +621,7 @@
     startNewSession,
     activateSession,
     activateFormalProject,
+    activateTutorialSession,
     renderSessionPanel,
     getDeviceName,
     setDeviceName,

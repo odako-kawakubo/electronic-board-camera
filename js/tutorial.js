@@ -61,7 +61,46 @@
 
   function getCommonTail() {
     return [
-      { id:"done", target:"#boardEditDoneButton", position:"top-left", title:"看板編集を完了", text:"入力内容を確認したら「完了」を押します。", action:"click", waitForHidden:"#boardEditOverlay.show" },
+      {
+        id:"room-controls",
+        target:"#panelRoomButton",
+        position:"top-center",
+        noDim:true,
+        title:"採取箇所",
+        text:"「部屋」を押して開きます。「入力」から採取箇所名を入力できます。入力後は中央の対象を切り替え、上下で階数や方角などを変更できます。",
+        action:"panel",
+        panel:"#roomPanel",
+        closePanelOnAdvance:true
+      },
+      {
+        id:"sample-controls",
+        target:"#panelSampleButton",
+        position:"top-center",
+        noDim:true,
+        title:"試料No.・箇所No.",
+        text:"「検体」を押して開きます。検体の上下で試料No.、箇所の上下で箇所No.を変更できます。",
+        action:"panel",
+        panel:"#samplePanel",
+        closePanelOnAdvance:true
+      },
+      {
+        id:"status-control",
+        target:"#categoryToggleButton",
+        position:"top-center",
+        noDim:true,
+        title:"撮影区分",
+        text:"右側の緑ボタンで、施工前・施工中・施工後の撮影区分を切り替えます。ボタンを押して確認してください。",
+        action:"click"
+      },
+      {
+        id:"section-control",
+        target:"#sectionButton",
+        position:"top-center",
+        noDim:true,
+        title:"断面モード",
+        text:"「断面」を押すと断面モードになり、看板を付けずに撮影できます。確認したら通常撮影に戻します。",
+        action:"section-demo"
+      },
       { id:"shoot", target:"#shootButton", position:"top-left", noDim:true, title:"撮影", text:"撮影画面と看板を確認して、実際に1枚撮影してみましょう。説明を閉じたあと「撮影」を押してください。", action:"practice", practiceLabel:"やってみる", waitFor:"#captureReviewOverlay.show" },
       { id:"review", target:".capture-review-ok", position:"top-left", noDim:true, title:"撮影確認", text:"撮影した写真を確認します。問題なければ「OK」、やり直す場合は「撮り直し」です。", action:"practice", practiceLabel:"確認する", waitForHidden:"#captureReviewOverlay.show" },
       { id:"saved", target:"#viewButton", position:"top-left", title:"アプリ内に保存", text:"OKにすると写真はまずアプリ内へ保存されます。「表示」を押して確認します。", action:"click", waitFor:"#previewOverlay.show" },
@@ -70,17 +109,25 @@
   }
 
   function getSteps(route) {
+    const boardSetupSteps = route === "new"
+      ? [
+          { id:"board", target:"#photoBoard", position:"top-center", noDim:true, title:"まず看板を設定", text:"看板をダブルタップして編集画面を開いてください。", action:"wait-board-edit" },
+          { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"案件名を入力してください。", action:"input" },
+          { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
+          { id:"done", target:"#boardEditDoneButton", position:"top-left", title:"看板編集を完了", text:"案件名と住所を確認したら「完了」を押します。", action:"click", waitForHidden:"#boardEditOverlay.show" }
+        ]
+      : [
+          { id:"board", target:"#photoBoard", position:"top-center", noDim:true, title:"看板情報を確認", text:"看板をダブルタップして編集画面を開いてください。", action:"wait-board-edit" },
+          { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
+          { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
+          { id:"done", target:"#boardEditDoneButton", position:"top-left", title:"看板編集を完了", text:"案件名と住所を確認したら「完了」を押します。", action:"click", waitForHidden:"#boardEditOverlay.show" }
+        ];
+
     if (route === "new") {
       return [
         { id:"new", target:".launch-new-case-button", position:"top-left", title:"新規案件から撮影", text:"「新規案件」を押します。確認画面が出たら「新しい案件を開始」を選びます。", action:"external" },
         { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
-        { id:"board", target:"#photoBoard", position:"top-left", spotlight:true, title:"まず看板を設定", text:"新規案件では案件名・住所から設定します。明るく表示されている看板をダブルタップしてください。", action:"wait-board-edit" },
-        { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"案件名を入力してください。", action:"input" },
-        { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"調査場所の住所を入力してください。", action:"input" },
-        { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
-        { id:"sample", target:"#boardEditSample", position:"top-right", title:"試料No.", text:"試料No.を確認します。必要に応じて変更できます。", action:"next" },
-        { id:"mode", target:"#editBoardModeButton", position:"top-left", title:"サンプリングモード", text:"採取写真ではサンプリングを使います。初期状態もサンプリングです。", action:"next" },
-        { id:"status", target:"#boardEditStatus", position:"top-right", title:"写真区分", text:"施工前・施工中・施工後から撮影する区分を選びます。", action:"next" },
+        ...boardSetupSteps,
         ...getCommonTail()
       ];
     }
@@ -89,13 +136,7 @@
       { id:"select", target:".launch-case-select-button", position:"top-left", title:"既存案件から撮影", text:"まず「案件選択」を押します。", action:"click", waitFor:"#casePickerOverlay.show" },
       { id:"tutorial-case", target:"#tutorialCaseButton", position:"top-right", dynamicTarget:true, title:"チュートリアル案件", text:"ログインしていなくても使える練習用案件です。選択してください。", action:"external" },
       { id:"permission", target:"#captureFrame", position:"top-center", title:"カメラの使用を許可", text:"次に端末のカメラ使用確認が表示されます。「許可」を選んでください。", action:"permission" },
-      { id:"board", target:"#photoBoard", position:"top-left", spotlight:true, title:"看板情報を設定", text:"案件名と住所は入っています。明るく表示されている看板をダブルタップして、採取箇所を設定します。", action:"wait-board-edit" },
-      { id:"subject", target:"#boardEditSubject", position:"top-right", title:"案件名", text:"既存案件では案件名が自動で入ります。通常は変更しません。", action:"next" },
-      { id:"address", target:"#boardEditAddress", position:"top-right", title:"住所", text:"住所も案件情報から入ります。通常は変更しません。", action:"next" },
-      { id:"room", target:"#boardEditRoom", position:"top-right", title:"採取箇所", text:"実際に採取する場所を入力してください。例：1階 廊下 壁", action:"input" },
-      { id:"sample", target:"#boardEditSample", position:"top-right", title:"試料No.", text:"試料No.を確認します。必要に応じて変更できます。", action:"next" },
-      { id:"mode", target:"#editBoardModeButton", position:"top-left", title:"サンプリングモード", text:"採取写真ではサンプリングを使います。", action:"next" },
-      { id:"status", target:"#boardEditStatus", position:"top-right", title:"写真区分", text:"施工前・施工中・施工後から撮影する区分を選びます。", action:"next" },
+      ...boardSetupSteps,
       ...getCommonTail()
     ];
   }
@@ -116,18 +157,22 @@
     if (subjectText) subjectText.value = route === "existing" ? "チュートリアル案件" : "";
     if (addressText) addressText.value = route === "existing" ? "神奈川県小田原市○○町1-1" : "";
     if (roomNoInput) roomNoInput.value = "";
-    if (sampleNoInput) sampleNoInput.value = "1";
+    if (sampleNoInput) sampleNoInput.value = POINT_DISPLAY_DEFAULT;
     if (typeof updateCurrentDate === "function") updateCurrentDate();
     if (typeof applyBoardMode === "function") applyBoardMode();
     if (typeof setStatus === "function") setStatus("before");
     if (typeof saveBoardForm === "function") saveBoardForm();
   }
 
-  function activateTutorialCase(route) {
+  function activateTutorialCase(route, options = {}) {
     const session = CaseSession.activateTutorialSession(route);
-    clearTutorialBoard(session.id);
-    if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
-    configureTutorialBoard(route);
+    if (options.reset !== false) {
+      clearTutorialBoard(session.id);
+      if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
+      configureTutorialBoard(route);
+    } else if (typeof restoreActiveCaseBoard === "function") {
+      restoreActiveCaseBoard();
+    }
     return session;
   }
 
@@ -244,7 +289,7 @@
 
     // 中断時に破棄した一時チュートリアル案件を、再開時だけメモリ上へ作り直す。
     if (!["select", "tutorial-case", "new"].includes(step?.id || "")) {
-      activateTutorialCase(state.route);
+      activateTutorialCase(state.route, { reset:false });
     }
 
     if (step?.id === "permission") {
@@ -258,18 +303,104 @@
 
   function advance() {
     if (!isRunning()) return;
+
+    if (currentStep?.closePanelOnAdvance && typeof closeSidePanel === "function") {
+      closeSidePanel();
+    }
+    if (currentStep?.id === "section-control" && typeof setSectionMode === "function") {
+      setSectionMode(false);
+    }
+
     state.stepIndex += 1;
     saveState();
     manualBubblePosition = null;
     window.setTimeout(render, 140);
   }
 
-  function goBack() {
+  async function deleteLatestTutorialPhoto() {
+    const photos = (window.PhotoState?.items || [])
+      .filter((photo) => TUTORIAL_CASE_IDS.has(String(photo.caseId || "")))
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    if (!photos.length || !window.PhotoState?.deleteMany) return;
+    await PhotoState.deleteMany([photos[0]]);
+  }
+
+  async function restoreNormalBoardAfterTutorial() {
+    window.CaseSession?.endTutorialSession?.();
+    if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
+    if (typeof setSectionMode === "function") setSectionMode(false);
+    if (typeof closeSidePanel === "function") closeSidePanel();
+  }
+
+  async function goBack() {
     if (!isRunning() || state.stepIndex <= 0) return;
-    state.stepIndex -= 1;
-    saveState();
+
+    const steps = getSteps(state.route);
+    const current = steps[state.stepIndex];
+    let nextIndex = state.stepIndex - 1;
+    let previous = steps[nextIndex];
+
+    cleanupCurrent();
+    hideLayer();
     manualBubblePosition = null;
-    window.setTimeout(render, 100);
+
+    // 撮影確認から戻る場合は「撮り直し」と同じ状態へ戻す。
+    if (current?.id === "review" && document.querySelector("#captureReviewOverlay.show")) {
+      if (typeof rejectCaptureReview === "function") rejectCaptureReview();
+      nextIndex = steps.findIndex((step) => step.id === "shoot");
+      previous = steps[nextIndex];
+    }
+
+    // OK後は同じ確認画面を再構成できないため、練習写真を取り消して撮影からやり直す。
+    if (current?.id === "saved") {
+      await deleteLatestTutorialPhoto();
+      nextIndex = steps.findIndex((step) => step.id === "shoot");
+      previous = steps[nextIndex];
+    }
+
+    // 写真一覧からは実際に一覧を閉じて「表示」操作へ戻す。
+    if (current?.id === "list" && typeof closePreview === "function") {
+      await closePreview();
+      nextIndex = steps.findIndex((step) => step.id === "saved");
+      previous = steps[nextIndex];
+    }
+
+    if (typeof setSectionMode === "function") setSectionMode(false);
+    if (typeof closeSidePanel === "function") closeSidePanel();
+
+    // 撮影画面から看板編集の「完了」へ戻る時は編集画面そのものを再度開く。
+    if (previous?.id === "done" && !document.querySelector("#boardEditOverlay.show")) {
+      if (typeof openBoardEditMode === "function") openBoardEditMode({ focusFirstField:false });
+    }
+
+    // 編集項目から看板ダブルタップへ戻る時は編集画面を閉じ、実操作をやり直せる状態にする。
+    if (previous?.id === "board" && document.querySelector("#boardEditOverlay.show")) {
+      if (typeof closeBoardEditMode === "function") {
+        await closeBoardEditMode();
+      }
+    }
+
+    // 案件選択へ戻る場合は一時案件とカメラを解除して、本当に案件選択画面へ戻す。
+    if (previous?.id === "tutorial-case") {
+      await restoreNormalBoardAfterTutorial();
+      if (typeof returnToTopScreen === "function") await returnToTopScreen();
+      state.stepIndex = nextIndex;
+      saveState();
+      window.setTimeout(() => {
+        if (typeof openCasePickerFromTop === "function") openCasePickerFromTop();
+        window.setTimeout(render, 120);
+      }, 80);
+      return;
+    }
+
+    if (previous?.id === "select" || previous?.id === "new") {
+      await restoreNormalBoardAfterTutorial();
+      if (typeof returnToTopScreen === "function") await returnToTopScreen();
+    }
+
+    state.stepIndex = nextIndex;
+    saveState();
+    window.setTimeout(render, 140);
   }
 
   function stop() {
@@ -279,7 +410,7 @@
     state.paused = true;
     saveState();
 
-    window.CaseSession?.endTutorialSession?.();
+    void restoreNormalBoardAfterTutorial();
 
     if (typeof returnToTopScreen === "function") returnToTopScreen();
     if (typeof showToast === "function") {
@@ -308,7 +439,7 @@
 
     state = { active:false, paused:false, route:"", stepIndex:0, completed:true };
     saveState();
-    window.CaseSession?.endTutorialSession?.();
+    await restoreNormalBoardAfterTutorial();
 
     await AppDialog.notice({
       title: "チュートリアル完了",
@@ -489,6 +620,50 @@
       return;
     }
 
+    if (step.action === "panel") {
+      const panel = document.querySelector(step.panel || "");
+      let opened = panel?.classList.contains("show");
+
+      const showPanelGuide = () => {
+        opened = Boolean(panel?.classList.contains("show"));
+        if (!opened) return;
+
+        if (activeTarget) activeTarget.classList.remove("tutorial-active-target");
+        activeTarget = panel;
+        panel.classList.add("tutorial-active-target");
+        nextButton.hidden = false;
+        nextButton.textContent = "次へ";
+        nextButton.onclick = advance;
+        requestAnimationFrame(() => placeBubble(step));
+      };
+
+      const handler = () => window.setTimeout(showPanelGuide, 40);
+      target.addEventListener("click", handler, true);
+
+      if (opened) showPanelGuide();
+
+      cleanupAction = () => target.removeEventListener("click", handler, true);
+      return;
+    }
+
+    if (step.action === "section-demo") {
+      const handler = () => {
+        window.setTimeout(() => {
+          if (!isRunning() || currentStep?.id !== "section-control") return;
+          if (!isSectionMode) return;
+          nextButton.hidden = false;
+          nextButton.textContent = "通常撮影に戻す";
+          nextButton.onclick = () => {
+            if (typeof setSectionMode === "function") setSectionMode(false);
+            advance();
+          };
+        }, 40);
+      };
+      target.addEventListener("click", handler, true);
+      cleanupAction = () => target.removeEventListener("click", handler, true);
+      return;
+    }
+
     if (step.action === "wait-board-edit") {
       const overlay = document.getElementById("boardEditOverlay");
       let finished = false;
@@ -636,11 +811,12 @@
     state = loadState();
     if (state.active) {
       window.setTimeout(() => {
-        const session = window.CaseSession?.getCurrentSession?.();
-        const expectedId = state.route === "new" ? "TUTORIAL_NEW" : "TUTORIAL_EXISTING";
         const step = getSteps(state.route)[state.stepIndex];
+        if (!["select", "tutorial-case", "new"].includes(step?.id || "")) {
+          activateTutorialCase(state.route, { reset:false });
+        }
 
-        if (step?.id === "permission" && session?.id === expectedId) {
+        if (step?.id === "permission") {
           if (typeof chooseCameraMode === "function") chooseCameraMode();
           return;
         }

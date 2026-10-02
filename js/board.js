@@ -532,45 +532,55 @@
       const cssWidth = Math.max(1, Math.round(wrap.clientWidth || 780));
       const cssHeight = Math.max(1, Math.round(wrap.clientHeight || cssWidth * 242 / 390));
       const ratio = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-      boardEditCanvas.width = Math.round(cssWidth * ratio);
-      boardEditCanvas.height = Math.round(cssHeight * ratio);
-      boardEditCanvas.style.width = `${cssWidth}px`;
-      boardEditCanvas.style.height = `${cssHeight}px`;
-      const ctx = boardEditCanvas.getContext("2d");
-      ctx.clearRect(0, 0, boardEditCanvas.width, boardEditCanvas.height);
-
+      const pixelWidth = Math.round(cssWidth * ratio);
+      const pixelHeight = Math.round(cssHeight * ratio);
       const data = structuredCloneBoardData(readBoardEditForm());
       const isPhotoPreview = boardEditOverlay.classList.contains("photo-board-correction") ||
         boardEditOverlay.classList.contains("import-board-edit");
       const photoSrc = boardEditPhotoBackdrop && boardEditPhotoBackdrop.getAttribute("src");
+
+      // 編集中のちらつきを防ぐため、表示中Canvasは最後まで触らず
+      // オフスクリーンCanvasへ完成フレームを描いてから一括反映する。
+      const frameCanvas = document.createElement("canvas");
+      frameCanvas.width = pixelWidth;
+      frameCanvas.height = pixelHeight;
+      const frameCtx = frameCanvas.getContext("2d");
 
       if (isPhotoPreview && photoSrc) {
         try {
           const img = await loadImage(photoSrc);
           if (renderToken !== boardEditRenderToken || !isBoardEditMode) return;
 
-          // 編集Canvas内には写真全体をcontain表示する。縦横写真のどちらでも欠けない。
           const imageRect = getContainedImageRect(
             img.naturalWidth || img.width,
             img.naturalHeight || img.height,
-            boardEditCanvas.width,
-            boardEditCanvas.height
+            pixelWidth,
+            pixelHeight
           );
-          ctx.fillStyle = "#111";
-          ctx.fillRect(0, 0, boardEditCanvas.width, boardEditCanvas.height);
-          ctx.drawImage(img, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+          frameCtx.fillStyle = "#111";
+          frameCtx.fillRect(0, 0, pixelWidth, pixelHeight);
+          frameCtx.drawImage(img, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
 
-          // 保存時と同じ4隅・同じサイズ比率で看板を描く。
           const boardRect = getFixedBoardRectForImageRect(imageRect);
-          drawBoardOnCanvas(ctx, boardRect.x, boardRect.y, boardRect.w, boardRect.h, data);
-          return;
+          drawBoardOnCanvas(frameCtx, boardRect.x, boardRect.y, boardRect.w, boardRect.h, data);
         } catch (error) {
           console.warn("写真付き看板プレビューの描画に失敗しました", error);
+          drawBoardOnCanvas(frameCtx, 0, 0, pixelWidth, pixelHeight, data);
         }
+      } else {
+        drawBoardOnCanvas(frameCtx, 0, 0, pixelWidth, pixelHeight, data);
       }
 
-      // 通常の看板編集は従来どおり看板単体を表示する。
-      drawBoardOnCanvas(ctx, 0, 0, boardEditCanvas.width, boardEditCanvas.height, data);
+      if (renderToken !== boardEditRenderToken || !isBoardEditMode) return;
+
+      if (boardEditCanvas.width !== pixelWidth) boardEditCanvas.width = pixelWidth;
+      if (boardEditCanvas.height !== pixelHeight) boardEditCanvas.height = pixelHeight;
+      if (boardEditCanvas.style.width !== `${cssWidth}px`) boardEditCanvas.style.width = `${cssWidth}px`;
+      if (boardEditCanvas.style.height !== `${cssHeight}px`) boardEditCanvas.style.height = `${cssHeight}px`;
+
+      const ctx = boardEditCanvas.getContext("2d");
+      ctx.clearRect(0, 0, boardEditCanvas.width, boardEditCanvas.height);
+      ctx.drawImage(frameCanvas, 0, 0);
     }
 
     function getContainedImageRect(srcW, srcH, dstW, dstH) {

@@ -60,7 +60,7 @@
     return {};
   }
 
-  function saveBoardForm() {
+  function saveBoardForm(caseId = getActiveCaseId()) {
     try {
       const data = {
         subject: subjectText ? subjectText.value : "",
@@ -73,7 +73,7 @@
         boardMode,
         savedAt: new Date().toISOString()
       };
-      localStorage.setItem(getBoardStorageKey(), JSON.stringify(data));
+      localStorage.setItem(getBoardStorageKey(caseId), JSON.stringify(data));
       if (typeof scheduleBoardPreviewRender === "function") scheduleBoardPreviewRender();
       if (window.CaseSession && typeof CaseSession.renderSessionPanel === "function") {
         CaseSession.renderSessionPanel();
@@ -137,14 +137,18 @@
     return list.filter(Boolean).slice(0, 12);
   }
 
-  function saveSamplingNameHistoryForCurrentCase(value) {
+  function saveSamplingNameHistoryForCase(caseId, value) {
     const name = String(value || "").trim();
     if (!name) return;
-    const key = getActiveCaseId();
+    const key = String(caseId || getActiveCaseId());
     const map = loadSamplingNameHistoryMap();
     const list = Array.isArray(map[key]) ? map[key] : [];
     map[key] = [name, ...list.filter((item) => item !== name)].slice(0, 20);
     saveSamplingNameHistoryMap(map);
+  }
+
+  function saveSamplingNameHistoryForCurrentCase(value) {
+    saveSamplingNameHistoryForCase(getActiveCaseId(), value);
     updateSamplingNameHistoryList();
   }
 
@@ -165,6 +169,7 @@
     restoreActiveCaseBoard,
     getSamplingNameHistoryForCurrentCase,
     saveSamplingNameHistoryForCurrentCase,
+    saveSamplingNameHistoryForCase,
     updateSamplingNameHistoryList
   });
 

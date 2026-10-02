@@ -196,9 +196,7 @@
     return false;
   }
 
-  async function uploadVariant(photo, plan, sessionId) {
-    if (CaseSession.getCurrentSession().id !== sessionId) return { ok:false, reason:"case-changed" };
-
+  async function uploadVariant(photo, plan) {
     try {
       if (await recoverPendingUploadedItem(photo, plan)) {
         setLiveState(photo.id, plan.variant, "");
@@ -211,7 +209,6 @@
 
       while (attempt < 8) {
         attempt += 1;
-        if (CaseSession.getCurrentSession().id !== sessionId) return { ok:false, reason:"case-changed" };
         if (!candidate) candidate = await nextRemoteFileName(plan.folder, plan.desiredFileName);
 
         await saveUploadPatch(photo, {
@@ -306,15 +303,19 @@
     }
   }
 
-  async function runCurrentCaseSync() {
+  async function runCaseSync(caseId = "") {
     if (navigator.onLine === false) return { ok:false, reason:"offline", uploaded:0 };
     const connection = OneDriveConnection.getState();
     if (!connection?.connected) return { ok:false, reason:"onedrive-unavailable", uploaded:0 };
 
-    const session = CaseSession.getCurrentSession();
-    if (!session?.id) return { ok:false, reason:"no-active-case", uploaded:0 };
+    const session = caseId
+      ? CaseSession.getSessionById?.(caseId)
+      : CaseSession.getCurrentSession();
+    if (!session?.id) return { ok:false, reason:"no-case", uploaded:0 };
 
-    const sessionFolder = await CaseSession.ensureCurrentSessionFolder();
+    const sessionFolder = session.kind === "formal"
+      ? await CaseSession.ensureFormalSessionFolder(session)
+      : await CaseSession.ensureTemporarySessionFolder(session);
     if (!sessionFolder?.driveId || !sessionFolder?.itemId || !sessionFolder?.originalFolder?.itemId) {
       return { ok:false, reason:"case-folder-unavailable", uploaded:0 };
     }
@@ -333,32 +334,35 @@
 
     let uploaded = 0;
     for (const photo of photos) {
-      if (CaseSession.getCurrentSession().id !== session.id) break;
-
       for (const plan of buildVariantPlan(photo, folders)) {
-        if (CaseSession.getCurrentSession().id !== session.id) break;
-        const result = await uploadVariant(photo, plan, session.id);
+        const result = await uploadVariant(photo, plan);
         if (result?.uploaded) uploaded += 1;
       }
-
       await releaseLocalOriginalIfSafe(photo);
     }
 
-    return { ok:true, uploaded };
+    return { ok:true, uploaded, caseId: session.id };
   }
 
-  async function drain() {
+
+  let rerunCaseId = "";
+
+  async function drain(caseId = "") {
     if (running) {
       rerunRequested = true;
+      if (caseId) rerunCaseId = String(caseId);
       return { ok:true, reason:"already-running", uploaded:0 };
     }
 
     running = true;
     let lastResult = { ok:true, uploaded:0 };
+    let nextCaseId = String(caseId || "");
     try {
       do {
         rerunRequested = false;
-        lastResult = await runCurrentCaseSync();
+        rerunCaseId = "";
+        lastResult = await runCaseSync(nextCaseId);
+        nextCaseId = rerunCaseId;
       } while (rerunRequested);
       return lastResult;
     } finally {
@@ -394,7 +398,8 @@
   window.PhotoOneDriveSync = Object.freeze({
     initialize,
     requestSync,
-    syncCurrentCaseNow: drain,
+    syncCurrentCaseNow: () => drain(""),
+    syncCaseNow: (caseId) => drain(caseId),
     getLiveState
   });
 })();

@@ -36,6 +36,18 @@
     let cameraLandscape = true;
 
 
+    async function requestLandscapeOrientationLock() {
+      const orientation = screen.orientation;
+      if (!orientation?.lock) return false;
+      try {
+        await orientation.lock("landscape");
+        return true;
+      } catch (error) {
+        // iPhone/iPadなど未対応環境ではmanifestと縦向きブロッカーへフォールバックする。
+        return false;
+      }
+    }
+
     function isCameraLandscape() {
       const type = String(screen.orientation?.type || "");
       if (type) return type.startsWith("landscape");
@@ -175,6 +187,7 @@
     async function startCamera() {
       try {
         await requestFullscreenSafe();
+        await requestLandscapeOrientationLock();
         stopCurrentStream();
 
         const stream = await navigator.mediaDevices.getUserMedia({

@@ -13,33 +13,6 @@
       transform-origin: center center;
     }
 
-    #landscapeFlipButton {
-      display: none;
-    }
-
-    @media (orientation: portrait) {
-      :root {
-        --app-vw: 100dvh;
-        --app-vh: 100vw;
-      }
-
-      #appOrientationShell {
-        left: 50%;
-        top: 50%;
-        right: auto;
-        bottom: auto;
-        transform: translate(-50%, -50%) rotate(90deg);
-      }
-
-      body.landscape-flipped #appOrientationShell {
-        transform: translate(-50%, -50%) rotate(-90deg);
-      }
-
-      #landscapeFlipButton {
-        display: block;
-      }
-    }
-
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
@@ -3090,4 +3063,62 @@ body.tutorial-no-dim .tutorial-active-target {
     #importBoardControls .import-cancel-edit-button {
       border-color: rgba(255,255,255,.8);
       background: rgba(130,20,20,.82);
+    }
+
+    #cameraOrientationBlocker {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0,0,0,.66);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 900;
+      text-align: center;
+      text-shadow: 0 2px 8px rgba(0,0,0,.7);
+      pointer-events: none;
+    }
+
+    #cameraOrientationBlocker[hidden] {
+      display: none !important;
+    }
+
+    body.camera-portrait-blocked #shootButton {
+      opacity: .35;
+    }
+
+    body.board-editing #cameraOrientationBlocker,
+    body.capture-reviewing #cameraOrientationBlocker {
+      display: none !important;
+    }
+
+    .settings-select-row {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .settings-select-row select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      background: #fff;
+      color: #111;
+      padding: 6px 8px;
+      font: inherit;
+    }
+
+    .settings-credit {
+      margin: 14px 0 2px;
+      text-align: center;
+      font-size: 11px;
+      color: #6b7280;
     }

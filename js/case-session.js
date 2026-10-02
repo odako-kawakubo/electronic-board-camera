@@ -382,26 +382,11 @@
     }
   }
 
-  function applyFormalProjectAddressIfEmpty(address) {
-    const value = String(address || "").trim();
-    if (!value) return;
-    const saved = window.BoardPersistence?.loadSavedBoardForm?.() || null;
-    const savedAddress = String(saved?.address || "").trim();
-    if (savedAddress && savedAddress !== APP_DATA.address) return;
-
-    const input = document.getElementById("addressText");
-    const currentAddress = String(input?.value || "").trim();
-    if (!input || (currentAddress && currentAddress !== APP_DATA.address)) return;
-    input.value = value;
-    if (typeof saveBoardForm === "function") saveBoardForm();
-  }
-
-  async function activateFormalProject(project, options = {}) {
+  async function resolveFormalProject(project, options = {}) {
     const isCancelled = typeof options.isCancelled === "function"
       ? options.isCancelled
       : () => false;
 
-    if (tutorialSession) endTutorialSession();
     if (isCancelled()) return null;
 
     const projectNo = String(project?.projectNo || "").trim();
@@ -435,12 +420,6 @@
       oneDriveFolderError: ""
     };
 
-    if (isCancelled()) return null;
-    saveActiveSession(session);
-    restoreCaseBoard(projectName);
-    renderSessionPanel();
-    notify("activate", session);
-
     const address = await readFormalProjectAddress({
       driveId,
       itemId,
@@ -450,15 +429,47 @@
     }, projectNo);
 
     if (isCancelled()) return null;
-    applyFormalProjectAddressIfEmpty(address);
+    rememberSession(session);
+    return { session: loadRememberedSession(projectNo) || session, address };
+  }
 
-    // 写真フォルダの確認/作成はカメラ開始を待たせない。
-    // 同期処理側でも必要時に再確認するため、ここではバックグラウンド準備だけ行う。
+  function applyFormalProjectAddressIfEmpty(address) {
+    const value = String(address || "").trim();
+    if (!value) return;
+    const saved = window.BoardPersistence?.loadSavedBoardForm?.() || null;
+    const savedAddress = String(saved?.address || "").trim();
+    if (savedAddress && savedAddress !== APP_DATA.address) return;
+
+    const input = document.getElementById("addressText");
+    const currentAddress = String(input?.value || "").trim();
+    if (!input || (currentAddress && currentAddress !== APP_DATA.address)) return;
+    input.value = value;
+    if (typeof saveBoardForm === "function") saveBoardForm();
+  }
+
+  async function activateFormalProject(project, options = {}) {
+    const isCancelled = typeof options.isCancelled === "function"
+      ? options.isCancelled
+      : () => false;
+
+    if (tutorialSession) endTutorialSession();
+    if (isCancelled()) return null;
+
+    const resolved = await resolveFormalProject(project, { isCancelled });
+    if (!resolved || isCancelled()) return null;
+
+    const session = resolved.session;
+    saveActiveSession(session);
+    restoreCaseBoard(session.projectName || "");
+    renderSessionPanel();
+    notify("activate", session);
+    applyFormalProjectAddressIfEmpty(resolved.address);
+
     void ensureFormalSessionFolder(session);
 
     if (isCancelled()) return null;
-    if (typeof showToast === "function") showToast(`案件 ${projectNo} を選択しました`);
-    return loadRememberedSession(projectNo) || session;
+    if (typeof showToast === "function") showToast(`案件 ${session.id} を選択しました`);
+    return loadRememberedSession(session.id) || session;
   }
 
   function isSameActiveSession(session) {
@@ -695,6 +706,7 @@
     createTemporaryImportSession,
     startNewSession,
     activateSession,
+    resolveFormalProject,
     activateFormalProject,
     activateTutorialSession,
     endTutorialSession,

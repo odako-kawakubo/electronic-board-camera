@@ -345,8 +345,83 @@
 
      */
 
+    function isMobileShareDevice() {
+      const ua = String(navigator.userAgent || "");
+      if (/Android|iPhone|iPad|iPod/i.test(ua)) return true;
+      return /Macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
+    }
+
+    async function writePhotoToFileHandle(fileHandle, photo) {
+      const writable = await fileHandle.createWritable();
+      try {
+        await writable.write(dataUrlToBlob(photo.dataUrl));
+      } finally {
+        await writable.close();
+      }
+    }
+
+    async function savePhotosOnDesktop(photos) {
+      if (!photos.length) return false;
+
+      if (photos.length === 1 && typeof window.showSaveFilePicker === "function") {
+        try {
+          const photo = photos[0];
+          const handle = await window.showSaveFilePicker({
+            suggestedName: photo.fileName || "photo.jpg",
+            types: [{
+              description: "JPEG画像",
+              accept: { "image/jpeg": [".jpg", ".jpeg"] }
+            }]
+          });
+          await writePhotoToFileHandle(handle, photo);
+          showToast("保存しました");
+          return true;
+        } catch (error) {
+          if (error?.name === "AbortError") return true;
+          console.warn("ファイル保存ダイアログを使用できませんでした", error);
+        }
+      }
+
+      if (photos.length > 1 && typeof window.showDirectoryPicker === "function") {
+        try {
+          const directory = await window.showDirectoryPicker({ mode: "readwrite" });
+          for (const photo of photos) {
+            const handle = await directory.getFileHandle(photo.fileName || `photo_${Date.now()}.jpg`, { create: true });
+            await writePhotoToFileHandle(handle, photo);
+          }
+          showToast(`${photos.length}枚を保存しました`);
+          return true;
+        } catch (error) {
+          if (error?.name === "AbortError") return true;
+          console.warn("フォルダ一括保存を使用できませんでした", error);
+        }
+      }
+
+      return false;
+    }
+
+    function downloadPhotosTogether(photos) {
+      photos.forEach((photo, index) => {
+        window.setTimeout(() => {
+          const link = document.createElement("a");
+          link.href = photo.dataUrl;
+          link.download = photo.fileName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }, index * 180);
+      });
+      showToast(photos.length === 1 ? "ダウンロードしました" : `${photos.length}枚をダウンロードします`);
+    }
+
     async function shareOrDownloadPhotos(photos) {
       if (!photos.length) return;
+
+      if (!isMobileShareDevice()) {
+        const saved = await savePhotosOnDesktop(photos);
+        if (!saved) downloadPhotosTogether(photos);
+        return;
+      }
 
       if (navigator.share && navigator.canShare) {
         try {
@@ -370,17 +445,7 @@
         }
       }
 
-      photos.forEach((photo, index) => {
-        setTimeout(() => {
-          const link = document.createElement("a");
-          link.href = photo.dataUrl;
-          link.download = photo.fileName;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-        }, index * 250);
-      });
-      showToast("保存 / 共有が完了しました");
+      downloadPhotosTogether(photos);
     }
 
     function dataUrlToBlob(dataUrl) {

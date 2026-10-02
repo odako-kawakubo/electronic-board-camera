@@ -191,6 +191,20 @@
     return session;
   }
 
+  function getSessionById(caseId) {
+    const id = String(caseId || "").trim();
+    return id ? loadRememberedSession(id) : null;
+  }
+
+  function createTemporaryImportSession() {
+    if (tutorialSession) endTutorialSession();
+    const session = createSession();
+    if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
+    renderSessionPanel();
+    notify("activate", session);
+    return session;
+  }
+
   async function startNewSession() {
     const current = getCurrentSession();
     if (window.Tutorial?.shouldUseTutorialNewCase?.()) {
@@ -677,6 +691,8 @@
 
   window.CaseSession = Object.freeze({
     getCurrentSession,
+    getSessionById,
+    createTemporaryImportSession,
     startNewSession,
     activateSession,
     activateFormalProject,

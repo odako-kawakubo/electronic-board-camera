@@ -166,9 +166,10 @@
 
   async function saveImportSession(session) {
     const db = await openDB();
+    const storedSession = { ...(session || {}), id: ACTIVE_IMPORT_SESSION_ID };
     await new Promise((resolve, reject) => {
       const tx = db.transaction(IMPORT_SESSION_STORE_NAME, "readwrite");
-      tx.objectStore(IMPORT_SESSION_STORE_NAME).put(session);
+      tx.objectStore(IMPORT_SESSION_STORE_NAME).put(storedSession);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error || new Error("一時保存を中断しました"));

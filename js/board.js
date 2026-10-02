@@ -876,11 +876,25 @@
       safely("入力欄調整に失敗", syncBoardTextareas);
       safely("編集解除に失敗", () => setBoardEditable(false));
       safely("看板位置調整に失敗", placeBoardByFixedPosition);
-      safely("看板フォーム保存に失敗", saveBoardForm);
+      safely("看板フォーム保存に失敗", () => {
+        const importTargetCaseId = isImportBoardEdit && typeof getImportTargetCaseId === "function"
+          ? getImportTargetCaseId()
+          : "";
+        saveBoardForm(importTargetCaseId || undefined);
+      });
       safely("看板再描画予約に失敗", scheduleBoardPreviewRender);
 
       if (boardMode === "sampling") {
-        safely("採取箇所履歴保存に失敗", () => saveSamplingNameHistoryForCurrentCase(roomNoInput.value));
+        safely("採取箇所履歴保存に失敗", () => {
+          const importTargetCaseId = isImportBoardEdit && typeof getImportTargetCaseId === "function"
+            ? getImportTargetCaseId()
+            : "";
+          if (importTargetCaseId && window.BoardPersistence?.saveSamplingNameHistoryForCase) {
+            BoardPersistence.saveSamplingNameHistoryForCase(importTargetCaseId, roomNoInput.value);
+          } else {
+            saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
+          }
+        });
       }
 
       if (isImportBoardEdit) {

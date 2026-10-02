@@ -168,6 +168,26 @@
       background: rgba(235, 87, 87, 0.92);
     }
 
+    #cameraToast {
+      position: absolute;
+      left: 50%;
+      top: 16px;
+      z-index: 8;
+      transform: translateX(-50%);
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    #cameraToast[hidden] {
+      display: none;
+    }
+
     #cameraGuide {
       position: absolute;
       inset: 0;

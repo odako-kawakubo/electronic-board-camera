@@ -17,6 +17,7 @@
     const captureReviewImage = document.getElementById("captureReviewImage");
     const cameraGuide = document.getElementById("cameraGuide");
     const cameraToast = document.getElementById("cameraToast");
+    const cameraOrientationBlocker = document.getElementById("cameraOrientationBlocker");
     const startButton = document.getElementById("startButton");
     const viewButton = document.getElementById("viewButton");
     const sectionButton = document.getElementById("sectionButton");
@@ -32,7 +33,27 @@
     let lastTorchTapAt = 0;
     let lastTorchTapPoint = null;
     let cameraToastTimer = null;
+    let cameraLandscape = true;
 
+
+    function isCameraLandscape() {
+      const type = String(screen.orientation?.type || "");
+      if (type) return type.startsWith("landscape");
+      if (window.matchMedia) return window.matchMedia("(orientation: landscape)").matches;
+      return window.innerWidth >= window.innerHeight;
+    }
+
+    function syncShootButtonAvailability() {
+      if (!shootButton) return;
+      shootButton.disabled = Boolean(isTakingPhoto || !cameraLandscape);
+    }
+
+    function syncCameraOrientation() {
+      cameraLandscape = isCameraLandscape();
+      if (cameraOrientationBlocker) cameraOrientationBlocker.hidden = cameraLandscape;
+      document.body.classList.toggle("camera-portrait-blocked", !cameraLandscape);
+      syncShootButtonAvailability();
+    }
 
     function currentVideoTrack() {
       return currentStream?.getVideoTracks?.().find((track) => track.readyState === "live") || null;
@@ -174,6 +195,7 @@
         await video.play();
 
         showCameraButtons();
+        syncCameraOrientation();
         showToast("カメラを起動しました");
       } catch (error) {
         console.error(error);
@@ -195,6 +217,7 @@
       currentStream.getTracks().forEach((item) => item.stop());
       currentStream = null;
       video.srcObject = null;
+      syncCameraOrientation();
     }
 
     async function requestFullscreenSafe() {
@@ -214,6 +237,7 @@
       sectionButton.classList.remove("hidden-control");
       shootButton.classList.remove("hidden-control");
       if (categoryToggleButton) categoryToggleButton.classList.remove("hidden-control");
+      syncCameraOrientation();
     }
 
     function showStartButton() {
@@ -336,6 +360,12 @@
     async function takePhoto() {
       if (isTakingPhoto) return;
 
+      syncCameraOrientation();
+      if (!cameraLandscape) {
+        showToast("端末を横向きにしてください");
+        return;
+      }
+
       if (!currentStream || !video.srcObject || video.readyState < 2) {
         showToast("先にカメラを起動してください");
         return;
@@ -345,7 +375,13 @@
       if (!continueCapture) return;
 
       isTakingPhoto = true;
-      shootButton.disabled = true;
+      syncShootButtonAvailability();
+      if (window.ShutterSound?.play) {
+        void ShutterSound.play(
+          typeof getShutterSoundSetting === "function" ? getShutterSoundSetting() : "camera1",
+          typeof getShutterVolumeSetting === "function" ? getShutterVolumeSetting() : "medium"
+        );
+      }
       // 撮影開始時の区分を固定し、確認画面中の状態変化が保存結果へ混入しないようにする。
       const lockedPhotoType = { ...getCurrentPhotoType() };
 
@@ -450,7 +486,7 @@
         hideCapturedStill();
       } finally {
         isTakingPhoto = false;
-        shootButton.disabled = false;
+        syncCameraOrientation();
       }
     }
 
@@ -670,4 +706,15 @@
     if (captureFrame && captureFrame.dataset.torchDoubleTapBound !== "1") {
       captureFrame.dataset.torchDoubleTapBound = "1";
       captureFrame.addEventListener("pointerup", handleCameraCapturePointerUp);
+    }
+
+    if (document.body.dataset.cameraOrientationBound !== "1") {
+      document.body.dataset.cameraOrientationBound = "1";
+      const handleCameraOrientationChange = () => syncCameraOrientation();
+      window.addEventListener("orientationchange", handleCameraOrientationChange);
+      window.addEventListener("resize", handleCameraOrientationChange);
+      if (screen.orientation?.addEventListener) {
+        screen.orientation.addEventListener("change", handleCameraOrientationChange);
+      }
+      syncCameraOrientation();
     }

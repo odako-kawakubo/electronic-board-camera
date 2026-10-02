@@ -13,6 +13,27 @@
       transform-origin: center center;
     }
 
+    @media (orientation: portrait) {
+      :root {
+        --app-vw: 100dvh;
+        --app-vh: 100vw;
+      }
+
+      #appOrientationShell {
+        left: 50%;
+        top: 50%;
+        right: auto;
+        bottom: auto;
+        width: var(--app-vw);
+        height: var(--app-vh);
+        transform: translate(-50%, -50%) rotate(90deg);
+      }
+
+      body.portrait-rotate-negative #appOrientationShell {
+        transform: translate(-50%, -50%) rotate(-90deg);
+      }
+    }
+
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
@@ -3066,9 +3087,9 @@ body.tutorial-no-dim .tutorial-active-target {
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: rgba(0,0,0,.66);
+      background: rgba(0,0,0,.72);
       color: #fff;
-      font-size: 22px;
+      font-size: clamp(24px, 4.5vw, 34px);
       font-weight: 900;
       text-align: center;
       text-shadow: 0 2px 8px rgba(0,0,0,.7);

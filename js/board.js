@@ -626,6 +626,10 @@
           if (control === boardEditModeSelect) {
             // 調査 / サンプリング切替は下書きへ即反映してから再描画する。
             boardEditDraft.boardMode = boardEditModeSelect.value === "sampling" ? "sampling" : "survey";
+            if (boardEditDraft.boardMode === "survey" && !String(boardEditRoom.value || "").trim()) {
+              boardEditRoom.value = "1-1";
+              boardEditDraft.roomNo = "1-1";
+            }
             renderBoardEditStatusOptions(boardEditDraft.status);
             updateBoardEditModeLabels();
             selectBoardEditField(boardEditSelectedField);

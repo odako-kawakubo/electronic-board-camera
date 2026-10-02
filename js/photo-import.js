@@ -92,14 +92,9 @@
     }
 
     function chooseFreeBoardImport() {
-      const session = window.CaseSession?.createTemporaryImportSession?.();
-      if (!session?.id) {
-        showErrorToast("フリー看板の保存先を作成できませんでした");
-        return;
-      }
       pendingImportTarget = {
         mode: "free",
-        targetCaseId: String(session.id),
+        targetCaseId: "",
         targetCaseSubject: APP_DATA.subject,
         targetAddress: APP_DATA.address
       };
@@ -194,7 +189,16 @@
     }
 
     async function startImportSession(files) {
-      if (!pendingImportTarget?.targetCaseId) {
+      if (!pendingImportTarget) {
+        throw new Error("看板添付の種類が決まっていません");
+      }
+
+      if (pendingImportTarget.mode === "free" && !pendingImportTarget.targetCaseId) {
+        const freeSession = window.CaseSession?.createTemporaryImportSession?.();
+        if (!freeSession?.id) throw new Error("フリー看板の保存先を作成できませんでした");
+        pendingImportTarget.targetCaseId = String(freeSession.id);
+      }
+      if (!pendingImportTarget.targetCaseId) {
         throw new Error("看板添付の保存先案件が決まっていません");
       }
 
@@ -242,6 +246,14 @@
       await openCurrentImportedPhoto();
     }
 
+    function restoreNormalCaseBoardAfterImport() {
+      try {
+        if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
+      } catch (error) {
+        console.warn("看板添付終了後の通常案件看板復元に失敗しました", error);
+      }
+    }
+
     async function discardImportSession() {
       await PhotoStore.deleteImportSession();
       activeImportSession = null;
@@ -252,6 +264,7 @@
       document.body.classList.remove("board-editing");
       if (launchResumePanel) launchResumePanel.classList.remove("show");
       if (importProgressBadge) importProgressBadge.classList.remove("show");
+      restoreNormalCaseBoardAfterImport();
       showToast("編集中データを破棄しました");
     }
 
@@ -395,6 +408,7 @@
       if (importProgressBadge) importProgressBadge.classList.remove("show");
       if (boardEditDoneButton) boardEditDoneButton.textContent = "完了";
       document.body.classList.remove("board-editing");
+      restoreNormalCaseBoardAfterImport();
       showToast("選択した写真の看板追加が完了しました");
 
       if (targetCaseId && window.PhotoOneDriveSync?.syncCaseNow) {

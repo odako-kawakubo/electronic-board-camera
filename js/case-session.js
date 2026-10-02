@@ -197,12 +197,27 @@
   }
 
   function createTemporaryImportSession() {
-    if (tutorialSession) endTutorialSession();
-    const session = createSession();
-    if (typeof restoreActiveCaseBoard === "function") restoreActiveCaseBoard();
-    renderSessionPanel();
-    notify("activate", session);
-    return session;
+    const dateCode = formatDateCode(new Date());
+    const branch = nextBranch(dateCode);
+    const id = `${dateCode}_${pad2(branch)}`;
+    const deviceName = getDeviceName();
+    const session = {
+      id,
+      dateCode,
+      branch,
+      deviceName,
+      folderName: buildFolderName(deviceName, id),
+      createdAt: new Date().toISOString(),
+      kind: "temporary",
+      oneDriveFolderDriveId: "",
+      oneDriveFolderItemId: "",
+      oneDriveOriginalFolderItemId: "",
+      oneDriveFolderStatus: "pending",
+      oneDriveFolderError: ""
+    };
+    rememberSession(session);
+    void ensureTemporarySessionFolder(session);
+    return { ...session };
   }
 
   async function startNewSession() {

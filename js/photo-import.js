@@ -18,8 +18,8 @@
     const importPhotoInput = document.getElementById("importPhotoInput");
     const importProgressBadge = document.getElementById("importProgressBadge");
     const importBoardPositionLabel = document.getElementById("importBoardPositionLabel");
-    const importLoadingOverlay = document.getElementById("importLoadingOverlay");
-    const importLoadingMessage = document.getElementById("importLoadingMessage");
+    const importModeOverlay = document.getElementById("importModeOverlay");
+    let pendingImportTarget = null;
     let activeImportSession = null;
     let activeImportBaseDataUrl = "";
     let isImportBoardEdit = false;
@@ -52,11 +52,121 @@
         });
         return;
       }
+      pendingImportTarget = null;
+      importModeOverlay?.classList.add("show");
+    }
+
+    function closeImportModePicker() {
+      importModeOverlay?.classList.remove("show");
+      pendingImportTarget = null;
+    }
+
+    function openImportPhotoPicker() {
+      if (!pendingImportTarget || !importPhotoInput) return;
+      importModeOverlay?.classList.remove("show");
       importPhotoInput.value = "";
       importPhotoInput.click();
     }
 
+    function chooseExistingBoardImport() {
+      importModeOverlay?.classList.remove("show");
+      if (typeof openCasePickerForImport !== "function") {
+        showErrorToast("案件選択を開けませんでした");
+        return;
+      }
+      openCasePickerForImport({
+        onSelect: (target) => {
+          pendingImportTarget = {
+            mode: "existing",
+            targetCaseId: String(target?.caseId || ""),
+            targetCaseSubject: String(target?.caseSubject || ""),
+            targetAddress: String(target?.address || "")
+          };
+          openImportPhotoPicker();
+        },
+        onCancel: () => {
+          pendingImportTarget = null;
+          importModeOverlay?.classList.add("show");
+        }
+      });
+    }
+
+    function chooseFreeBoardImport() {
+      const session = window.CaseSession?.createTemporaryImportSession?.();
+      if (!session?.id) {
+        showErrorToast("フリー看板の保存先を作成できませんでした");
+        return;
+      }
+      pendingImportTarget = {
+        mode: "free",
+        targetCaseId: String(session.id),
+        targetCaseSubject: APP_DATA.subject,
+        targetAddress: APP_DATA.address
+      };
+      openImportPhotoPicker();
+    }
+
+    function getImportTargetCaseId() {
+      return String(activeImportSession?.targetCaseId || pendingImportTarget?.targetCaseId || "");
+    }
+
+    function applyImportBoardData(data = {}) {
+      subjectText.value = String(data.subject ?? "");
+      addressText.value = String(data.address ?? "");
+      roomNoInput.value = String(data.roomNo ?? "");
+      sampleNoInput.value = String(data.sampleNo || POINT_DISPLAY_DEFAULT);
+      boardMode = data.boardMode === "survey" ? "survey" : "sampling";
+      selectedStatus = data.status || (boardMode === "sampling" ? "before" : "visual");
+      isDateManuallyEdited = Boolean(data.isDateManuallyEdited);
+      if (data.date && isDateManuallyEdited) dateText.textContent = String(data.date);
+      else {
+        isDateManuallyEdited = false;
+        updateCurrentDate();
+      }
+      setSectionMode(false);
+      applyBoardMode();
+      setStatus(selectedStatus);
+      syncBoardTextareas();
+      placeBoardByFixedPosition();
+      scheduleBoardPreviewRender();
+    }
+
+    function applyInitialImportBoard(session) {
+      applyImportBoardData({
+        subject: session.mode === "existing" ? session.targetCaseSubject : APP_DATA.subject,
+        address: session.mode === "existing" ? session.targetAddress : APP_DATA.address,
+        roomNo: "",
+        sampleNo: POINT_DISPLAY_DEFAULT,
+        boardMode: "sampling",
+        status: "before",
+        date: "",
+        isDateManuallyEdited: false
+      });
+    }
+
+    async function cancelImportEditing() {
+      if (!activeImportSession) return;
+      const ok = await AppDialog.confirm({
+        title: "看板添付を中止",
+        message: "編集中の看板添付を中止して、途中データを破棄しますか？",
+        okLabel: "中止する",
+        cancelLabel: "編集を続ける"
+      });
+      if (!ok) return;
+
+      boardEditOverlay?.classList.remove("show", "import-board-edit", "photo-board-correction");
+      if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
+      document.body.classList.remove("board-editing");
+      isBoardEditMode = false;
+      boardEditDraft = null;
+      await discardImportSession();
+      launchModeOverlay?.classList.remove("hidden");
+    }
+
+
     /**
+
+     * 既存写真選択inputを監視し    /**
 
      * 既存写真選択inputを監視し、複数写真の取込セッション開始につなげる。
 
@@ -65,9 +175,17 @@
     function setupImportPhotoInput() {
       if (!importPhotoInput || importPhotoInput.dataset.bound === "1") return;
       importPhotoInput.dataset.bound = "1";
+      importPhotoInput.addEventListener("cancel", () => {
+        pendingImportTarget = null;
+        launchModeOverlay?.classList.remove("hidden");
+      });
       importPhotoInput.addEventListener("change", async (event) => {
         const files = Array.from(event.target.files || []).filter(file => file && String(file.type || "").startsWith("image/"));
-        if (!files.length) return;
+        if (!files.length) {
+          pendingImportTarget = null;
+          launchModeOverlay?.classList.remove("hidden");
+          return;
+        }
         try {
           await startImportSession(files);
         } catch (error) {
@@ -77,25 +195,21 @@
       });
     }
 
-    function showImportLoading(message = "写真を読み込み中…") {
-      if (importLoadingMessage) importLoadingMessage.textContent = message;
-      if (importLoadingOverlay) importLoadingOverlay.classList.add("show");
-    }
-
-    function hideImportLoading() {
-      if (importLoadingOverlay) importLoadingOverlay.classList.remove("show");
-    }
-
     async function startImportSession(files) {
+      if (!pendingImportTarget?.targetCaseId) {
+        throw new Error("看板添付の保存先案件が決まっていません");
+      }
+
       const now = new Date().toISOString();
-      const caseSession = window.CaseSession?.getCurrentSession?.() || null;
       activeImportSession = {
-        id: ACTIVE_IMPORT_SESSION_ID,
-        caseId: String(caseSession?.id || ""),
-        caseSubject: typeof getCurrentSubjectName === "function" ? getCurrentSubjectName() : "",
+        mode: pendingImportTarget.mode === "existing" ? "existing" : "free",
+        targetCaseId: String(pendingImportTarget.targetCaseId || ""),
+        targetCaseSubject: String(pendingImportTarget.targetCaseSubject || ""),
+        targetAddress: String(pendingImportTarget.targetAddress || ""),
         currentIndex: 0,
         createdAt: now,
         updatedAt: now,
+        lastBoardData: null,
         items: files.map((file, index) => ({
           id: `import_${Date.now()}_${index}_${Math.random().toString(36).slice(2)}`,
           blob: file,
@@ -103,57 +217,33 @@
           type: file.type || "image/jpeg"
         }))
       };
+
+      pendingImportTarget = null;
+      applyInitialImportBoard(activeImportSession);
       await PhotoStore.saveImportSession(activeImportSession);
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
-      showImportLoading("写真を読み込み中…");
-      try {
-        await openCurrentImportedPhoto();
-      } catch (error) {
-        hideImportLoading();
-        throw error;
-      }
+      await openCurrentImportedPhoto();
     }
 
     /**
+
+     * 保存済み取込セッションを復元し    /**
 
      * 保存済み取込セッションを復元し、中断した写真位置から編集を再開する。
 
      */
 
-    async function ensureImportSessionCase(session) {
-      if (!session) return;
-      const current = window.CaseSession?.getCurrentSession?.() || null;
-
-      // v65.42以前の途中セッションは、初回再開時の案件へ固定して以後の誤所属を防ぐ。
-      if (!session.caseId) {
-        session.caseId = String(current?.id || "");
-        session.caseSubject = typeof getCurrentSubjectName === "function" ? getCurrentSubjectName() : "";
-        session.updatedAt = new Date().toISOString();
-        await PhotoStore.saveImportSession(session);
-        return;
-      }
-
-      if (current?.id !== session.caseId && window.CaseSession?.activateSession) {
-        CaseSession.activateSession(session.caseId, session.caseSubject || "");
-      }
-    }
-
-    async function resumeImportSession() {
+    async function resumeImportSession() {    async function resumeImportSession() {
       const session = await PhotoStore.loadImportSession();
       if (!session || !session.items || session.currentIndex >= session.items.length) {
         await discardImportSession();
         return;
       }
-      await ensureImportSessionCase(session);
       activeImportSession = session;
+      if (session.lastBoardData) applyImportBoardData(session.lastBoardData);
+      else if (session.currentIndex === 0) applyInitialImportBoard(session);
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
-      showImportLoading("写真を読み込み中…");
-      try {
-        await openCurrentImportedPhoto();
-      } catch (error) {
-        hideImportLoading();
-        throw error;
-      }
+      await openCurrentImportedPhoto();
     }
 
     async function discardImportSession() {
@@ -161,6 +251,9 @@
       activeImportSession = null;
       activeImportBaseDataUrl = "";
       isImportBoardEdit = false;
+      pendingImportTarget = null;
+      boardEditOverlay?.classList.remove("show", "import-board-edit", "photo-board-correction");
+      document.body.classList.remove("board-editing");
       if (launchResumePanel) launchResumePanel.classList.remove("show");
       if (importProgressBadge) importProgressBadge.classList.remove("show");
       showToast("編集中データを破棄しました");
@@ -193,8 +286,10 @@
         return;
       }
 
+      if (session.lastBoardData) applyImportBoardData(session.lastBoardData);
+      else if (session.currentIndex === 0) applyInitialImportBoard(session);
+
       const item = session.items[session.currentIndex];
-      showImportLoading(`写真を読み込み中…（${session.currentIndex + 1} / ${session.items.length}）`);
       activeImportBaseDataUrl = await normalizeImportedImageToDataUrl(item.blob);
       isImportBoardEdit = true;
       boardEditTargetPhotoId = null;
@@ -216,7 +311,6 @@
       updateImportBoardPositionLabel();
       boardEditOverlay.classList.add("photo-board-correction", "import-board-edit");
       openBoardEditMode({ focusFirstField: false });
-      hideImportLoading();
       showToast(`${session.currentIndex + 1} / ${session.items.length} 枚目を編集中`);
     }
 
@@ -228,8 +322,9 @@
       }
 
       try {
-        await ensureImportSessionCase(session);
-        saveBoardForm();
+        const targetSession = window.CaseSession?.getSessionById?.(session.targetCaseId);
+        if (!targetSession?.id) throw new Error("添付先案件情報を復元できませんでした");
+
         if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
         let canvas;
@@ -246,8 +341,8 @@
         const photoType = getCurrentPhotoType();
         const sampleParts = parseSampleAndPoint(sampleNoInput.value);
         const photo = PhotoRecord.create({
+          caseSession: targetSession,
           dataUrl,
-          // OneDriveへ元画像/完成画像の両方を送るため、送信確認までは元画像も保持する。
           baseDataUrl: activeImportBaseDataUrl,
           fileName: generatePhotoFileName(sampleParts.sampleNo, sampleParts.pointNo, photoType.code),
           status: photoType.value,
@@ -267,9 +362,14 @@
           const detail = importedPhotoSaved && importedPhotoSaved.errorMessage ? importedPhotoSaved.errorMessage : "保存できませんでした";
           throw new Error(`読み込み写真を端末内へ保存できませんでした: ${errorName}: ${detail}`);
         }
+
         previewIndex = capturedPhotos.length - 1;
         updatePhotoCount();
 
+        session.lastBoardData = {
+          ...getCurrentBoardData(),
+          isDateManuallyEdited
+        };
         session.currentIndex += 1;
         session.updatedAt = new Date().toISOString();
         activeImportBaseDataUrl = "";
@@ -280,97 +380,69 @@
         }
 
         await PhotoStore.saveImportSession(session);
-        // closeBoardEditMode が一度編集モードを閉じているため、次の1枚を即座に開ける。
         window.setTimeout(() => openCurrentImportedPhoto(), 40);
       } catch (error) {
         console.error("読み込み写真の保存に失敗しました", error);
         showErrorToast("看板付き写真の保存に失敗しました");
-        // セッションは消さない。再起動後も同じ写真から再開できる。
         await PhotoStore.saveImportSession(session);
       }
     }
 
     async function completeImportSession() {
+      const targetCaseId = String(activeImportSession?.targetCaseId || "");
       await PhotoStore.deleteImportSession();
       activeImportSession = null;
       activeImportBaseDataUrl = "";
       isImportBoardEdit = false;
-      boardEditOverlay.classList.remove("import-board-edit", "photo-board-correction");
+      boardEditOverlay.classList.remove("show", "import-board-edit", "photo-board-correction");
       if (boardEditPhotoBackdrop) boardEditPhotoBackdrop.removeAttribute("src");
       if (importProgressBadge) importProgressBadge.classList.remove("show");
       if (boardEditDoneButton) boardEditDoneButton.textContent = "完了";
+      document.body.classList.remove("board-editing");
       showToast("選択した写真の看板追加が完了しました");
-      previewOverlay.classList.add("show");
-      renderPreview();
-    }
 
-    function withImportTimeout(promise, ms, message) {
-      let timer = null;
-      return Promise.race([
-        promise,
-        new Promise((_, reject) => {
-          timer = window.setTimeout(() => reject(new Error(message)), ms);
-        })
-      ]).finally(() => {
-        if (timer) window.clearTimeout(timer);
-      });
-    }
-
-    function importedImageTargetSize(width, height) {
-      const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
-      const landscape = width >= height;
-      const maxWidth = landscape ? quality.width : quality.height;
-      const maxHeight = landscape ? quality.height : quality.width;
-      const scale = Math.min(1, maxWidth / width, maxHeight / height);
-      return {
-        width: Math.max(1, Math.round(width * scale)),
-        height: Math.max(1, Math.round(height * scale))
-      };
-    }
-
-    function importedSourceToDataUrl(source, width, height) {
-      const target = importedImageTargetSize(width, height);
-      const canvas = document.createElement("canvas");
-      canvas.width = target.width;
-      canvas.height = target.height;
-      const ctx = canvas.getContext("2d", { alpha: false });
-      if (!ctx) throw new Error("画像変換用Canvasを作成できません");
-      ctx.drawImage(source, 0, 0, target.width, target.height);
-      return canvas.toDataURL("image/jpeg", 0.9);
+      if (targetCaseId && window.PhotoOneDriveSync?.syncCaseNow) {
+        void PhotoOneDriveSync.syncCaseNow(targetCaseId);
+      }
+      if (targetCaseId && typeof showCaseInPreview === "function") {
+        showCaseInPreview(targetCaseId);
+      } else {
+        previewOverlay.classList.add("show");
+        renderPreview();
+      }
     }
 
     async function normalizeImportedImageToDataUrl(blob) {
       if (!blob) throw new Error("画像データがありません");
-
       let bitmap = null;
-      if (typeof createImageBitmap === "function") {
-        try {
-          bitmap = await withImportTimeout(
-            createImageBitmap(blob, { imageOrientation: "from-image" }),
-            8000,
-            "画像の読み込みに時間がかかっています"
-          );
-          const dataUrl = importedSourceToDataUrl(bitmap, bitmap.width, bitmap.height);
+      try {
+        if (typeof createImageBitmap === "function") {
+          try {
+            bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+          } catch (_) {
+            bitmap = await createImageBitmap(blob);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(bitmap, 0, 0);
           if (bitmap.close) bitmap.close();
-          return dataUrl;
-        } catch (error) {
-          console.warn("createImageBitmapでの画像読込をImage方式で再試行します", error);
-          if (bitmap && bitmap.close) bitmap.close();
-          bitmap = null;
+          return canvas.toDataURL("image/jpeg", 0.92);
         }
+      } catch (error) {
+        console.warn("createImageBitmapでの画像正規化に失敗しました", error);
+        if (bitmap && bitmap.close) bitmap.close();
       }
 
       const objectUrl = URL.createObjectURL(blob);
       try {
-        const img = await withImportTimeout(
-          loadImage(objectUrl),
-          10000,
-          "画像を読み込めませんでした"
-        );
-        const width = img.naturalWidth || img.width;
-        const height = img.naturalHeight || img.height;
-        if (!width || !height) throw new Error("画像サイズを確認できません");
-        return importedSourceToDataUrl(img, width, height);
+        const img = await loadImage(objectUrl);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.92);
       } finally {
         URL.revokeObjectURL(objectUrl);
       }
@@ -400,3 +472,9 @@
       importBoardPositionLabel.textContent = `${label} ${Math.round(boardState.sizeRatio * 100)}%`;
     }
 
+
+    window.chooseExistingBoardImport = chooseExistingBoardImport;
+    window.chooseFreeBoardImport = chooseFreeBoardImport;
+    window.closeImportModePicker = closeImportModePicker;
+    window.cancelImportEditing = cancelImportEditing;
+    window.getImportTargetCaseId = getImportTargetCaseId;

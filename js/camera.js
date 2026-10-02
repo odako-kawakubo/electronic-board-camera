@@ -55,12 +55,20 @@
       return window.innerWidth >= window.innerHeight;
     }
 
+    function syncPortraitRotationDirection() {
+      const type = String(screen.orientation?.type || "");
+      const legacyAngle = Number(window.orientation);
+      const useNegative = type === "portrait-secondary" || legacyAngle === 180;
+      document.body.classList.toggle("portrait-rotate-negative", useNegative);
+    }
+
     function syncShootButtonAvailability() {
       if (!shootButton) return;
       shootButton.disabled = Boolean(isTakingPhoto || !cameraLandscape);
     }
 
     function syncCameraOrientation() {
+      syncPortraitRotationDirection();
       cameraLandscape = isCameraLandscape();
       if (cameraOrientationBlocker) cameraOrientationBlocker.hidden = cameraLandscape;
       document.body.classList.toggle("camera-portrait-blocked", !cameraLandscape);

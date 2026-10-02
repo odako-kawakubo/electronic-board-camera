@@ -18,6 +18,8 @@
     const importPhotoInput = document.getElementById("importPhotoInput");
     const importProgressBadge = document.getElementById("importProgressBadge");
     const importBoardPositionLabel = document.getElementById("importBoardPositionLabel");
+    const importLoadingOverlay = document.getElementById("importLoadingOverlay");
+    const importLoadingMessage = document.getElementById("importLoadingMessage");
     let activeImportSession = null;
     let activeImportBaseDataUrl = "";
     let isImportBoardEdit = false;
@@ -75,6 +77,15 @@
       });
     }
 
+    function showImportLoading(message = "写真を読み込み中…") {
+      if (importLoadingMessage) importLoadingMessage.textContent = message;
+      if (importLoadingOverlay) importLoadingOverlay.classList.add("show");
+    }
+
+    function hideImportLoading() {
+      if (importLoadingOverlay) importLoadingOverlay.classList.remove("show");
+    }
+
     async function startImportSession(files) {
       const now = new Date().toISOString();
       const caseSession = window.CaseSession?.getCurrentSession?.() || null;
@@ -94,7 +105,13 @@
       };
       await PhotoStore.saveImportSession(activeImportSession);
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
-      await openCurrentImportedPhoto();
+      showImportLoading("写真を読み込み中…");
+      try {
+        await openCurrentImportedPhoto();
+      } catch (error) {
+        hideImportLoading();
+        throw error;
+      }
     }
 
     /**
@@ -130,7 +147,13 @@
       await ensureImportSessionCase(session);
       activeImportSession = session;
       if (launchModeOverlay) launchModeOverlay.classList.add("hidden");
-      await openCurrentImportedPhoto();
+      showImportLoading("写真を読み込み中…");
+      try {
+        await openCurrentImportedPhoto();
+      } catch (error) {
+        hideImportLoading();
+        throw error;
+      }
     }
 
     async function discardImportSession() {
@@ -171,6 +194,7 @@
       }
 
       const item = session.items[session.currentIndex];
+      showImportLoading(`写真を読み込み中…（${session.currentIndex + 1} / ${session.items.length}）`);
       activeImportBaseDataUrl = await normalizeImportedImageToDataUrl(item.blob);
       isImportBoardEdit = true;
       boardEditTargetPhotoId = null;
@@ -192,6 +216,7 @@
       updateImportBoardPositionLabel();
       boardEditOverlay.classList.add("photo-board-correction", "import-board-edit");
       openBoardEditMode({ focusFirstField: false });
+      hideImportLoading();
       showToast(`${session.currentIndex + 1} / ${session.items.length} 枚目を編集中`);
     }
 
@@ -279,37 +304,73 @@
       renderPreview();
     }
 
+    function withImportTimeout(promise, ms, message) {
+      let timer = null;
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timer = window.setTimeout(() => reject(new Error(message)), ms);
+        })
+      ]).finally(() => {
+        if (timer) window.clearTimeout(timer);
+      });
+    }
+
+    function importedImageTargetSize(width, height) {
+      const quality = PHOTO_QUALITY_SETTINGS[photoQuality] || PHOTO_QUALITY_SETTINGS.standard;
+      const landscape = width >= height;
+      const maxWidth = landscape ? quality.width : quality.height;
+      const maxHeight = landscape ? quality.height : quality.width;
+      const scale = Math.min(1, maxWidth / width, maxHeight / height);
+      return {
+        width: Math.max(1, Math.round(width * scale)),
+        height: Math.max(1, Math.round(height * scale))
+      };
+    }
+
+    function importedSourceToDataUrl(source, width, height) {
+      const target = importedImageTargetSize(width, height);
+      const canvas = document.createElement("canvas");
+      canvas.width = target.width;
+      canvas.height = target.height;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) throw new Error("画像変換用Canvasを作成できません");
+      ctx.drawImage(source, 0, 0, target.width, target.height);
+      return canvas.toDataURL("image/jpeg", 0.9);
+    }
+
     async function normalizeImportedImageToDataUrl(blob) {
       if (!blob) throw new Error("画像データがありません");
+
       let bitmap = null;
-      try {
-        if (typeof createImageBitmap === "function") {
-          try {
-            bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
-          } catch (_) {
-            bitmap = await createImageBitmap(blob);
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = bitmap.width;
-          canvas.height = bitmap.height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(bitmap, 0, 0);
+      if (typeof createImageBitmap === "function") {
+        try {
+          bitmap = await withImportTimeout(
+            createImageBitmap(blob, { imageOrientation: "from-image" }),
+            8000,
+            "画像の読み込みに時間がかかっています"
+          );
+          const dataUrl = importedSourceToDataUrl(bitmap, bitmap.width, bitmap.height);
           if (bitmap.close) bitmap.close();
-          return canvas.toDataURL("image/jpeg", 0.92);
+          return dataUrl;
+        } catch (error) {
+          console.warn("createImageBitmapでの画像読込をImage方式で再試行します", error);
+          if (bitmap && bitmap.close) bitmap.close();
+          bitmap = null;
         }
-      } catch (error) {
-        console.warn("createImageBitmapでの画像正規化に失敗しました", error);
-        if (bitmap && bitmap.close) bitmap.close();
       }
 
       const objectUrl = URL.createObjectURL(blob);
       try {
-        const img = await loadImage(objectUrl);
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL("image/jpeg", 0.92);
+        const img = await withImportTimeout(
+          loadImage(objectUrl),
+          10000,
+          "画像を読み込めませんでした"
+        );
+        const width = img.naturalWidth || img.width;
+        const height = img.naturalHeight || img.height;
+        if (!width || !height) throw new Error("画像サイズを確認できません");
+        return importedSourceToDataUrl(img, width, height);
       } finally {
         URL.revokeObjectURL(objectUrl);
       }

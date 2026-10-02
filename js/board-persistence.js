@@ -30,6 +30,15 @@
     return BOARD_FORM_STORAGE_PREFIX + String(caseId || "default");
   }
 
+  function loadBoardFormForCase(caseId) {
+    try {
+      const raw = localStorage.getItem(getBoardStorageKey(caseId));
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
   function loadSavedBoardForm() {
     try {
       const key = getBoardStorageKey();
@@ -151,6 +160,7 @@
 
   window.BoardPersistence = Object.freeze({
     loadSavedBoardForm,
+    loadBoardFormForCase,
     saveBoardForm,
     restoreActiveCaseBoard,
     getSamplingNameHistoryForCurrentCase,

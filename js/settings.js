@@ -1,0 +1,269 @@
+/*
+ * ============================================================
+ * settings.js - 表示・撮影設定
+ * ============================================================
+ * 責務: 画質、看板文字サイズ、設定画面を担当する。app.jsの初期状態生成で使うためshared-state.jsより先に読む。
+ *
+ * 保守上の注意:
+ * - localStorageのキー名変更は既存利用者の設定消失につながる。PWA更新処理はpwa-controller.jsが担当する。
+ * ============================================================
+ */
+
+    // このモジュール専用の定数・DOM参照・実行状態。
+    const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
+    const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
+    const BOARD_FIELD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-field-text-size-v1";
+    const SHUTTER_SOUND_STORAGE_KEY = "electronic-board-camera-shutter-sound-v1";
+    const SHUTTER_VOLUME_STORAGE_KEY = "electronic-board-camera-shutter-volume-v1";
+    const SHUTTER_SOUND_VALUES = new Set(["off", "camera1", "camera2", "click", "chime"]);
+    const SHUTTER_VOLUME_VALUES = new Set(["small", "medium", "large"]);
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const qualityStandardButton = document.getElementById("qualityStandardButton");
+    const qualityHighButton = document.getElementById("qualityHighButton");
+    const settingsMicrosoftStateText = document.getElementById("settingsMicrosoftStateText");
+    const settingsOneDriveStateText = document.getElementById("settingsOneDriveStateText");
+    const shutterSoundSelect = document.getElementById("shutterSoundSelect");
+    const shutterVolumeSelect = document.getElementById("shutterVolumeSelect");
+
+
+    function getShutterSoundSetting() {
+      try {
+        const saved = localStorage.getItem(SHUTTER_SOUND_STORAGE_KEY);
+        return SHUTTER_SOUND_VALUES.has(saved) ? saved : "camera1";
+      } catch (error) {
+        return "camera1";
+      }
+    }
+
+    function getShutterVolumeSetting() {
+      try {
+        const saved = localStorage.getItem(SHUTTER_VOLUME_STORAGE_KEY);
+        return SHUTTER_VOLUME_VALUES.has(saved) ? saved : "medium";
+      } catch (error) {
+        return "medium";
+      }
+    }
+
+    function setShutterSoundSetting(value) {
+      const next = SHUTTER_SOUND_VALUES.has(value) ? value : "camera1";
+      try { localStorage.setItem(SHUTTER_SOUND_STORAGE_KEY, next); } catch (error) {}
+      renderShutterSoundSettings();
+    }
+
+    function setShutterVolumeSetting(value) {
+      const next = SHUTTER_VOLUME_VALUES.has(value) ? value : "medium";
+      try { localStorage.setItem(SHUTTER_VOLUME_STORAGE_KEY, next); } catch (error) {}
+      renderShutterSoundSettings();
+    }
+
+    function renderShutterSoundSettings() {
+      if (shutterSoundSelect) shutterSoundSelect.value = getShutterSoundSetting();
+      if (shutterVolumeSelect) shutterVolumeSelect.value = getShutterVolumeSetting();
+    }
+
+    async function previewShutterSound() {
+      if (!window.ShutterSound?.play) return;
+      await ShutterSound.play(getShutterSoundSetting(), getShutterVolumeSetting());
+    }
+
+
+    /**
+
+     * 保存済み画質設定を読み込み、不正値ならstandardへ戻す。
+
+     */
+
+    function loadPhotoQuality() {
+      try {
+        const saved = localStorage.getItem(PHOTO_QUALITY_STORAGE_KEY);
+        if (saved && PHOTO_QUALITY_SETTINGS[saved]) return saved;
+      } catch (error) {}
+
+      return "standard";
+    }
+
+    /**
+
+     * 撮影画質を保存して設定UIへ即時反映する。
+
+     */
+
+    function setPhotoQuality(value) {
+      if (!PHOTO_QUALITY_SETTINGS[value]) return;
+
+      photoQuality = value;
+
+      try {
+        localStorage.setItem(PHOTO_QUALITY_STORAGE_KEY, value);
+      } catch (error) {}
+
+      renderPhotoQualitySettings();
+      const setting = PHOTO_QUALITY_SETTINGS[photoQuality];
+      showToast(`${setting.label}（${setting.width}×${setting.height}）にしました`);
+    }
+
+    function renderPhotoQualitySettings() {
+      if (!qualityStandardButton || !qualityHighButton) return;
+
+      qualityStandardButton.classList.toggle("active", photoQuality === "standard");
+      qualityHighButton.classList.toggle("active", photoQuality === "high");
+    }
+
+    /**
+
+     * 看板各項目の個別文字サイズを復元し、安全な範囲へ制限する。
+
+     */
+
+    function loadBoardFieldTextSizes() {
+      const defaults = { subject: 18, address: 17, room: 24, sample: 24, date: 24 };
+      try {
+        const raw = localStorage.getItem(BOARD_FIELD_TEXT_SIZE_STORAGE_KEY);
+        const saved = raw ? JSON.parse(raw) : null;
+        if (saved && typeof saved === "object") {
+          return {
+            subject: clamp(Number(saved.subject) || defaults.subject, 12, 32),
+            address: clamp(Number(saved.address) || defaults.address, 12, 32),
+            room: clamp(Number(saved.room) || defaults.room, 12, 36),
+            sample: clamp(Number(saved.sample) || defaults.sample, 12, 36),
+            date: clamp(Number(saved.date) || defaults.date, 14, 34)
+          };
+        }
+      } catch (error) {}
+      return defaults;
+    }
+
+    function saveBoardFieldTextSizes() {
+      try {
+        localStorage.setItem(BOARD_FIELD_TEXT_SIZE_STORAGE_KEY, JSON.stringify(boardFieldTextSize));
+      } catch (error) {}
+    }
+
+    function applyBoardFieldTextSizes() {
+      if (subjectText) subjectText.style.fontSize = `${boardFieldTextSize.subject}px`;
+      if (addressText) addressText.style.fontSize = `${boardFieldTextSize.address}px`;
+      if (roomNoInput) roomNoInput.style.fontSize = `${boardFieldTextSize.room}px`;
+      if (sampleNoInput) sampleNoInput.style.fontSize = `${boardFieldTextSize.sample}px`;
+      if (dateText) dateText.style.fontSize = `${boardFieldTextSize.date}px`;
+      syncBoardTextAreaVerticalCenter();
+      scheduleBoardPreviewRender();
+    }
+
+    function loadBoardTextSize() {
+      try {
+        const saved = localStorage.getItem(BOARD_TEXT_SIZE_STORAGE_KEY);
+        if (saved && BOARD_TEXT_SIZE_MULTIPLIERS[saved]) return saved;
+      } catch (error) {}
+
+      return "normal";
+    }
+
+    function renderBoardTextSize() {
+      if (!boardWrap) return;
+
+      boardWrap.classList.toggle("text-small", boardTextSize === "small");
+      boardWrap.classList.toggle("text-large", boardTextSize === "large");
+
+      scheduleBoardPreviewRender();
+    }
+
+    function setupSettingsToggleButton() {
+      const button = document.getElementById("settingsButton");
+      if (!button || button.dataset.toggleBound === "1") return;
+      button.dataset.toggleBound = "1";
+      let lastToggle = 0;
+      const toggle = (event) => {
+        const now = Date.now();
+        if (now - lastToggle < 350) return;
+        lastToggle = now;
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSettings();
+      };
+      button.addEventListener("pointerup", toggle, { passive: false });
+      button.addEventListener("touchend", toggle, { passive: false });
+      button.addEventListener("click", toggle, false);
+    }
+
+    function toggleSettings() {
+      if (settingsOverlay.classList.contains("show")) {
+        closeSettings();
+      } else {
+        openSettings();
+      }
+    }
+
+    function renderCloudSettings() {
+      const graph = window.GraphSession?.getState?.() || {};
+      const oneDrive = window.OneDriveConnection?.getState?.() || {};
+      if (settingsMicrosoftStateText) {
+        settingsMicrosoftStateText.textContent = graph.account
+          ? (graph.tokenReady ? "接続済み" : "ログイン済み")
+          : "未接続";
+      }
+      if (settingsOneDriveStateText) {
+        settingsOneDriveStateText.textContent = oneDrive.connected
+          ? "接続済み"
+          : (oneDrive.text || "未接続");
+        settingsOneDriveStateText.title = oneDrive.error || "";
+      }
+    }
+
+    async function reconnectCloudFromSettings() {
+      await reconnectMicrosoftOneDrive();
+      renderCloudSettings();
+    }
+
+    async function retryOneDriveUploadsFromSettings() {
+      try {
+        if (!OneDriveConnection.getState().connected) {
+          await OneDriveConnection.refresh({ force: true });
+        }
+        const result = await PhotoOneDriveSync.syncCurrentCaseNow();
+        renderCloudSettings();
+        if (result?.ok) {
+          showToast(result.uploaded ? `再送しました（${result.uploaded}件）` : "未送信を再確認しました");
+        } else {
+          showErrorToast("再送できませんでした。接続状態を確認してください");
+        }
+      } catch (error) {
+        console.error("OneDrive手動再送失敗", error);
+        showErrorToast("再送できませんでした");
+      }
+    }
+
+    function openSettings() {
+      renderPhotoQualitySettings();
+      renderShutterSoundSettings();
+      renderCloudSettings();
+      if (window.CaseSession) CaseSession.renderSessionPanel();
+
+      // トップは端末の向きをそのまま使い、アルバム側は従来の強制横向きへ合わせる。
+      const topVisible = Boolean(launchModeOverlay && !launchModeOverlay.classList.contains("hidden"));
+      settingsOverlay.classList.toggle("app-oriented-modal", !topVisible);
+      settingsOverlay.classList.add("show");
+      if (typeof refreshStorageStatusUI === "function") {
+        refreshStorageStatusUI();
+      }
+    }
+
+    function closeSettings() {
+      settingsOverlay.classList.remove("show", "app-oriented-modal");
+    }
+
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.GraphSession?.subscribe) GraphSession.subscribe(renderCloudSettings);
+      if (window.OneDriveConnection?.subscribe) OneDriveConnection.subscribe(renderCloudSettings);
+      renderCloudSettings();
+      renderShutterSoundSettings();
+    });
+
+    window.getShutterSoundSetting = getShutterSoundSetting;
+    window.getShutterVolumeSetting = getShutterVolumeSetting;
+    window.setShutterSoundSetting = setShutterSoundSetting;
+    window.setShutterVolumeSetting = setShutterVolumeSetting;
+    window.previewShutterSound = previewShutterSound;
+    window.reconnectCloudFromSettings = reconnectCloudFromSettings;
+    window.retryOneDriveUploadsFromSettings = retryOneDriveUploadsFromSettings;

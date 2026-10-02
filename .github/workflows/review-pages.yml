@@ -1,9 +1,8 @@
-name: Deploy static site to Pages
+name: Deploy review site to Pages
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ review/v65.1 ]
 
 permissions:
   contents: read
@@ -17,8 +16,8 @@ concurrency:
 jobs:
   deploy:
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: review-pages
+      url: ${{ steps.deployment.outputs.page_url }}review/
     runs-on: ubuntu-latest
     steps:
       - name: Checkout production main

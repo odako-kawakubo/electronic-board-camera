@@ -1,0 +1,81 @@
+/*
+ * ============================================================
+ * photo-record.js - 写真レコード生成
+ * ============================================================
+ * 責務:
+ * - カメラ撮影 / 既存写真への看板添付で共通する写真レコード生成を1か所に集約する
+ * - 撮影時点の案件セッション情報とoriginal/completedの送信初期値を固定する
+ *
+ * 保守上の注意:
+ * - ここでは保存しない。保存正本はPhotoStore。
+ * - UIや撮影処理を持たない。
+ * - original/completedのOneDrive参照とpending metadataもここで初期化する。
+ * ============================================================
+ */
+
+(function () {
+  "use strict";
+
+  function create(options = {}) {
+    const caseSession = options.caseSession || (window.CaseSession ? CaseSession.getCurrentSession() : null);
+    const createdAt = options.createdAt instanceof Date
+      ? options.createdAt.toISOString()
+      : String(options.createdAt || new Date().toISOString());
+    const hasOriginal = Boolean(options.baseDataUrl);
+
+    const photo = {
+      id: options.id || `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      dataUrl: String(options.dataUrl || ""),
+      baseDataUrl: String(options.baseDataUrl || ""),
+      fileName: String(options.fileName || ""),
+      status: String(options.status || ""),
+      statusLabel: String(options.statusLabel || ""),
+      statusCode: String(options.statusCode || ""),
+      sampleNo: options.sampleNo,
+      pointNo: options.pointNo,
+      roomNo: String(options.roomNo || ""),
+      subjectName: String(options.subjectName || ""),
+
+      // 撮影時点の所属案件を固定する。件名変更で所属や保存先を変えない。
+      caseId: caseSession ? caseSession.id : "",
+      caseDate: caseSession ? caseSession.dateCode : "",
+      caseBranch: caseSession ? caseSession.branch : null,
+      deviceName: caseSession ? caseSession.deviceName : "",
+      oneDriveFolderName: caseSession ? caseSession.folderName : "",
+
+      oneDriveDriveId: "",
+      originalRequired: hasOriginal,
+      originalFileName: String(options.fileName || ""),
+      originalUploadStatus: hasOriginal ? "pending" : "not-applicable",
+      originalUploadedAt: "",
+      originalItemId: "",
+      originalPath: "",
+      originalPendingFileName: "",
+      originalPendingItemId: "",
+      completedFileName: String(options.fileName || ""),
+      completedUploadStatus: "pending",
+      completedUploadedAt: "",
+      completedItemId: "",
+      completedPath: "",
+      completedPendingFileName: "",
+      completedPendingItemId: "",
+      originalUploadError: "",
+      completedUploadError: "",
+
+      // 旧参照との互換用。completedを代表値として維持する。
+      uploadStatus: "pending",
+      uploadedAt: "",
+      oneDriveItemId: "",
+      isSection: Boolean(options.isSection),
+      selected: false,
+      createdAt
+    };
+
+    // 既存写真への看板添付だけが従来から持つ既存プロパティ。
+    if (options.source) photo.source = String(options.source);
+
+    return photo;
+  }
+
+  window.PhotoRecord = Object.freeze({ create });
+})();

@@ -166,8 +166,6 @@
 
     /**
 
-     * 既存写真選択inputを監視し    /**
-
      * 既存写真選択inputを監視し、複数写真の取込セッション開始につなげる。
 
      */
@@ -227,13 +225,11 @@
 
     /**
 
-     * 保存済み取込セッションを復元し    /**
-
      * 保存済み取込セッションを復元し、中断した写真位置から編集を再開する。
 
      */
 
-    async function resumeImportSession() {    async function resumeImportSession() {
+    async function resumeImportSession() {
       const session = await PhotoStore.loadImportSession();
       if (!session || !session.items || session.currentIndex >= session.items.length) {
         await discardImportSession();

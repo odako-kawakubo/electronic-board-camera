@@ -84,8 +84,13 @@
   function applySavedBoardForm(savedBoard = {}) {
     subjectText.value = savedBoard.subject || APP_DATA.subject;
     addressText.value = savedBoard.address || APP_DATA.address;
-    roomNoInput.value = savedBoard.roomNo || "1-1";
-    sampleNoInput.value = savedBoard.sampleNo || POINT_DISPLAY_DEFAULT;
+    boardMode = savedBoard.boardMode === "survey" ? "survey" : "sampling";
+    roomNoInput.value = Object.prototype.hasOwnProperty.call(savedBoard, "roomNo")
+      ? String(savedBoard.roomNo || "")
+      : (boardMode === "survey" ? "1-1" : "");
+    sampleNoInput.value = Object.prototype.hasOwnProperty.call(savedBoard, "sampleNo")
+      ? String(savedBoard.sampleNo || POINT_DISPLAY_DEFAULT)
+      : POINT_DISPLAY_DEFAULT;
 
     if (savedBoard.date && savedBoard.isDateManuallyEdited) {
       dateText.textContent = savedBoard.date;
@@ -95,7 +100,6 @@
       updateCurrentDate();
     }
 
-    boardMode = savedBoard.boardMode === "survey" ? "survey" : "sampling";
     selectedStatus = savedBoard.selectedStatus || (boardMode === "sampling" ? "before" : "visual");
 
     syncBoardTextAreaVerticalCenter();

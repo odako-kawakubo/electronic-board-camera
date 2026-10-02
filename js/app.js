@@ -24,7 +24,6 @@
     // 初期化順序には依存があるため、順番変更時は実機確認必須。
     // ============================================================
     document.addEventListener("DOMContentLoaded", async () => {
-      setupForcedLandscape();
       initializeBoard();
       setupStatusButtons();
       setupBoardMode();
@@ -65,32 +64,6 @@
       }, 200);
     });
 
-    /**
-     * 横向き運用の表示状態と左右反転設定を復元する。
-     */
-
-    function setupForcedLandscape() {
-      const savedFlip = localStorage.getItem("electronicBoardLandscapeFlip") === "1";
-      document.body.classList.toggle("landscape-flipped", savedFlip);
-      updateLandscapeFlipButton();
-    }
-
-    /**
-     * 端末の持ち方に合わせて画面全体を180度反転し、次回起動用に保存する。
-     */
-
-    function toggleLandscapeFlip() {
-      const flipped = document.body.classList.toggle("landscape-flipped");
-      localStorage.setItem("electronicBoardLandscapeFlip", flipped ? "1" : "0");
-      updateLandscapeFlipButton();
-      setTimeout(handleWindowResize, 80);
-    }
-
-    function updateLandscapeFlipButton() {
-      const button = document.getElementById("landscapeFlipButton");
-      if (!button) return;
-      button.setAttribute("aria-pressed", document.body.classList.contains("landscape-flipped") ? "true" : "false");
-    }
 
     /**
      * 通常メッセージを短時間表示する共通トースト。

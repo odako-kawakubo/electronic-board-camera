@@ -17,7 +17,7 @@
   "use strict";
 
   function create(options = {}) {
-    const caseSession = window.CaseSession ? CaseSession.getCurrentSession() : null;
+    const caseSession = options.caseSession || (window.CaseSession ? CaseSession.getCurrentSession() : null);
     const createdAt = options.createdAt instanceof Date
       ? options.createdAt.toISOString()
       : String(options.createdAt || new Date().toISOString());

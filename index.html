@@ -65,6 +65,17 @@
       <input id="importPhotoInput" type="file" accept="image/*" multiple hidden />
     </div>
   </div>
+
+  <div id="importModeOverlay" aria-label="看板添付の種類を選択">
+    <div class="import-mode-panel">
+      <h2>看板添付</h2>
+      <p>使用する看板を選択してください。</p>
+      <button type="button" class="import-mode-button primary" onclick="chooseExistingBoardImport()">既存看板</button>
+      <button type="button" class="import-mode-button" onclick="chooseFreeBoardImport()">フリー看板</button>
+      <button type="button" class="import-mode-cancel" onclick="closeImportModePicker()">キャンセル</button>
+    </div>
+  </div>
+
   <div id="appOrientationShell">
   <div id="cameraScreen">
     <div class="left-panel">
@@ -394,6 +405,7 @@
         <button type="button" onclick="cycleImportBoardPosition()">位置</button>
         <span id="importBoardPositionLabel">左下</span>
         <button type="button" onclick="increaseImportBoardSize()">看板＋</button>
+        <button type="button" class="import-cancel-edit-button" onclick="cancelImportEditing()">中止</button>
       </div>
     </div>
 

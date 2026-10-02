@@ -1496,10 +1496,6 @@
         transform-origin: center center;
       }
 
-      body.landscape-flipped #casePickerOverlay.app-oriented-modal,
-      body.landscape-flipped #settingsOverlay.app-oriented-modal {
-        transform: translate(-50%, -50%) rotate(-90deg);
-      }
     }
 
     .settings-panel {
@@ -2844,9 +2840,6 @@
     transform-origin: center center;
   }
 
-  body.landscape-flipped #helpOverlay.app-oriented-modal {
-    transform: translate(-50%, -50%) rotate(-90deg);
-  }
 }
 
 @media (max-width: 430px) {

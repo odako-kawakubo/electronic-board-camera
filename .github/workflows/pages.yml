@@ -33,40 +33,47 @@ jobs:
           ref: review/v65.1
           path: review-src
 
-      - name: Build production and review site
+      - name: Build combined Pages artifact
         run: |
           mkdir -p site/review
           rsync -a --exclude '.git' --exclude '.github' main-src/ site/
           rsync -a --exclude '.git' --exclude '.github' review-src/ site/review/
 
+          # Review PWA must not share the production cache namespace.
+          # version.json is the version source, matching the app update mechanism.
           python - <<'PY'
           from pathlib import Path
           import json
 
-          # Review版は本番PWAとキャッシュを共有しない。
+          version_data = json.loads(Path('site/review/version.json').read_text(encoding='utf-8'))
+          version = str(version_data.get('version', '')).strip()
+          if not version:
+              raise SystemExit('review version could not be detected from version.json')
+
           sw = Path('site/review/service-worker.js')
           text = sw.read_text(encoding='utf-8')
+          production_cache = f'const APP_CACHE = "electronic-board-camera-v{version}-stable";'
+          review_cache = f'const APP_CACHE = "electronic-board-camera-review-v{version}-stable";'
+          if production_cache not in text:
+              raise SystemExit('review app cache declaration could not be detected')
+          text = text.replace(production_cache, review_cache, 1)
           text = text.replace(
-              'const CACHE_NAME = "electronic-board-camera-v65.12";',
-              'const CACHE_NAME = "electronic-board-camera-review-v65.12";'
-          )
-          text = text.replace(
-              '.filter((key) => key !== CACHE_NAME)',
-              '.filter((key) => key.startsWith("electronic-board-camera-review-") && key !== CACHE_NAME)'
+              'const APP_CACHE_PREFIX = "electronic-board-camera-";',
+              'const APP_CACHE_PREFIX = "electronic-board-camera-review-";',
+              1,
           )
           sw.write_text(text, encoding='utf-8')
 
-          # iPhoneホーム画面で本番版と区別できる名称にする。
           manifest = Path('site/review/manifest.json')
           data = json.loads(manifest.read_text(encoding='utf-8'))
-          data['name'] = '電子看板カメラ REVIEW'
+          data['name'] = '看板カメラ REVIEW'
           data['short_name'] = '看板カメラR'
-          data['start_url'] = './?v=65.12-review'
+          data['start_url'] = f'./?v={version}-review'
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
           index = Path('site/review/index.html')
           html = index.read_text(encoding='utf-8')
-          html = html.replace('<title>電子看板カメラ</title>', '<title>電子看板カメラ REVIEW</title>', 1)
+          html = html.replace('<title>看板カメラ</title>', '<title>看板カメラ REVIEW</title>', 1)
           index.write_text(html, encoding='utf-8')
           PY
 

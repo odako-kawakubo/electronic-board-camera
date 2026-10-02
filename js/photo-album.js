@@ -37,6 +37,8 @@
     let formalProjectsLoading = false;
     let formalProjectsError = "";
     let casePickerTutorialMode = false;
+    let casePickerPurpose = "normal";
+    let casePickerImportHandlers = null;
     let formalProjectSelection = null;
     let formalProjectSelectionSerial = 0;
 
@@ -172,6 +174,8 @@
     }
 
     function openCasePickerFromTop() {
+      casePickerPurpose = "normal";
+      casePickerImportHandlers = null;
       casePickerOpenedFromTop = true;
       casePickerTutorialMode = Boolean(window.Tutorial?.shouldOpenTutorialCasePicker?.());
       casePickerOverlay.classList.remove("app-oriented-modal");
@@ -181,14 +185,43 @@
       void loadFormalProjects();
     }
 
+    function openCasePickerForImport(handlers = {}) {
+      casePickerPurpose = "import";
+      casePickerImportHandlers = {
+        onSelect: typeof handlers.onSelect === "function" ? handlers.onSelect : null,
+        onCancel: typeof handlers.onCancel === "function" ? handlers.onCancel : null
+      };
+      casePickerOpenedFromTop = true;
+      casePickerTutorialMode = false;
+      casePickerOverlay.classList.remove("app-oriented-modal");
+      if (casePickerSearchInput) casePickerSearchInput.value = "";
+      renderCasePicker();
+      casePickerOverlay.classList.add("show");
+      void loadFormalProjects();
+    }
+
+    function finishImportTargetSelection(result) {
+      const handlers = casePickerImportHandlers;
+      casePickerPurpose = "normal";
+      casePickerImportHandlers = null;
+      casePickerOpenedFromTop = false;
+      casePickerTutorialMode = false;
+      casePickerOverlay.classList.remove("show", "app-oriented-modal");
+      handlers?.onSelect?.(result);
+    }
+
     function closeCasePicker() {
       if (formalProjectSelection) {
         cancelFormalProjectSelection();
         return;
       }
+      const handlers = casePickerPurpose === "import" ? casePickerImportHandlers : null;
       casePickerOverlay.classList.remove("show", "app-oriented-modal");
       casePickerOpenedFromTop = false;
       casePickerTutorialMode = false;
+      casePickerPurpose = "normal";
+      casePickerImportHandlers = null;
+      handlers?.onCancel?.();
     }
 
     function setFormalProjectSelectionLoading(project, visible) {
@@ -270,6 +303,25 @@
 
       try {
         const openedFromTop = casePickerOpenedFromTop;
+        const isImportTarget = casePickerPurpose === "import";
+
+        if (isImportTarget) {
+          const resolved = await CaseSession.resolveFormalProject(project, {
+            isCancelled: () => selection.cancelled || formalProjectSelection !== selection
+          });
+          if (selection.cancelled || formalProjectSelection !== selection || !resolved) return;
+
+          formalProjectSelection = null;
+          setFormalProjectSelectionLoading(null, false);
+          finishImportTargetSelection({
+            caseId: resolved.session.id,
+            caseSubject: resolved.session.projectName || project.projectName || "",
+            address: String(resolved.address || ""),
+            session: resolved.session
+          });
+          return;
+        }
+
         await CaseSession.activateFormalProject(project, {
           isCancelled: () => selection.cancelled || formalProjectSelection !== selection
         });
@@ -373,6 +425,23 @@
           selectedCaseKey = item.key;
           previewIndex = 0;
           const openedFromTop = casePickerOpenedFromTop;
+
+          if (casePickerPurpose === "import" && item.caseId && window.CaseSession) {
+            const session = CaseSession.getSessionById?.(item.caseId);
+            if (!session) {
+              showErrorToast("案件情報を復元できませんでした");
+              return;
+            }
+            const savedBoard = window.BoardPersistence?.loadBoardFormForCase?.(item.caseId) || {};
+            finishImportTargetSelection({
+              caseId: item.caseId,
+              caseSubject: session.projectName || item.subject || "",
+              address: String(savedBoard.address || "") === APP_DATA.address ? "" : String(savedBoard.address || ""),
+              session
+            });
+            return;
+          }
+
           casePickerOpenedFromTop = false;
           closeCasePicker();
 
@@ -724,3 +793,11 @@
 
 
     window.cancelFormalProjectSelection = cancelFormalProjectSelection;
+
+    window.openCasePickerForImport = openCasePickerForImport;
+    window.showCaseInPreview = function(caseId) {
+      selectedCaseKey = caseId ? `case:${caseId}` : "";
+      previewIndex = 0;
+      previewOverlay.classList.add("show");
+      renderPreview();
+    };

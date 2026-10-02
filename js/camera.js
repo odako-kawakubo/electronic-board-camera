@@ -16,6 +16,7 @@
     const captureReviewOverlay = document.getElementById("captureReviewOverlay");
     const captureReviewImage = document.getElementById("captureReviewImage");
     const cameraGuide = document.getElementById("cameraGuide");
+    const cameraToast = document.getElementById("cameraToast");
     const startButton = document.getElementById("startButton");
     const viewButton = document.getElementById("viewButton");
     const sectionButton = document.getElementById("sectionButton");
@@ -27,6 +28,121 @@
     let captureReviewResolver = null;
     let boardInfoWarningResolver = null;
     let currentStream = null;
+    let torchEnabled = false;
+    let lastTorchTapAt = 0;
+    let lastTorchTapPoint = null;
+    let cameraToastTimer = null;
+
+
+    function currentVideoTrack() {
+      return currentStream?.getVideoTracks?.().find((track) => track.readyState === "live") || null;
+    }
+
+    function supportsTorch() {
+      const track = currentVideoTrack();
+      if (!track?.getCapabilities) return false;
+      try {
+        return track.getCapabilities()?.torch === true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    async function setTorch(enabled) {
+      const track = currentVideoTrack();
+      if (!track || !supportsTorch()) return false;
+      const next = Boolean(enabled);
+      try {
+        await track.applyConstraints({ advanced: [{ torch: next }] });
+        torchEnabled = next;
+        return true;
+      } catch (error) {
+        console.warn("Camera torch change failed:", error);
+        return false;
+      }
+    }
+
+    function isTorchEnabled() {
+      return Boolean(torchEnabled && supportsTorch());
+    }
+
+    function showCameraToast(text) {
+      if (!cameraToast) return;
+      if (cameraToastTimer) clearTimeout(cameraToastTimer);
+      cameraToast.textContent = String(text || "");
+      cameraToast.hidden = false;
+      cameraToastTimer = window.setTimeout(() => {
+        cameraToast.hidden = true;
+        cameraToastTimer = null;
+      }, 850);
+    }
+
+    function pointInsideRect(x, y, rect) {
+      return Boolean(
+        rect &&
+        x >= rect.x &&
+        x <= rect.x + rect.width &&
+        y >= rect.y &&
+        y <= rect.y + rect.height
+      );
+    }
+
+    function isTorchTapArea(event) {
+      if (!captureFrame || !supportsTorch()) return false;
+      const rect = captureFrame.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+
+      const x = Number(event.clientX) - rect.left;
+      const y = Number(event.clientY) - rect.top;
+      if (x < 0 || x > rect.width || y < 0 || y > rect.height / 2) return false;
+
+      if (!isSectionMode && photoBoard) {
+        const boardRect = photoBoard.getBoundingClientRect();
+        const relativeBoardRect = {
+          x: boardRect.left - rect.left,
+          y: boardRect.top - rect.top,
+          width: boardRect.width,
+          height: boardRect.height
+        };
+        if (pointInsideRect(x, y, relativeBoardRect)) return false;
+      }
+
+      return true;
+    }
+
+    async function toggleTorchFromDoubleTap() {
+      if (!supportsTorch()) return;
+      const next = !isTorchEnabled();
+      const changed = await setTorch(next);
+      if (changed) showCameraToast(next ? "ライト ON" : "ライト OFF");
+    }
+
+    function handleCameraCapturePointerUp(event) {
+      if (captureReviewOverlay?.classList.contains("show")) return;
+
+      if (!isTorchTapArea(event)) {
+        lastTorchTapAt = 0;
+        lastTorchTapPoint = null;
+        return;
+      }
+
+      const now = performance.now();
+      const point = { x: Number(event.clientX), y: Number(event.clientY) };
+      const withinTime = lastTorchTapAt > 0 && now - lastTorchTapAt <= 350;
+      const withinDistance = lastTorchTapPoint
+        ? Math.hypot(point.x - lastTorchTapPoint.x, point.y - lastTorchTapPoint.y) <= 48
+        : false;
+
+      if (withinTime && withinDistance) {
+        lastTorchTapAt = 0;
+        lastTorchTapPoint = null;
+        void toggleTorchFromDoubleTap();
+        return;
+      }
+
+      lastTorchTapAt = now;
+      lastTorchTapPoint = point;
+    }
 
 
     /**
@@ -50,6 +166,9 @@
         });
 
         currentStream = stream;
+        torchEnabled = false;
+        lastTorchTapAt = 0;
+        lastTorchTapPoint = null;
         video.srcObject = stream;
 
         await video.play();
@@ -65,7 +184,15 @@
     function stopCurrentStream() {
       if (!currentStream) return;
 
-      currentStream.getTracks().forEach((track) => track.stop());
+      const track = currentVideoTrack();
+      if (track && torchEnabled && supportsTorch()) {
+        try { void track.applyConstraints({ advanced: [{ torch: false }] }); } catch (error) {}
+      }
+      torchEnabled = false;
+      lastTorchTapAt = 0;
+      lastTorchTapPoint = null;
+
+      currentStream.getTracks().forEach((item) => item.stop());
       currentStream = null;
       video.srcObject = null;
     }
@@ -143,6 +270,9 @@
         });
 
         currentStream = stream;
+        torchEnabled = false;
+        lastTorchTapAt = 0;
+        lastTorchTapPoint = null;
         video.srcObject = stream;
         await video.play();
 
@@ -536,3 +666,8 @@
     }
 
 
+
+    if (captureFrame && captureFrame.dataset.torchDoubleTapBound !== "1") {
+      captureFrame.dataset.torchDoubleTapBound = "1";
+      captureFrame.addEventListener("pointerup", handleCameraCapturePointerUp);
+    }

@@ -13,11 +13,58 @@
     const PHOTO_QUALITY_STORAGE_KEY = "electronic-board-camera-photo-quality";
     const BOARD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-text-size";
     const BOARD_FIELD_TEXT_SIZE_STORAGE_KEY = "electronic-board-camera-board-field-text-size-v1";
+    const SHUTTER_SOUND_STORAGE_KEY = "electronic-board-camera-shutter-sound-v1";
+    const SHUTTER_VOLUME_STORAGE_KEY = "electronic-board-camera-shutter-volume-v1";
+    const SHUTTER_SOUND_VALUES = new Set(["off", "camera1", "camera2", "click", "chime"]);
+    const SHUTTER_VOLUME_VALUES = new Set(["small", "medium", "large"]);
     const settingsOverlay = document.getElementById("settingsOverlay");
     const qualityStandardButton = document.getElementById("qualityStandardButton");
     const qualityHighButton = document.getElementById("qualityHighButton");
     const settingsMicrosoftStateText = document.getElementById("settingsMicrosoftStateText");
     const settingsOneDriveStateText = document.getElementById("settingsOneDriveStateText");
+    const shutterSoundSelect = document.getElementById("shutterSoundSelect");
+    const shutterVolumeSelect = document.getElementById("shutterVolumeSelect");
+
+
+    function getShutterSoundSetting() {
+      try {
+        const saved = localStorage.getItem(SHUTTER_SOUND_STORAGE_KEY);
+        return SHUTTER_SOUND_VALUES.has(saved) ? saved : "camera1";
+      } catch (error) {
+        return "camera1";
+      }
+    }
+
+    function getShutterVolumeSetting() {
+      try {
+        const saved = localStorage.getItem(SHUTTER_VOLUME_STORAGE_KEY);
+        return SHUTTER_VOLUME_VALUES.has(saved) ? saved : "medium";
+      } catch (error) {
+        return "medium";
+      }
+    }
+
+    function setShutterSoundSetting(value) {
+      const next = SHUTTER_SOUND_VALUES.has(value) ? value : "camera1";
+      try { localStorage.setItem(SHUTTER_SOUND_STORAGE_KEY, next); } catch (error) {}
+      renderShutterSoundSettings();
+    }
+
+    function setShutterVolumeSetting(value) {
+      const next = SHUTTER_VOLUME_VALUES.has(value) ? value : "medium";
+      try { localStorage.setItem(SHUTTER_VOLUME_STORAGE_KEY, next); } catch (error) {}
+      renderShutterSoundSettings();
+    }
+
+    function renderShutterSoundSettings() {
+      if (shutterSoundSelect) shutterSoundSelect.value = getShutterSoundSetting();
+      if (shutterVolumeSelect) shutterVolumeSelect.value = getShutterVolumeSetting();
+    }
+
+    async function previewShutterSound() {
+      if (!window.ShutterSound?.play) return;
+      await ShutterSound.play(getShutterSoundSetting(), getShutterVolumeSetting());
+    }
 
 
     /**
@@ -187,6 +234,7 @@
 
     function openSettings() {
       renderPhotoQualitySettings();
+      renderShutterSoundSettings();
       renderCloudSettings();
       if (window.CaseSession) CaseSession.renderSessionPanel();
 
@@ -209,7 +257,13 @@
       if (window.GraphSession?.subscribe) GraphSession.subscribe(renderCloudSettings);
       if (window.OneDriveConnection?.subscribe) OneDriveConnection.subscribe(renderCloudSettings);
       renderCloudSettings();
+      renderShutterSoundSettings();
     });
 
+    window.getShutterSoundSetting = getShutterSoundSetting;
+    window.getShutterVolumeSetting = getShutterVolumeSetting;
+    window.setShutterSoundSetting = setShutterSoundSetting;
+    window.setShutterVolumeSetting = setShutterVolumeSetting;
+    window.previewShutterSound = previewShutterSound;
     window.reconnectCloudFromSettings = reconnectCloudFromSettings;
     window.retryOneDriveUploadsFromSettings = retryOneDriveUploadsFromSettings;

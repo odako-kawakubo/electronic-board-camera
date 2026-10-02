@@ -2999,3 +2999,75 @@ body.tutorial-no-dim .tutorial-active-target {
   color: #fff;
   font-size: 11px;
 }
+
+    #importModeOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 27000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0,0,0,0.68);
+    }
+
+    #importModeOverlay.show {
+      display: flex;
+    }
+
+    .import-mode-panel {
+      width: min(90vw, 420px);
+      border-radius: 18px;
+      background: #fff;
+      color: #111;
+      padding: 20px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.42);
+      text-align: center;
+    }
+
+    .import-mode-panel h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .import-mode-panel p {
+      margin: 0 0 16px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .import-mode-button,
+    .import-mode-cancel {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 10px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .import-mode-button {
+      border: 1px solid #cfd4da;
+      background: #f4f6f8;
+      color: #111;
+    }
+
+    .import-mode-button.primary {
+      border-color: #1f6feb;
+      background: #1f6feb;
+      color: #fff;
+    }
+
+    .import-mode-cancel {
+      border: 0;
+      background: transparent;
+      color: #555;
+    }
+
+    #importBoardControls .import-cancel-edit-button {
+      border-color: rgba(255,255,255,.8);
+      background: rgba(130,20,20,.82);
+    }

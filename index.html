@@ -81,7 +81,6 @@
     <div class="left-panel">
       <div id="photoCount">撮影済み
 0枚</div>
-      <button id="landscapeFlipButton" class="panel-mini-button" type="button" onclick="toggleLandscapeFlip()">上下<br>反転</button>
 
       <div class="board-control-panel" aria-label="撮影補助操作">
         <div id="panelMainList" class="panel-main-list">
@@ -145,6 +144,7 @@
       <img id="captureFreezeImage" alt="撮影画像" />
       <div id="cameraFlash"></div>
       <div id="cameraToast" hidden></div>
+      <div id="cameraOrientationBlocker" hidden>端末を横向きにしてください</div>
 
       <div id="cameraGuide">右側の「カメラ起動」を押してください</div>
 
@@ -474,6 +474,29 @@
       <div class="settings-section-title">📖 操作方法</div>
       <button class="settings-update-button" type="button" onclick="openHelp()">操作ガイドを開く</button>
 
+      <div class="settings-section-title">🔊 撮影音</div>
+      <div class="settings-version-box">
+        <label class="settings-select-row">
+          <span>撮影音</span>
+          <select id="shutterSoundSelect" onchange="setShutterSoundSetting(this.value)">
+            <option value="off">無音</option>
+            <option value="camera1">カメラ1</option>
+            <option value="camera2">カメラ2</option>
+            <option value="click">クリック</option>
+            <option value="chime">チャイム</option>
+          </select>
+        </label>
+        <label class="settings-select-row">
+          <span>音量</span>
+          <select id="shutterVolumeSelect" onchange="setShutterVolumeSetting(this.value)">
+            <option value="small">小</option>
+            <option value="medium">中</option>
+            <option value="large">大</option>
+          </select>
+        </label>
+      </div>
+      <button class="settings-update-button" type="button" onclick="previewShutterSound()">試聴</button>
+
       <div class="settings-section-title">📷 写真画質</div>
 
       <button id="qualityStandardButton" class="quality-option" type="button" onclick="setPhotoQuality('standard')">
@@ -486,6 +509,7 @@
         <span>高画質（3264×2448）</span>
       </button>
 
+      <div class="settings-credit">撮影音：OtoLogic（CC BY 4.0）</div>
       <button class="settings-close" type="button" onclick="closeSettings()">閉じる</button>
     </div>
   </div>
@@ -674,6 +698,7 @@
   <script src="./js/app.js"></script>
   <script src="./js/photo-utils.js"></script>
   <script src="./js/board.js"></script>
+  <script src="./js/shutter-sound.js"></script>
   <script src="./js/camera.js"></script>
   <script src="./js/photo-import.js"></script>
   <script src="./js/photo-album.js"></script>

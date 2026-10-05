@@ -20,6 +20,7 @@
     connected: false,
     text: "未接続",
     error: "",
+    errorCode: "",
     root: null,
     projectRoot: null,
     photoRoot: null,
@@ -62,12 +63,13 @@
     };
   }
 
-  function unavailableState(text = "未接続", error = "") {
+  function unavailableState(text = "未接続", error = "", errorCode = "") {
     return {
       phase: "unconnected",
       connected: false,
       text,
       error,
+      errorCode,
       root: null,
       projectRoot: null,
       photoRoot: null,
@@ -153,7 +155,10 @@
 
     if (navigator.onLine === false) {
       OneDriveRoot.clearSamplingRoot();
-      publish(unavailableState("オフライン"));
+      publish({
+        ...unavailableState("オフライン", "", "NETWORK_OFFLINE"),
+        phase: "offline"
+      });
       return cloneState();
     }
 
@@ -161,7 +166,7 @@
     const graph = GraphSession.getState();
     if (!graph.account) {
       OneDriveRoot.clearSamplingRoot();
-      publish(unavailableState("未接続", graph.error || ""));
+      publish(unavailableState("未接続", graph.error || "", "GRAPH_LOGIN_REQUIRED"));
       return cloneState();
     }
 
@@ -170,6 +175,7 @@
       connected: false,
       text: "確認中",
       error: "",
+      errorCode: "",
       root: OneDriveRoot.getCachedSamplingRoot(),
       projectRoot: OneDriveRoot.getCachedSamplingRoot(),
       photoRoot: OneDriveRoot.getCachedSamplingPhotoRoot(),
@@ -184,6 +190,7 @@
         connected: true,
         text: "接続",
         error: "",
+        errorCode: "",
         root: context.root,
         projectRoot: context.projectRoot,
         photoRoot: context.photoRoot,
@@ -192,11 +199,15 @@
     } catch (error) {
       if (currentGeneration !== generation) return cloneState();
       OneDriveRoot.clearSamplingRoot();
+      const errorCode = String(error?.code || error?.graphCode || "");
+      const authRequired = errorCode === "GRAPH_TOKEN_ACQUIRE_FAILED";
+      const offline = errorCode === "NETWORK_OFFLINE";
       publish({
-        phase: "error",
+        phase: offline ? "offline" : (authRequired ? "auth-required" : "error"),
         connected: false,
-        text: "未接続",
+        text: offline ? "オフライン" : (authRequired ? "再接続必要" : "接続エラー"),
         error: error?.message || "OneDriveへ接続できません。",
+        errorCode,
         root: null,
         projectRoot: null,
         photoRoot: null,
@@ -212,6 +223,14 @@
     GraphSession.subscribe(() => void refresh({ force: true }));
     window.addEventListener("online", () => void refresh({ force: true }));
     window.addEventListener("offline", () => void refresh());
+
+    // iPhone/iPadなどで長時間バックグラウンド後にGraphトークンが
+    // 失効している場合があるため、PWA復帰時に実接続を再確認する。
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) void refresh();
+    });
+    window.addEventListener("pageshow", () => void refresh());
+
     void refresh();
   }
 

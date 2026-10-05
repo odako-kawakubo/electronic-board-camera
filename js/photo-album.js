@@ -422,11 +422,14 @@
         button.classList.toggle("active", item.key === selectedCaseKey);
         button.onclick = () => {
           if (formalProjectSelection) return;
-          selectedCaseKey = item.key;
-          previewIndex = 0;
+          const isImportTarget = casePickerPurpose === "import";
+          if (!isImportTarget) {
+            selectedCaseKey = item.key;
+            previewIndex = 0;
+          }
           const openedFromTop = casePickerOpenedFromTop;
 
-          if (casePickerPurpose === "import" && item.caseId && window.CaseSession) {
+          if (isImportTarget && item.caseId && window.CaseSession) {
             const session = CaseSession.getSessionById?.(item.caseId);
             if (!session) {
               showErrorToast("案件情報を復元できませんでした");

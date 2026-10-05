@@ -217,6 +217,21 @@
     return cloneState();
   }
 
+  function setReconnectRequiredForTest() {
+    publish({
+      phase: "auth-required",
+      connected: false,
+      text: "再接続必要",
+      error: "テスト用に再接続必要状態へ切り替えました。",
+      errorCode: "TEST_AUTH_REQUIRED",
+      root: null,
+      projectRoot: null,
+      photoRoot: null,
+      rootSource: ""
+    });
+    return cloneState();
+  }
+
   function initialize() {
     if (initialized) return;
     initialized = true;
@@ -240,6 +255,7 @@
     refresh,
     initialize,
     getUsableSamplingRoot,
-    getUsableSamplingContext
+    getUsableSamplingContext,
+    setReconnectRequiredForTest
   });
 })();

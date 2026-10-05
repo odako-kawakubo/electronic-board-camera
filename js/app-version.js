@@ -4,5 +4,5 @@
  */
 window.AppVersion = Object.freeze({
   version: "66.0",
-  revision: ""
+  revision: "A"
 });

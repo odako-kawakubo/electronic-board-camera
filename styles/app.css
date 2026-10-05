@@ -2487,7 +2487,9 @@
     }
     .onedrive-status-dot.connected { background: #2ecc71; }
     .onedrive-status-dot.checking { background: #f2b84b; }
+    .onedrive-status-dot.auth-required { background: #e05252; }
     .onedrive-status-dot.error { background: #e05252; }
+    .onedrive-status-dot.offline { background: #7b8491; }
     .onedrive-status-dot.unconnected { background: #7b8491; }
 
     @media (orientation: landscape) and (max-height: 500px) {

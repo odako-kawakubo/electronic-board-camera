@@ -1,0 +1,97 @@
+/*
+ * ============================================================
+ * app.js - アプリ全体の起点 / 共通UI
+ * ============================================================
+ * 責務: 各機能モジュールをつなぐ起点。機能初期化、画面向きイベント、app専用UIだけを担当する。共有状態はshared-state.js、PWA制御はpwa-controller.jsを正本とする。
+ *
+ * 保守上の注意:
+ * - 新機能を安易にここへ追加しない。まず担当モジュールを決める。HTMLのinline onclickがあるためclassic scriptのグローバル関数を前提とする。
+ * ============================================================
+ */
+
+    // ============================================================
+    // app.js専用DOM・状態
+    // 他モジュールから参照しないものだけをここに残す。
+    // ============================================================
+    const cameraScreen = document.getElementById("cameraScreen");
+    const boardEditPhotoStage = document.getElementById("boardEditPhotoStage");
+    const boardEditHost = document.getElementById("boardEditHost");
+    const toast = document.getElementById("toast");
+    let toastTimer = null;
+
+    // ============================================================
+    // アプリ起動・全体イベント
+    // 初期化順序には依存があるため、順番変更時は実機確認必須。
+    // ============================================================
+    document.addEventListener("DOMContentLoaded", async () => {
+      initializeBoard();
+      setupStatusButtons();
+      setupBoardMode();
+      setupDateEditTracking();
+      setupBoardPersistence();
+      setupSamplingNameHistory();
+      setupBoardEditGesture();
+      setBoardEditable(false);
+      setupPreviewSwipe();
+      setupPreviewImageTap();
+      setupPhotoCountHiddenShoot();
+      setupBoardTextareaAutoCenter();
+      setupBoardEditHistoryTracking();
+      setupBoardEditForm();
+      setupReliableBoardEditControls();
+      setupSettingsToggleButton();
+      renderPhotoQualitySettings();
+      renderBoardTextSize();
+      applyBoardFieldTextSizes();
+
+      await loadPhotosFromIndexedDB();
+      setupImportPhotoInput();
+      await refreshImportResumePanel();
+
+      requestAnimationFrame(() => {
+        setInitialBoardLayout();
+        scheduleBoardPreviewRender();
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      handleWindowResize();
+    });
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => {
+        handleWindowResize();
+      }, 200);
+    });
+
+
+    /**
+     * 通常メッセージを短時間表示する共通トースト。
+     */
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.remove("error");
+      toast.classList.add("show");
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 1400);
+    }
+
+    /**
+     * 保存失敗などのエラーを通常より長く表示する。
+     */
+
+    function showErrorToast(message) {
+      toast.textContent = message;
+      toast.classList.add("error");
+      toast.classList.add("show");
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+        toast.classList.remove("error");
+      }, 2400);
+    }

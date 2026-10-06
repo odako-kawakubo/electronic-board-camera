@@ -1,0 +1,582 @@
+/*
+ * ============================================================
+ * photo-viewer.js - 1枚表示 / 拡大 / 看板修正 / 出力
+ * ============================================================
+ * 責務: 現在写真の表示、前後移動、拡大、看板修正、共有・外部保存を担当する。
+ * 案件別一覧・並び替え・選択・削除はphoto-album.jsを正本とする。
+ * ============================================================
+ */
+
+    // viewer専用DOM・状態。アルバム状態はphoto-album.jsが所有する。
+    const previewImage = document.getElementById("previewImage");
+    const photoZoomOverlay = document.getElementById("photoZoomOverlay");
+    const photoZoomImage = document.getElementById("photoZoomImage");
+    const previewCounter = document.getElementById("previewCounter");
+    const previewMeta = document.getElementById("previewMeta");
+    const boardCorrectionButton = document.getElementById("boardCorrectionButton");
+    let isBoardCorrectionSelectMode = false;
+    let previewTouchStartX = 0;
+    let previewTouchStartY = 0;
+    let boardEditOriginalDataUrl = "";
+
+    function getCurrentSubjectName() {
+      const value = subjectText && ("value" in subjectText ? subjectText.value : subjectText.textContent);
+      return String(value || "").trim() || "無題案件";
+    }
+
+    /* 写真ビューア */
+    /**
+     * 保存写真の閲覧画面を開き、現在の案件と写真位置に合わせて表示を構築する。
+     */
+    async function openPreview() {
+      // セッション内に写真がある場合は再読込を省略し、表示開始を待たせない。
+      if (!capturedPhotos.length) await loadPhotosFromIndexedDB();
+
+      const activeCaseId = String(window.CaseSession?.getCurrentSession?.()?.id || "");
+      selectedCaseKey = activeCaseId ? `case:${activeCaseId}` : getLatestCaseKey();
+      const photos = getPreviewPhotos();
+      previewIndex = Math.max(0, photos.length - 1);
+      setPreviewListMode(false);
+      renderPreview();
+      previewOverlay.classList.add("show");
+    }
+
+    async function closePreview() {
+      isBoardCorrectionSelectMode = false;
+      previewOverlay.classList.remove("board-correction-selecting");
+      previewOverlay.classList.remove("show");
+      setPreviewListMode(false);
+
+      /*
+       * 戻るを押したらカメラ画面へ復帰
+       * PWAでカメラが止まっていたら再取得を試す
+       */
+      await resumeCameraAfterPreview();
+    }
+
+    /**
+     * 写真一覧から起動画面へ戻る。撮影画面にはトップ導線を置かない。
+     * カメラストリームは止め、起動方法を改めて選べる状態へ戻す。
+     */
+    async function returnToTopScreen() {
+      isBoardCorrectionSelectMode = false;
+      previewOverlay.classList.remove("board-correction-selecting", "show");
+      setPreviewListMode(false);
+      if (typeof stopCurrentStream === "function") stopCurrentStream();
+      if (typeof showStartButton === "function") showStartButton();
+      if (typeof closeSettings === "function") closeSettings();
+      if (typeof closeCasePicker === "function") closeCasePicker();
+      if (launchModeOverlay) launchModeOverlay.classList.remove("hidden");
+      if (typeof refreshImportResumePanel === "function") await refreshImportResumePanel();
+    }
+
+    function showPrevPhoto() {
+      const photos = getPreviewPhotos();
+      if (!photos.length) return;
+
+      previewIndex -= 1;
+
+      if (previewIndex < 0) {
+        previewIndex = photos.length - 1;
+      }
+
+      renderPreview();
+    }
+
+    function showNextPhoto() {
+      const photos = getPreviewPhotos();
+      if (!photos.length) return;
+
+      previewIndex += 1;
+
+      if (previewIndex >= photos.length) {
+        previewIndex = 0;
+      }
+
+      renderPreview();
+    }
+
+    /**
+
+     * 現在写真・メタ情報・一覧・選択状態をまとめて更新する。
+
+     */
+
+    function renderPreview() {
+      const photos = getPreviewPhotos();
+      previewOverlay.classList.toggle("board-correction-selecting", isBoardCorrectionSelectMode);
+      if (boardCorrectionButton) {
+        boardCorrectionButton.textContent = isBoardCorrectionSelectMode ? "中止" : "看板修正";
+      }
+
+      if (!photos.length) {
+        previewImage.removeAttribute("src");
+        previewCounter.textContent = "0 / 0";
+        previewMeta.textContent = "この案件の写真がありません";
+        previewThumbnails.innerHTML = "";
+        previewList.innerHTML = "";
+        updatePreviewHeader();
+        updateSelectAllButton();
+        return;
+      }
+
+      previewIndex = clamp(previewIndex, 0, photos.length - 1);
+      const photo = photos[previewIndex];
+      previewImage.src = photo.dataUrl;
+      previewImage.onclick = () => {
+        if (isBoardCorrectionSelectMode) {
+          selectPhotoForBoardCorrection(previewIndex);
+        }
+      };
+      previewCounter.textContent = `${previewIndex + 1} / ${photos.length}`;
+      previewMeta.textContent = isBoardCorrectionSelectMode
+        ? "看板修正する写真を選択してください"
+        : `${photo.fileName}　${photo.statusLabel || getStatusLabel(photo.status)}${photo.selected ? "　✓選択中" : ""}`;
+      updatePreviewHeader();
+      renderThumbnails();
+      renderPhotoList();
+      updateSelectAllButton();
+    }
+
+    function startBoardCorrectionSelectMode() {
+      const photos = getPreviewPhotos();
+      if (!photos.length) {
+        showToast("修正する写真がありません");
+        return;
+      }
+
+      isBoardCorrectionSelectMode = !isBoardCorrectionSelectMode;
+      if (isBoardCorrectionSelectMode) {
+        setPreviewListMode(false);
+        showToast("看板修正する写真を選択してください");
+      } else {
+        showToast("看板修正を中止しました");
+      }
+      renderPreview();
+    }
+
+    async function selectPhotoForBoardCorrection(index) {
+      const photos = getPreviewPhotos();
+      const photo = photos[index];
+      if (!photo) return;
+
+      previewIndex = index;
+      isBoardCorrectionSelectMode = false;
+      previewOverlay.classList.remove("board-correction-selecting");
+      previewOverlay.classList.remove("show");
+      setPreviewListMode(false);
+
+      // 閲覧だけでは現在案件を変えないが、看板修正は案件別看板状態へ書き込むため
+      // 修正対象写真のcaseIdへ切り替えてから編集を開始する。
+      const photoCaseId = String(photo.caseId || "");
+      const activeCaseId = String(window.CaseSession?.getCurrentSession?.()?.id || "");
+      if (photoCaseId && photoCaseId !== activeCaseId && window.CaseSession?.activateSession) {
+        CaseSession.activateSession(photoCaseId, photo.subjectName || "");
+      }
+
+      await openPhotoBoardCorrectionMode(photo.id);
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("元画像を読み込めませんでした"));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function loadOriginalForBoardEdit(photo) {
+      if (photo.baseDataUrl) return photo.baseDataUrl;
+      const driveId = String(photo.oneDriveDriveId || "");
+      const itemId = String(photo.originalItemId || "");
+      if (!driveId || !itemId || String(photo.originalUploadStatus || "") !== "uploaded") {
+        throw new Error("OneDrive上の元画像を特定できません。");
+      }
+      showToast("元画像を読み込み中...");
+      const blob = await OneDriveClient.downloadDriveFile({ driveId, itemId });
+      return blobToDataUrl(blob);
+    }
+
+    async function openPhotoBoardCorrectionMode(photoId) {
+      const photo = capturedPhotos.find((item) => item.id === photoId);
+      if (!photo) {
+        showToast("修正対象の写真が見つかりません");
+        return;
+      }
+
+      try {
+        boardEditOriginalDataUrl = await loadOriginalForBoardEdit(photo);
+      } catch (error) {
+        console.error("看板修正用元画像の取得に失敗しました", error);
+        await AppDialog.notice({
+          title: "看板修正を続けられません",
+          message: "看板修正用の元画像を取得できませんでした。\nOneDrive接続を確認して、もう一度お試しください。"
+        });
+        boardEditOriginalDataUrl = "";
+        return;
+      }
+
+      boardEditTargetPhotoId = photo.id;
+
+      // 選択した写真の撮影時情報を、修正開始時の看板に戻す
+      if (photo.subjectName) subjectText.value = photo.subjectName;
+      if (photo.roomNo) roomNoInput.value = photo.roomNo;
+      if (photo.sampleNo) sampleNoInput.value = formatSamplePointLabel(`${photo.sampleNo}-${photo.pointNo || 1}`);
+      if (photo.status) setStatus(photo.status);
+      syncBoardTextareas();
+
+      if (boardEditPhotoBackdrop) {
+        boardEditPhotoBackdrop.src = boardEditOriginalDataUrl;
+        boardEditPhotoBackdrop.onload = () => scheduleBoardEditCanvasRender();
+      }
+      if (boardEditDoneButton) {
+        boardEditDoneButton.textContent = "修正\n完了";
+      }
+      boardEditOverlay.classList.add("photo-board-correction");
+      openBoardEditMode({ focusFirstField: false });
+      showToast("看板を直して、完了を押してください");
+    }
+
+    async function finishPhotoBoardCorrection() {
+      const photo = capturedPhotos.find((item) => item.id === boardEditTargetPhotoId);
+      if (!photo) {
+        boardEditTargetPhotoId = null;
+        return;
+      }
+
+      if (!boardEditOriginalDataUrl) {
+        boardEditTargetPhotoId = null;
+        await AppDialog.notice({
+          title: "看板修正を続けられません",
+          message: "看板修正用の元画像がありません。"
+        });
+        return;
+      }
+
+      try {
+        saveBoardForm();
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        let canvas;
+        let newDataUrl;
+        try {
+          canvas = await composeBoardOnBaseImage(boardEditOriginalDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData() });
+          newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        } catch (error) {
+          console.warn("HTML看板での再合成に失敗したため、旧Canvas描画で再合成します", error);
+          canvas = await composeBoardOnBaseImage(boardEditOriginalDataUrl, { useImageRelativeBoardLayout: true, sourceData: getCurrentBoardData(), forceLegacyBoard: true });
+          newDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        }
+
+        const correctedType = getCurrentPhotoType();
+        const correctedParts = parseSampleAndPoint(sampleNoInput.value);
+        const nextFileName = generatePhotoFileName(correctedParts.sampleNo, correctedParts.pointNo, correctedType.code, photo.id, photo.caseId);
+        const correctedPhotoSaved = await PhotoState.update(photo, (draft) => {
+          draft.dataUrl = newDataUrl;
+          draft.subjectName = getCurrentSubjectName();
+          draft.roomNo = roomNoInput.value.trim();
+          draft.status = correctedType.value;
+          draft.statusLabel = correctedType.label;
+          draft.statusCode = correctedType.code;
+          draft.sampleNo = correctedParts.sampleNo;
+          draft.pointNo = correctedParts.pointNo;
+          draft.isSection = correctedType.value === SECTION_PHOTO_TYPE.value;
+          draft.fileName = nextFileName;
+
+          // 完成画像を作り直したため、completedは必ず再送対象へ戻す。
+          draft.completedUploadStatus = "pending";
+          draft.completedUploadedAt = "";
+          draft.completedItemId = "";
+          draft.completedPath = "";
+          draft.completedPendingFileName = "";
+          draft.completedPendingItemId = "";
+          draft.completedUploadError = "";
+          draft.uploadStatus = "pending";
+          draft.uploadedAt = "";
+          draft.oneDriveItemId = "";
+
+          // 元画像は1写真につき1回だけ。編集版は完成画像だけを新規送信する。
+          draft.updatedAt = new Date().toISOString();
+        });
+        if (!correctedPhotoSaved || !correctedPhotoSaved.ok) {
+          const detail = correctedPhotoSaved && correctedPhotoSaved.errorMessage ? correctedPhotoSaved.errorMessage : "保存できませんでした";
+          throw new Error(`看板修正後の写真を端末内へ保存できませんでした: ${detail}`);
+        }
+        previewIndex = Math.max(0, getPreviewPhotos().findIndex((item) => item.id === photo.id));
+        updatePhotoCount();
+        showToast("看板を修正しました");
+      } catch (error) {
+        console.error(error);
+        showErrorToast("看板修正に失敗しました");
+      } finally {
+        boardEditTargetPhotoId = null;
+        boardEditOriginalDataUrl = "";
+      }
+    }
+
+    async function saveCurrentPreviewPhoto() {
+      if (!capturedPhotos.length) {
+        showToast("撮影した写真がありません");
+        return;
+      }
+
+      const selectedPhotos = getPreviewPhotos().filter((photo) => photo.selected);
+
+      if (!selectedPhotos.length) {
+        showToast("共有する写真をチェックしてください");
+        return;
+      }
+
+      await shareOrDownloadPhotos(selectedPhotos);
+    }
+
+    /**
+
+     * 選択写真をIndexedDBとcapturedPhotosの両方から削除し、片方だけ残さない。
+
+     */
+
+    /**
+
+     * Web Share対応端末では共有し、非対応時はダウンロードへフォールバックする。
+
+     */
+
+    function isMobileShareDevice() {
+      const ua = String(navigator.userAgent || "");
+      if (/Android|iPhone|iPad|iPod/i.test(ua)) return true;
+      return /Macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
+    }
+
+    async function writePhotoToFileHandle(fileHandle, photo) {
+      const writable = await fileHandle.createWritable();
+      try {
+        await writable.write(dataUrlToBlob(photo.dataUrl));
+      } finally {
+        await writable.close();
+      }
+    }
+
+    async function savePhotosOnDesktop(photos) {
+      if (!photos.length) return false;
+
+      if (photos.length === 1 && typeof window.showSaveFilePicker === "function") {
+        try {
+          const photo = photos[0];
+          const handle = await window.showSaveFilePicker({
+            suggestedName: photo.fileName || "photo.jpg",
+            types: [{
+              description: "JPEG画像",
+              accept: { "image/jpeg": [".jpg", ".jpeg"] }
+            }]
+          });
+          await writePhotoToFileHandle(handle, photo);
+          showToast("保存しました");
+          return true;
+        } catch (error) {
+          if (error?.name === "AbortError") return true;
+          console.warn("ファイル保存ダイアログを使用できませんでした", error);
+        }
+      }
+
+      if (photos.length > 1 && typeof window.showDirectoryPicker === "function") {
+        try {
+          const directory = await window.showDirectoryPicker({ mode: "readwrite" });
+          for (const photo of photos) {
+            const handle = await directory.getFileHandle(photo.fileName || `photo_${Date.now()}.jpg`, { create: true });
+            await writePhotoToFileHandle(handle, photo);
+          }
+          showToast(`${photos.length}枚を保存しました`);
+          return true;
+        } catch (error) {
+          if (error?.name === "AbortError") return true;
+          console.warn("フォルダ一括保存を使用できませんでした", error);
+        }
+      }
+
+      return false;
+    }
+
+    function downloadPhotosTogether(photos) {
+      photos.forEach((photo, index) => {
+        window.setTimeout(() => {
+          const link = document.createElement("a");
+          link.href = photo.dataUrl;
+          link.download = photo.fileName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }, index * 180);
+      });
+      showToast(photos.length === 1 ? "ダウンロードしました" : `${photos.length}枚をダウンロードします`);
+    }
+
+    async function shareOrDownloadPhotos(photos) {
+      if (!photos.length) return;
+
+      if (!isMobileShareDevice()) {
+        const saved = await savePhotosOnDesktop(photos);
+        if (!saved) downloadPhotosTogether(photos);
+        return;
+      }
+
+      if (navigator.share && navigator.canShare) {
+        try {
+          const files = photos.map((photo) => {
+            const blob = dataUrlToBlob(photo.dataUrl);
+            return new File([blob], photo.fileName, { type: "image/jpeg" });
+          });
+
+          if (navigator.canShare({ files })) {
+            await navigator.share({
+              files,
+              title: photos.length === 1 ? photos[0].fileName : `電子看板写真 ${photos.length}枚`
+            });
+            showToast("保存 / 共有が完了しました");
+            return;
+          }
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+          console.error(error);
+          showToast("共有できませんでした");
+        }
+      }
+
+      downloadPhotosTogether(photos);
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = dataUrl.split(",");
+      const header = parts[0];
+      const base64 = parts[1];
+      const mimeMatch = header.match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const binary = atob(base64);
+      const array = new Uint8Array(binary.length);
+
+      for (let i = 0; i < binary.length; i++) {
+        array[i] = binary.charCodeAt(i);
+      }
+
+      return new Blob([array], { type: mime });
+    }
+
+    function setupPreviewSwipe() {
+      previewOverlay.addEventListener("touchstart", (event) => {
+        if (!event.touches || event.touches.length !== 1) return;
+        if (event.target && event.target.closest && event.target.closest("#previewThumbnails")) {
+          previewTouchStartX = NaN;
+          previewTouchStartY = NaN;
+          return;
+        }
+
+        previewTouchStartX = event.touches[0].clientX;
+        previewTouchStartY = event.touches[0].clientY;
+      }, { passive: true });
+
+      previewOverlay.addEventListener("touchend", (event) => {
+        if (!event.changedTouches || event.changedTouches.length !== 1) return;
+        if (isPreviewListMode || !Number.isFinite(previewTouchStartX)) return;
+
+        const endX = event.changedTouches[0].clientX;
+        const endY = event.changedTouches[0].clientY;
+
+        const dx = endX - previewTouchStartX;
+        const dy = endY - previewTouchStartY;
+
+        if (Math.abs(dx) < 45) return;
+        if (Math.abs(dx) < Math.abs(dy)) return;
+
+        if (dx < 0) {
+          showNextPhoto();
+        } else {
+          showPrevPhoto();
+        }
+      }, { passive: true });
+    }
+
+    /*
+     * 写真プレビューの大きい画像をタップしたら、現在の写真を選択/解除する。
+     * サムネイルの小さいチェックだけだと現場で押しにくいため、画像全体をチェック操作にする。
+     */
+    function setupPhotoCountHiddenShoot() {
+      // 隠し機能：左上の「撮影済み ○枚 / 選択 ○枚」を押しても撮影する。
+      // 音量ボタン撮影の代わりに、片手で押しやすいサブシャッターとして使う。
+      photoCount.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // プレビュー表示中は誤作動させない。
+        if (previewOverlay.classList.contains("show")) return;
+
+        await takePhoto();
+      });
+    }
+
+    function setupPreviewImageTap() {
+      let lastTapAt = 0;
+      let singleTapTimer = null;
+      let suppressClickUntil = 0;
+
+      const openZoom = (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        if (isBoardCorrectionSelectMode || !previewImage.src) return;
+        if (singleTapTimer) {
+          clearTimeout(singleTapTimer);
+          singleTapTimer = null;
+        }
+        suppressClickUntil = Date.now() + 500;
+        photoZoomImage.src = previewImage.src;
+        photoZoomOverlay.classList.add("show");
+      };
+
+      previewImage.addEventListener("dblclick", openZoom);
+
+      previewImage.addEventListener("pointerup", (event) => {
+        if (event.pointerType === "mouse") return;
+        const now = Date.now();
+        if (now - lastTapAt <= 360) {
+          lastTapAt = 0;
+          openZoom(event);
+          return;
+        }
+        lastTapAt = now;
+      }, true);
+
+      previewImage.addEventListener("click", async (event) => {
+        if (Date.now() < suppressClickUntil) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (isBoardCorrectionSelectMode) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (singleTapTimer) clearTimeout(singleTapTimer);
+        singleTapTimer = setTimeout(async () => {
+          singleTapTimer = null;
+          await toggleCurrentPhotoSelected();
+        }, 370);
+      });
+
+      const closeZoom = (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        photoZoomOverlay.classList.remove("show");
+        window.setTimeout(() => {
+          if (!photoZoomOverlay.classList.contains("show")) photoZoomImage.removeAttribute("src");
+        }, 120);
+      };
+
+      photoZoomOverlay.addEventListener("click", closeZoom);
+      photoZoomImage.addEventListener("click", closeZoom);
+    }
+

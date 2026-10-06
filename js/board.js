@@ -27,6 +27,7 @@
     const editBoardModeButton = document.getElementById("editBoardModeButton");
     const boardEditResetButton = document.getElementById("boardEditResetButton");
     const samplingLocationInput = null;
+    const boardControlPanel = document.querySelector(".board-control-panel");
     const panelMainButtons = Array.from(document.querySelectorAll(".panel-main-button"));
     const sidePanels = {
       room: document.getElementById("roomPanel"),
@@ -132,6 +133,7 @@
 
     function openSidePanel(name) {
       activeSidePanel = activeSidePanel === name ? null : name;
+      if (boardControlPanel) boardControlPanel.classList.toggle("panel-open", Boolean(activeSidePanel));
 
       Object.entries(sidePanels).forEach(([key, panel]) => {
         if (panel) panel.classList.toggle("show", key === activeSidePanel);
@@ -148,6 +150,7 @@
 
     function closeSidePanel() {
       activeSidePanel = null;
+      if (boardControlPanel) boardControlPanel.classList.remove("panel-open");
       Object.values(sidePanels).forEach((panel) => {
         if (panel) panel.classList.remove("show");
       });

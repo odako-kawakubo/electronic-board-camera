@@ -399,13 +399,6 @@
       font-size: 13px;
     }
 
-    .board-control-panel.panel-open #samplePanel .panel-close-button {
-      width: 58px;
-      min-height: 34px;
-      margin-top: 2px;
-      font-size: 11px;
-    }
-
     .panel-close-button {
       width: 58px;
       min-height: 28px;

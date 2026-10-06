@@ -361,17 +361,105 @@
       font-size: 16px;
     }
 
-    .panel-close-button {
+
+    /* v66.5C review: 展開中は選択カテゴリだけを残し、左操作を58px幅へ統一 */
+    .board-control-panel.panel-open .panel-main-button:not(.active) {
+      display: none;
+    }
+
+    .board-control-panel.panel-open .panel-main-list {
+      gap: 0;
+    }
+
+    .board-control-panel.panel-open .panel-main-button.active {
+      width: 72px;
+      min-height: 44px;
+    }
+
+    .board-control-panel.panel-open #roomPanel .panel-pair,
+    .board-control-panel.panel-open #samplePanel .panel-pair {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .board-control-panel.panel-open #roomPanel .panel-vertical,
+    .board-control-panel.panel-open #samplePanel .panel-vertical,
+    .board-control-panel.panel-open #boardPanel .panel-vertical {
       width: 58px;
-      min-height: 28px;
-      border: 1px solid rgba(255, 255, 255, 0.24);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(255,255,255,0.92);
-      font-size: 11px;
-      font-weight: 900;
+      grid-template-rows: 36px 40px 36px;
+      gap: 3px;
+    }
+
+    .board-control-panel.panel-open #roomPanel .panel-mini-button,
+    .board-control-panel.panel-open #samplePanel .panel-mini-button,
+    .board-control-panel.panel-open #boardPanel .panel-mini-button {
+      width: 58px;
+      height: 36px;
+      font-size: 18px;
+    }
+
+    .board-control-panel.panel-open #roomPanel .panel-center-button,
+    .board-control-panel.panel-open #samplePanel .panel-center-button,
+    .board-control-panel.panel-open #boardPanel .panel-center-button {
+      width: 58px;
+      height: 40px;
+      font-size: 13px;
+    }
+
+    .board-control-panel.panel-open #boardPanel {
+      gap: 8px;
+    }
+
+    .sampling-location-control {
+      display: grid;
+      grid-template-rows: 36px auto 36px;
+      width: 58px;
+      gap: 4px;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .sampling-location-control .panel-mini-button {
+      width: 58px;
+      height: 36px;
+      font-size: 18px;
+    }
+
+    .sampling-location-targets {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 58px;
+    }
+
+    .sampling-location-target-button {
+      width: 58px;
+      height: 34px;
+      padding: 0 3px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
       font-family: inherit;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 900;
       cursor: pointer;
+      touch-action: manipulation;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .sampling-location-target-button.active {
+      border-color: rgba(242, 201, 76, 0.95);
+      box-shadow: 0 0 0 2px rgba(242, 201, 76, 0.25) inset, 0 2px 8px rgba(0,0,0,0.35);
+      background: rgba(242, 201, 76, 0.18);
+    }
+
+    .sampling-location-target-button:active {
+      opacity: 0.72;
     }
 
     body.sampling-mode .survey-only {

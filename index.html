@@ -541,7 +541,7 @@
       <div id="helpMenu" class="help-menu" hidden>
         <button type="button" onclick="openHelpPage('start')"><span class="help-menu-icon">▶</span><span><strong>まず使う</strong><small>最初に見る基本の流れ</small></span><span class="help-menu-arrow">›</span></button>
         <button type="button" onclick="openHelpPage('case')"><span class="help-menu-icon">📁</span><span><strong>案件</strong><small>案件選択・新規案件</small></span><span class="help-menu-arrow">›</span></button>
-        <button type="button" onclick="openHelpPage('camera')"><span class="help-menu-icon">📷</span><span><strong>撮影</strong><small>調査・サンプリング・部屋・検体</small></span><span class="help-menu-arrow">›</span></button>
+        <button type="button" onclick="openHelpPage('camera')"><span class="help-menu-icon">📷</span><span><strong>撮影</strong><small>調査・サンプリング・場所・検体</small></span><span class="help-menu-arrow">›</span></button>
         <button type="button" onclick="openHelpPage('board')"><span class="help-menu-icon">▣</span><span><strong>看板</strong><small>看板編集・文字サイズ・位置</small></span><span class="help-menu-arrow">›</span></button>
         <button type="button" onclick="openHelpPage('photo')"><span class="help-menu-icon">🖼</span><span><strong>写真</strong><small>写真確認・看板添付・看板修正</small></span><span class="help-menu-arrow">›</span></button>
         <button type="button" onclick="openHelpPage('sync')"><span class="help-menu-icon">☁</span><span><strong>保存・再送</strong><small>OneDriveの●表示・圏外時</small></span><span class="help-menu-arrow">›</span></button>
@@ -552,7 +552,7 @@
         <h3>まず使う</h3>
         <div class="help-step"><b>1</b><span><strong>案件選択</strong>で対象案件を選びます。</span></div>
         <div class="help-step"><b>2</b><span><strong>カメラ起動</strong>を押します。</span></div>
-        <div class="help-step"><b>3</b><span>端末を横向きにして、看板の案件名・住所・部屋No.・試料No.を確認して撮影します。</span></div>
+        <div class="help-step"><b>3</b><span>端末を横向きにして、看板の案件名・住所・場所・試料No.を確認して撮影します。</span></div>
         <div class="help-step"><b>4</b><span>ライト対応端末では、撮影中の映像上半分をダブルタップするとライトをON/OFFできます。</span></div>
         <div class="help-step"><b>5</b><span>撮影音は設定から種類・音量を変更できます。</span></div>
         <div class="help-step"><b>6</b><span>写真一覧の●が<strong>緑</strong>になればOneDrive保存完了です。</span></div>
@@ -575,19 +575,28 @@
         <h3>撮影</h3>
         <h4>調査 / サンプリング</h4>
         <p>撮影する内容に合わせてモードを切り替えます。</p>
-        <h4>部屋</h4>
+        <h4>場所</h4>
         <p>調査では<strong>階・部屋No.</strong>、サンプリングでは<strong>採取箇所</strong>を変更できます。</p>
+        <p>サンプリングでは、採取箇所の中から変更したい部分を選び、<strong>▲ / ▼</strong>で変更します。選択中の項目をもう一度押すと、採取箇所を直接入力できます。</p>
         <h4>検体</h4>
-        <p><strong>試料No.・箇所No.</strong>を上下ボタンまたは中央ボタンから変更できます。</p>
+        <p><strong>試料No.・箇所No.</strong>をそれぞれ<strong>▲ / ▼</strong>で変更できます。中央のボタンを押すと直接入力できます。</p>
         <h4>看板</h4>
-        <p>看板のサイズや位置を調整できます。看板をダブルタップすると詳細編集を開きます。</p>
+        <p>上段の<strong>＋ / －</strong>で看板サイズ、中央の<strong>🪧</strong>で看板位置を4か所から切り替えます。</p>
+        <p>下段は中央を押すたびに<strong>件名 → 住所 → 場所</strong>と切り替わり、<strong>＋ / －</strong>で選択中の文字サイズを調整できます。</p>
+        <div class="help-note">開いている「場所」「検体」「看板」は、同じボタンをもう一度押すと閉じます。</div>
+        <p>看板をダブルタップすると、内容を変更する詳細編集を開きます。</p>
         <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作説明へ戻る</button>
       </section>
 
       <section class="help-page" data-help-page="board" hidden>
         <h3>看板</h3>
-        <p>看板編集では、案件名、住所、部屋No./採取箇所、試料No.、日付、写真区分、看板種類を変更できます。</p>
-        <p>変更したい項目を選び、<strong>A- / A+</strong>で文字サイズを調整できます。</p>
+        <h4>撮影画面での調整</h4>
+        <p><strong>看板</strong>を押すと、撮影画面のまま看板サイズ・位置・文字サイズを調整できます。</p>
+        <p>上段は<strong>＋ / －</strong>で看板サイズを変更し、中央の<strong>🪧</strong>を押すたびに左下・右下・右上・左上へ移動します。</p>
+        <p>下段の中央は<strong>件名 → 住所 → 場所</strong>の順に切り替わります。調整したい項目を選び、<strong>＋ / －</strong>で文字サイズを変更します。</p>
+        <h4>詳細編集</h4>
+        <p>看板をダブルタップすると詳細編集を開き、案件名、住所、部屋No./採取箇所、試料No.、日付、写真区分、看板種類を変更できます。</p>
+        <p>詳細編集では、変更したい項目を選び、<strong>A- / A+</strong>で文字サイズを調整できます。</p>
         <p>編集が終わったら右側の<strong>完了</strong>を押します。</p>
         <div class="help-note">看板編集画面の↶ / ↷は編集内容の「戻る / 進む」です。</div>
         <button class="help-back-button" type="button" onclick="showHelpMenu()">← 操作説明へ戻る</button>

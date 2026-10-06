@@ -1,5 +1,5 @@
 /*
- * v66.5 Service Worker
+ * v66.5C Service Worker
  * 最新版優先 + 圏外時は直近キャッシュから起動する。
  */
 const APP_CACHE = "electronic-board-camera-v66.5-stable";

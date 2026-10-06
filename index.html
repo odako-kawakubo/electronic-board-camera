@@ -84,7 +84,7 @@
 
       <div class="board-control-panel" aria-label="撮影補助操作">
         <div id="panelMainList" class="panel-main-list">
-          <button id="panelRoomButton" class="panel-main-button" type="button" onclick="openSidePanel('room')">部屋</button>
+          <button id="panelRoomButton" class="panel-main-button" type="button" onclick="openSidePanel('room')">場所</button>
           <button id="panelSampleButton" class="panel-main-button" type="button" onclick="openSidePanel('sample')">検体</button>
           <button id="panelBoardButton" class="panel-main-button" type="button" onclick="openSidePanel('board')">看板</button>
         </div>
@@ -103,13 +103,11 @@
             </div>
           </div>
 
-          <div class="panel-single sampling-only" aria-label="採取箇所操作">
+          <div class="sampling-location-control sampling-only" aria-label="採取箇所操作">
             <button class="panel-mini-button" type="button" onclick="changeSamplingLocation(1)">▲</button>
-            <button id="samplingLocationTargetButton" class="panel-center-button" type="button" onclick="cycleSamplingLocationTarget()">箇所</button>
+            <div id="samplingLocationTargets" class="sampling-location-targets"></div>
             <button class="panel-mini-button" type="button" onclick="changeSamplingLocation(-1)">▼</button>
           </div>
-
-          <button class="panel-close-button" type="button" onclick="closeSidePanel()">閉じる</button>
         </div>
 
         <div id="samplePanel" class="panel-expanded">
@@ -128,12 +126,16 @@
         </div>
 
         <div id="boardPanel" class="panel-expanded">
-          <div class="panel-single" aria-label="看板操作">
-            <button class="panel-mini-button" type="button" onclick="increaseBoardSize()">▲</button>
+          <div class="panel-vertical board-size-control" aria-label="看板サイズと位置">
+            <button class="panel-mini-button" type="button" onclick="increaseBoardSize()">＋</button>
             <button class="panel-center-button" type="button" onclick="cycleBoardPosition()">🪧</button>
-            <button class="panel-mini-button" type="button" onclick="decreaseBoardSize()">▼</button>
+            <button class="panel-mini-button" type="button" onclick="decreaseBoardSize()">－</button>
           </div>
-          <button class="panel-close-button" type="button" onclick="closeSidePanel()">閉じる</button>
+          <div class="panel-vertical board-text-control" aria-label="看板文字サイズ">
+            <button class="panel-mini-button" type="button" onclick="changeQuickBoardTextSize(1)">＋</button>
+            <button id="quickBoardTextTargetButton" class="panel-center-button" type="button" onclick="cycleQuickBoardTextTarget()">件名</button>
+            <button class="panel-mini-button" type="button" onclick="changeQuickBoardTextSize(-1)">－</button>
+          </div>
         </div>
       </div>
     </div>

@@ -212,16 +212,7 @@
     async function reconnectCloudFromSettings() {
       await reconnectMicrosoftOneDrive();
       renderCloudSettings();
-    }
-
-    function testOneDriveReconnectRequired() {
-      if (!window.OneDriveConnection?.setReconnectRequiredForTest) return;
-      OneDriveConnection.setReconnectRequiredForTest();
-      renderCloudSettings();
-      if (typeof showToast === "function") showToast("OneDriveを再接続必要状態にしました");
-    }
-
-    async function retryOneDriveUploadsFromSettings() {
+    }    async function retryOneDriveUploadsFromSettings() {
       try {
         if (!OneDriveConnection.getState().connected) {
           await OneDriveConnection.refresh({ force: true });
@@ -274,4 +265,3 @@
     window.previewShutterSound = previewShutterSound;
     window.reconnectCloudFromSettings = reconnectCloudFromSettings;
     window.retryOneDriveUploadsFromSettings = retryOneDriveUploadsFromSettings;
-    window.testOneDriveReconnectRequired = testOneDriveReconnectRequired;

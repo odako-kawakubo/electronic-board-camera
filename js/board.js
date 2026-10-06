@@ -27,6 +27,7 @@
     const editBoardModeButton = document.getElementById("editBoardModeButton");
     const boardEditResetButton = document.getElementById("boardEditResetButton");
     const samplingLocationInput = null;
+    const boardControlPanel = document.querySelector(".board-control-panel");
     const panelMainButtons = Array.from(document.querySelectorAll(".panel-main-button"));
     const sidePanels = {
       room: document.getElementById("roomPanel"),
@@ -49,6 +50,13 @@
     let boardEditIsComposing = false;
     let boardEditFinishRequested = false;
     let activeSidePanel = null;
+    const QUICK_BOARD_TEXT_TARGETS = [
+      { key: "subject", label: "件名", min: 12, max: 32, fallback: 18 },
+      { key: "address", label: "住所", min: 12, max: 32, fallback: 17 },
+      { key: "room", label: "場所", min: 12, max: 36, fallback: 24 }
+    ];
+    let quickBoardTextTargetIndex = 0;
+
 
 
     /**
@@ -86,7 +94,7 @@
     function applyBoardMode() {
       const isSampling = boardMode === "sampling";
       document.body.classList.toggle("sampling-mode", isSampling);
-      if (isSampling) updateSamplingLocationTargetButton();
+      if (isSampling) updateSamplingLocationTargets();
 
       if (editBoardModeButton) {
         editBoardModeButton.textContent = isSampling ? "サンプリング" : "調査";
@@ -132,6 +140,7 @@
 
     function openSidePanel(name) {
       activeSidePanel = activeSidePanel === name ? null : name;
+      if (boardControlPanel) boardControlPanel.classList.toggle("panel-open", Boolean(activeSidePanel));
 
       Object.entries(sidePanels).forEach(([key, panel]) => {
         if (panel) panel.classList.toggle("show", key === activeSidePanel);
@@ -148,6 +157,7 @@
 
     function closeSidePanel() {
       activeSidePanel = null;
+      if (boardControlPanel) boardControlPanel.classList.remove("panel-open");
       Object.values(sidePanels).forEach((panel) => {
         if (panel) panel.classList.remove("show");
       });
@@ -166,7 +176,7 @@
       if (next === null) return;
       roomNoInput.value = next.trim();
       samplingLocationTargetIndex = 0;
-      updateSamplingLocationTargetButton();
+      updateSamplingLocationTargets();
       saveBoardForm();
       if (boardMode === "sampling") saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
       showToast(`${label}を変更しました`);
@@ -408,6 +418,35 @@
       boardState.sizeRatio = Math.max(boardState.minSizeRatio, boardState.sizeRatio - 0.05);
       placeBoardByFixedPosition();
       showToast("看板を縮小しました");
+    }
+
+    function updateQuickBoardTextTargetButton() {
+      const button = document.getElementById("quickBoardTextTargetButton");
+      if (!button) return;
+      const target = QUICK_BOARD_TEXT_TARGETS[quickBoardTextTargetIndex] || QUICK_BOARD_TEXT_TARGETS[0];
+      button.textContent = target.label;
+    }
+
+    function cycleQuickBoardTextTarget() {
+      quickBoardTextTargetIndex = (quickBoardTextTargetIndex + 1) % QUICK_BOARD_TEXT_TARGETS.length;
+      updateQuickBoardTextTargetButton();
+      showToast(`文字サイズ：${QUICK_BOARD_TEXT_TARGETS[quickBoardTextTargetIndex].label}`);
+    }
+
+    function changeQuickBoardTextSize(delta) {
+      const target = QUICK_BOARD_TEXT_TARGETS[quickBoardTextTargetIndex] || QUICK_BOARD_TEXT_TARGETS[0];
+      const current = Number(boardFieldTextSize[target.key]) || target.fallback;
+      const next = Math.min(target.max, Math.max(target.min, current + delta));
+      if (next === current) {
+        showToast(`${target.label}文字：${next}px`);
+        return;
+      }
+
+      boardFieldTextSize[target.key] = next;
+      saveBoardFieldTextSizes();
+      applyBoardFieldTextSizes();
+      saveBoardForm();
+      showToast(`${target.label}文字：${next}px`);
     }
 
 
@@ -1221,7 +1260,7 @@
           if (element === subjectText) updateSamplingNameHistoryList();
           if (element === roomNoInput && boardMode === "sampling") {
             samplingLocationTargetIndex = 0;
-            updateSamplingLocationTargetButton();
+            updateSamplingLocationTargets();
           }
         });
         element.addEventListener("change", () => {

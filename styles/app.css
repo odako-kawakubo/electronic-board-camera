@@ -361,6 +361,51 @@
       font-size: 16px;
     }
 
+
+    /* v66.5A review: 展開中は選択カテゴリだけを残し、操作ボタンを押しやすくする */
+    .board-control-panel.panel-open .panel-main-button:not(.active) {
+      display: none;
+    }
+
+    .board-control-panel.panel-open .panel-main-list {
+      gap: 0;
+    }
+
+    .board-control-panel.panel-open .panel-main-button.active {
+      width: 72px;
+      min-height: 44px;
+    }
+
+    .board-control-panel.panel-open #samplePanel .panel-pair {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .board-control-panel.panel-open #samplePanel .panel-vertical {
+      width: 58px;
+      grid-template-rows: 36px 40px 36px;
+      gap: 3px;
+    }
+
+    .board-control-panel.panel-open #samplePanel .panel-mini-button {
+      width: 58px;
+      height: 36px;
+      font-size: 18px;
+    }
+
+    .board-control-panel.panel-open #samplePanel .panel-center-button {
+      width: 58px;
+      height: 40px;
+      font-size: 13px;
+    }
+
+    .board-control-panel.panel-open #samplePanel .panel-close-button {
+      width: 58px;
+      min-height: 34px;
+      margin-top: 2px;
+      font-size: 11px;
+    }
+
     .panel-close-button {
       width: 58px;
       min-height: 28px;

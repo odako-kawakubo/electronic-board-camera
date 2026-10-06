@@ -107,34 +107,71 @@
       return 3;
     }
 
-    function updateSamplingLocationTargetButton() {
-      const button = document.getElementById("samplingLocationTargetButton");
-      if (!button) return;
-      const targets = getSamplingLocationTargets(roomNoInput ? roomNoInput.value : "");
-      if (!targets.length) {
-        samplingLocationTargetIndex = 0;
-        button.textContent = "入力";
-        button.disabled = false;
-        return;
-      }
-      samplingLocationTargetIndex = ((samplingLocationTargetIndex % targets.length) + targets.length) % targets.length;
-      button.textContent = targets[samplingLocationTargetIndex].label || "箇所";
-      button.title = targets.length > 1 ? "タップして変更対象を切替" : "タップして採取箇所を入力";
+    function getSamplingLocationDisplayLabel(target, sourceText) {
+      if (!target) return "入力";
+      if (target.kind === "room-floor" || target.kind === "room-number") return target.label;
+
+      const text = String(sourceText || "");
+      let tokenStart = target.start;
+      let tokenEnd = target.end;
+      while (tokenStart > 0 && !/\s/.test(text[tokenStart - 1])) tokenStart -= 1;
+      while (tokenEnd < text.length && !/\s/.test(text[tokenEnd])) tokenEnd += 1;
+      const token = text.slice(tokenStart, tokenEnd).trim();
+
+      if (token && token.length <= 8) return token;
+      return target.label || target.raw || "箇所";
     }
 
-    function cycleSamplingLocationTarget() {
-      const targets = getSamplingLocationTargets(roomNoInput ? roomNoInput.value : "");
+    function updateSamplingLocationTargets() {
+      const container = document.getElementById("samplingLocationTargets");
+      if (!container) return;
+
+      const sourceText = String(roomNoInput ? roomNoInput.value : "");
+      const targets = getSamplingLocationTargets(sourceText).slice(0, 4);
+      container.innerHTML = "";
+
+      if (!targets.length) {
+        samplingLocationTargetIndex = 0;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "sampling-location-target-button active";
+        button.textContent = "入力";
+        button.addEventListener("click", () => promptRoomNo());
+        container.appendChild(button);
+        return;
+      }
+
+      samplingLocationTargetIndex = Math.min(Math.max(0, samplingLocationTargetIndex), targets.length - 1);
+      targets.forEach((target, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "sampling-location-target-button";
+        button.classList.toggle("active", index === samplingLocationTargetIndex);
+        button.textContent = getSamplingLocationDisplayLabel(target, sourceText);
+        button.title = index === samplingLocationTargetIndex
+          ? "もう一度押すと採取箇所を直接入力"
+          : "この項目を変更対象にする";
+        button.addEventListener("click", () => selectSamplingLocationTarget(index));
+        container.appendChild(button);
+      });
+    }
+
+    function selectSamplingLocationTarget(index) {
+      const targets = getSamplingLocationTargets(roomNoInput ? roomNoInput.value : "").slice(0, 4);
       if (!targets.length) {
         promptRoomNo();
         return;
       }
-      if (targets.length === 1) {
+
+      const nextIndex = Math.min(Math.max(0, Number(index) || 0), targets.length - 1);
+      if (samplingLocationTargetIndex === nextIndex) {
         promptRoomNo();
         return;
       }
-      samplingLocationTargetIndex = (samplingLocationTargetIndex + 1) % targets.length;
-      updateSamplingLocationTargetButton();
-      showToast(`変更対象：${targets[samplingLocationTargetIndex].label}`);
+
+      samplingLocationTargetIndex = nextIndex;
+      updateSamplingLocationTargets();
+      showToast(`変更対象：${getSamplingLocationDisplayLabel(targets[nextIndex], roomNoInput ? roomNoInput.value : "")}`);
     }
 
     function changeSamplingLocation(delta) {
@@ -182,7 +219,7 @@
       roomNoInput.value = original.slice(0, target.start) + replacement + original.slice(target.end);
       saveBoardForm();
       saveSamplingNameHistoryForCurrentCase(roomNoInput.value);
-      updateSamplingLocationTargetButton();
+      updateSamplingLocationTargets();
       showToast(`採取箇所：${roomNoInput.value || "未入力"}`);
     }
 

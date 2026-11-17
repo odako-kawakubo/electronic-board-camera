@@ -65,6 +65,14 @@
       return Boolean(window.Tutorial?.isRunning?.());
     }
 
+    function syncSelectedCaseKeyFromSession(session = window.CaseSession?.getCurrentSession?.()) {
+      if (!session?.id || session.kind === "tutorial" || isTutorialCaseId(session.id)) {
+        selectedCaseKey = "";
+        return;
+      }
+      selectedCaseKey = `case:${session.id}`;
+    }
+
     function getCaseSummaries() {
       const map = new Map();
 
@@ -470,6 +478,15 @@
         casePickerList.appendChild(button);
       });
     }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      syncSelectedCaseKeyFromSession();
+      if (window.CaseSession?.subscribe) {
+        CaseSession.subscribe(({ session }) => {
+          syncSelectedCaseKeyFromSession(session);
+        });
+      }
+    });
 
     if (casePickerSearchInput && casePickerSearchInput.dataset.bound !== "1") {
       casePickerSearchInput.dataset.bound = "1";

@@ -69,9 +69,10 @@
   <div id="importModeOverlay" aria-label="看板添付の種類を選択">
     <div class="import-mode-panel">
       <h2>看板添付</h2>
-      <p>使用する看板を選択してください。</p>
-      <button type="button" class="import-mode-button primary" onclick="chooseExistingBoardImport()">既存看板</button>
-      <button type="button" class="import-mode-button" onclick="chooseFreeBoardImport()">フリー看板</button>
+      <p id="importModeMessage">使用する看板を選択してください。</p>
+      <button id="importExistingBoardButton" type="button" class="import-mode-button primary" onclick="chooseExistingBoardImport()">既存看板</button>
+      <button id="importFreeBoardButton" type="button" class="import-mode-button" onclick="chooseFreeBoardImport()">フリー看板</button>
+      <button id="importExistingPhotoButton" type="button" class="import-mode-button primary" onclick="openImportPhotoPicker()" hidden>写真を選択</button>
       <button type="button" class="import-mode-cancel" onclick="closeImportModePicker()">キャンセル</button>
     </div>
   </div>

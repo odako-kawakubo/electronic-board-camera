@@ -19,6 +19,10 @@
     const importProgressBadge = document.getElementById("importProgressBadge");
     const importBoardPositionLabel = document.getElementById("importBoardPositionLabel");
     const importModeOverlay = document.getElementById("importModeOverlay");
+    const importModeMessage = document.getElementById("importModeMessage");
+    const importExistingBoardButton = document.getElementById("importExistingBoardButton");
+    const importFreeBoardButton = document.getElementById("importFreeBoardButton");
+    const importExistingPhotoButton = document.getElementById("importExistingPhotoButton");
     let pendingImportTarget = null;
     let activeImportSession = null;
     let activeImportBaseDataUrl = "";
@@ -43,6 +47,24 @@
       startCamera();
     }
 
+    function renderImportModeChooser() {
+      if (importModeMessage) importModeMessage.textContent = "使用する看板を選択してください。";
+      if (importExistingBoardButton) importExistingBoardButton.hidden = false;
+      if (importFreeBoardButton) importFreeBoardButton.hidden = false;
+      if (importExistingPhotoButton) importExistingPhotoButton.hidden = true;
+    }
+
+    function renderExistingImportReady(target = {}) {
+      const caseId = String(target?.targetCaseId || "");
+      const subject = String(target?.targetCaseSubject || "");
+      if (importModeMessage) {
+        importModeMessage.textContent = [caseId, subject].filter(Boolean).join("　") + "\n写真を選択してください。";
+      }
+      if (importExistingBoardButton) importExistingBoardButton.hidden = true;
+      if (importFreeBoardButton) importFreeBoardButton.hidden = true;
+      if (importExistingPhotoButton) importExistingPhotoButton.hidden = false;
+    }
+
     async function chooseImportMode() {
       if (!importPhotoInput) return;
       if (launchResumePanel && launchResumePanel.classList.contains("show")) {
@@ -53,12 +75,14 @@
         return;
       }
       pendingImportTarget = null;
+      renderImportModeChooser();
       importModeOverlay?.classList.add("show");
     }
 
     function closeImportModePicker() {
       importModeOverlay?.classList.remove("show");
       pendingImportTarget = null;
+      renderImportModeChooser();
     }
 
     function openImportPhotoPicker() {
@@ -82,10 +106,14 @@
             targetCaseSubject: String(target?.caseSubject || ""),
             targetAddress: String(target?.address || "")
           };
-          openImportPhotoPicker();
+          // iPhone SafariではOneDrive読込後の自動input.click()が拒否されるため、
+          // 案件選択後はいったんこの画面へ戻し、利用者のタップから写真選択を開く。
+          renderExistingImportReady(pendingImportTarget);
+          importModeOverlay?.classList.add("show");
         },
         onCancel: () => {
           pendingImportTarget = null;
+          renderImportModeChooser();
           importModeOverlay?.classList.add("show");
         }
       });

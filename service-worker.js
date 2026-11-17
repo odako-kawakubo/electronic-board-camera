@@ -2,7 +2,7 @@
  * v66.6A Service Worker
  * 最新版優先 + 圏外時は直近キャッシュから起動する。
  */
-const APP_CACHE = "electronic-board-camera-v66.6A-review";
+const APP_CACHE = "electronic-board-camera-v66.6-stable";
 const APP_CACHE_PREFIX = "electronic-board-camera-";
 
 const APP_FILES = [

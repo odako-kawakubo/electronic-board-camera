@@ -3,12 +3,11 @@
  * onedrive-root.js - OneDrive業務ルート解決
  * ============================================================
  * 責務:
- * - 「03 サンプリング」を案件選択 / 写真保存の業務ルートとして解決する
+ * - 「03 サンプリング」を案件選択 / 写真保存の業務ルートとして固定IDで解決する
  * - 「03 サンプリング / サンプリング写真」を仮案件写真ルートとして解決する
- * - 「04 調査」を正式案件Excel参照用の業務ルートとして解決する
+ * - 「04 調査」を正式案件Excel参照用の業務ルートとして固定IDで解決する
  *
- * どちらのルートも、固定共有URLを第一経路とし、
- * 解決できない場合だけOneDrive検索へフォールバックする。
+ * 共有URL変換やフォルダ名検索には依存せず、設定済みdriveId/itemIdを正本とする。
  * ============================================================
  */
 (function () {
@@ -24,64 +23,49 @@
     return root ? { ...root } : null;
   }
 
-  async function resolveConfiguredRoot(expectedName, sharedUrl, errorCode) {
-    const name = String(expectedName || "").trim();
-    let sharedError = null;
-
-    try {
-      const root = await OneDriveClient.resolveSharedUrl(sharedUrl);
-      return { ...root, rootSource: "fixed-share" };
-    } catch (error) {
-      sharedError = error;
-      console.warn(`${name || "業務ルート"}共有URL解決失敗。OneDrive検索へフォールバックします`, error);
-    }
-
-    const keyword = name.replace(/^\d+\s*/, "").trim() || name;
-    const found = await OneDriveClient.searchDriveFolders(keyword);
-    const candidates = found.filter((item) => String(item?.name || "").includes(name));
-    const candidate = candidates[0]
-      || found.find((item) => String(item?.name || "").includes(keyword))
-      || null;
-
-    if (!candidate?.driveId || !candidate?.itemId) {
-      const error = new Error(`${name || "共有フォルダ"}のdriveId/itemIdを取得できませんでした。`);
+  function configuredRoot(name, driveIdValue, itemIdValue, errorCode) {
+    const driveId = String(driveIdValue || "").trim();
+    const itemId = String(itemIdValue || "").trim();
+    if (!driveId || !itemId) {
+      const error = new Error(`${name || "OneDrive業務ルート"}の接続先IDが設定されていません。`);
       error.code = errorCode;
-      error.sharedUrlError = sharedError;
       throw error;
     }
-
-    return { ...candidate, rootSource: "search-fallback" };
+    return {
+      driveId,
+      itemId,
+      id: itemId,
+      name: String(name || "").trim(),
+      rootSource: "configured-id"
+    };
   }
 
   async function getSamplingRoot({ force = false } = {}) {
-    if (!force && samplingRootCache?.driveId && samplingRootCache?.itemId) {
-      return cloneRoot(samplingRootCache);
+    if (force || !samplingRootCache?.driveId || !samplingRootCache?.itemId) {
+      samplingRootCache = configuredRoot(
+        MicrosoftConfig.samplingRootName,
+        MicrosoftConfig.samplingRootDriveId,
+        MicrosoftConfig.samplingRootItemId,
+        "SAMPLING_ROOT_ID_MISSING"
+      );
+      samplingPhotoRootCache = null;
     }
-
-    samplingRootCache = await resolveConfiguredRoot(
-      MicrosoftConfig.samplingRootName,
-      MicrosoftConfig.samplingRootUrl,
-      "SAMPLING_ROOT_RESOLVE_FAILED"
-    );
-    samplingPhotoRootCache = null;
     return cloneRoot(samplingRootCache);
   }
 
   async function getSurveyRoot({ force = false } = {}) {
-    if (!force && surveyRootCache?.driveId && surveyRootCache?.itemId) {
-      return cloneRoot(surveyRootCache);
+    if (force || !surveyRootCache?.driveId || !surveyRootCache?.itemId) {
+      surveyRootCache = configuredRoot(
+        MicrosoftConfig.surveyRootName,
+        MicrosoftConfig.surveyRootDriveId,
+        MicrosoftConfig.surveyRootItemId,
+        "SURVEY_ROOT_ID_MISSING"
+      );
     }
-
-    surveyRootCache = await resolveConfiguredRoot(
-      MicrosoftConfig.surveyRootName,
-      MicrosoftConfig.surveyRootUrl,
-      "SURVEY_ROOT_RESOLVE_FAILED"
-    );
     return cloneRoot(surveyRootCache);
   }
 
   async function getProjectRoot({ force = false } = {}) {
-    // 案件選択と写真保存は「03 サンプリング」直下を正本とする。
     return getSamplingRoot({ force });
   }
 

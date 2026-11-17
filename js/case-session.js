@@ -20,6 +20,7 @@
   const SESSION_MAP_KEY = "electronic-board-camera-case-session-map-v1";
   const COUNTER_PREFIX = "electronic-board-camera-case-session-counter-v1-";
   const DEVICE_NAME_KEY = "electronic-board-camera-device-name-v1";
+  const DEVICE_NAME_CONFIRMED_KEY = "electronic-board-camera-device-name-confirmed-v1";
   const FORMAL_PHOTO_FOLDER_NAME = "採取写真";
   const ORIGINAL_FOLDER_NAME = "元画像";
   const folderEnsurePromises = new Map();
@@ -64,9 +65,34 @@
     }
   }
 
+  function initializeDeviceIdentity() {
+    try {
+      const saved = String(localStorage.getItem(DEVICE_NAME_KEY) || "").trim();
+      const confirmed = localStorage.getItem(DEVICE_NAME_CONFIRMED_KEY) === "1";
+      if (saved && confirmed) return saved;
+
+      const fallback = saved || createDefaultDeviceName();
+      const entered = window.prompt(
+        "この端末の名前を入力してください。\nあとから設定画面で変更できます。",
+        fallback
+      );
+      const next = sanitizeFolderPart(
+        entered === null ? fallback : (String(entered).trim() || fallback)
+      );
+      localStorage.setItem(DEVICE_NAME_KEY, next);
+      localStorage.setItem(DEVICE_NAME_CONFIRMED_KEY, "1");
+      return next;
+    } catch (error) {
+      return getDeviceName();
+    }
+  }
+
   function setDeviceName(value) {
     const next = sanitizeFolderPart(value);
-    try { localStorage.setItem(DEVICE_NAME_KEY, next); } catch (error) {}
+    try {
+      localStorage.setItem(DEVICE_NAME_KEY, next);
+      localStorage.setItem(DEVICE_NAME_CONFIRMED_KEY, "1");
+    } catch (error) {}
     renderSessionPanel();
     return next;
   }
@@ -696,6 +722,8 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    // 案件やOneDrive保存先を作る前に、端末名を1回だけ利用者に確定してもらう。
+    initializeDeviceIdentity();
     getCurrentSession();
     renderSessionPanel();
 
@@ -727,6 +755,7 @@
     endTutorialSession,
     renderSessionPanel,
     getDeviceName,
+    initializeDeviceIdentity,
     setDeviceName,
     changeDeviceName,
     buildFolderName,
